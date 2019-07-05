@@ -1,1 +1,5 @@
 bin/
+tokens/
+*.json
+/..gitignore.un~
+/.gitignore~
