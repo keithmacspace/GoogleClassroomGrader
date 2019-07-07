@@ -1,0 +1,23 @@
+package googleClassroomInterface;
+
+import java.util.List;
+
+import javax.swing.SwingWorker;
+
+import model.ClassroomData;
+
+public class CourseFetcher extends ClassroomDataFetcher {
+	public CourseFetcher(GoogleClassroomCommunicator authorize, DataFetchListener listener) {
+		super(authorize, listener);
+	}
+	
+	
+	@Override
+	protected Integer doInBackground() throws Exception {
+		authorize.getClasses(this);
+		return 0;
+	}
+
+
+
+}
