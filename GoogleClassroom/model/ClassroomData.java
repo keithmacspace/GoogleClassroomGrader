@@ -7,14 +7,14 @@ import java.util.Date;
 public class ClassroomData implements Comparable<ClassroomData> {
 	private String name;
 	private String id;
-	private Date creationDate;
+	private Date date;
 	private boolean isEmpty;
 	static SimpleDateFormat formatter = new SimpleDateFormat("yyy-MM-dd'T'HH:mm:ss.SSSZ");
 	public ClassroomData() {
 		isEmpty = true;
 		name = "None";
 		id = "0";
-		creationDate = null;
+		date = null;
 	}
 
 	public ClassroomData(String name, String id, String creationTime) {
@@ -35,7 +35,7 @@ public class ClassroomData implements Comparable<ClassroomData> {
 		this.name = name;
 		this.id = id;
 		isEmpty = false;
-		creationDate = creationTime;
+		date = creationTime;
 
 	}
 
@@ -47,8 +47,8 @@ public class ClassroomData implements Comparable<ClassroomData> {
 		return id;
 	}
 
-	public Date getCreationDate() {
-		return creationDate;
+	public Date getDate() {
+		return date;
 	}
 
 	public boolean isEmpty() {
@@ -71,13 +71,13 @@ public class ClassroomData implements Comparable<ClassroomData> {
 			}
 			return 1;
 		}
-		if (o.creationDate == null) {
+		if (o.date == null) {
 			return 1;
 		}
-		if (creationDate == null) {
+		if (date == null) {
 			return -1;
 		}
-		int creationCompare = creationDate.compareTo(o.creationDate);
+		int creationCompare = date.compareTo(o.date);
 		if (creationCompare != 0) {
 			return creationCompare;
 		}

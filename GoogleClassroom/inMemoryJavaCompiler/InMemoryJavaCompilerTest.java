@@ -15,6 +15,10 @@ public class InMemoryJavaCompilerTest {
 		sourceCode.append("package org.mdkt;\n");
 		sourceCode.append("public class HelloClass {\n");
 		sourceCode.append("   public String hello() { return \"hello\"; }");
+		sourceCode.append("public static void main(String[] args) {");
+		sourceCode.append("    System.out.println(\"Hello World!\");");
+		sourceCode.append("}");
+				
 		sourceCode.append("}");
 
 		Class<?> helloClass = InMemoryJavaCompiler.newInstance().compile("org.mdkt.HelloClass", sourceCode.toString());
@@ -22,6 +26,11 @@ public class InMemoryJavaCompilerTest {
 		Class<?> noparams[] = {};
 		Method method = helloClass.getDeclaredMethod("hello", noparams);
 		System.out.println(method.invoke(obj));
+		Class<?> params[] = {String[].class};
+		Method main = helloClass.getDeclaredMethod("main", params);
+		String[] empty = {};
+		Object[] args = {null };
+		main.invoke(null, args);
 		
 //		//Assert.//AssertNotNull(helloClass);
 //		//Assert.//AssertEquals(1, helloClass.getDeclaredMethods().length);

@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.security.GeneralSecurityException;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.concurrent.Semaphore;
 
@@ -25,6 +27,7 @@ import com.google.api.services.classroom.model.AssignmentSubmission;
 import com.google.api.services.classroom.model.Attachment;
 import com.google.api.services.classroom.model.Course;
 import com.google.api.services.classroom.model.CourseWork;
+import com.google.api.services.classroom.model.Date;
 import com.google.api.services.classroom.model.DriveFile;
 import com.google.api.services.classroom.model.ListCourseWorkResponse;
 import com.google.api.services.classroom.model.ListCoursesResponse;
@@ -33,6 +36,7 @@ import com.google.api.services.classroom.model.ListStudentsResponse;
 import com.google.api.services.classroom.model.Name;
 import com.google.api.services.classroom.model.Student;
 import com.google.api.services.classroom.model.StudentSubmission;
+import com.google.api.services.classroom.model.TimeOfDay;
 import com.google.api.services.classroom.model.UserProfile;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
@@ -116,7 +120,7 @@ public class GoogleClassroomCommunicator {
 	}
 
 	private void acquireReadAssignmentSemaphore() {
-		System.out.println("Acquiring readAssignmentsSemaphore: " + readAssignmentsSemaphore.availablePermits());
+		
 		cancelCurrentAssignmentRead = true;
 		try {
 			readAssignmentsSemaphore.acquire();
@@ -127,7 +131,7 @@ public class GoogleClassroomCommunicator {
 	}
 
 	private void acquireReadStudentsSemaphore() {
-		System.out.println("Acquiring readStudentsSemaphore: " + readStudentsSemaphore.availablePermits());
+		
 		cancelCurrentStudentRead = true;
 		try {
 			readStudentsSemaphore.acquire();
@@ -138,7 +142,7 @@ public class GoogleClassroomCommunicator {
 	}
 
 	private void acquireReadStudentsWorkSemaphore() {
-		System.out.println("Acquiring readStudentsWorkSemaphore: " + readStudentsWorkSemaphore.availablePermits());
+		
 		cancelCurrentStudentWorkRead = true;
 		try {
 			readStudentsWorkSemaphore.acquire();
@@ -185,7 +189,7 @@ public class GoogleClassroomCommunicator {
 				}
 				Name name = studentProfile.getName();
 				fetchListener.retrievedInfo(new StudentData(name.getGivenName(), name.getFamilyName(),
-						studentProfile.getId(), course.getCreationDate()));
+						studentProfile.getId(), course.getDate()));
 			}
 		} catch (IOException e) {
 			readStudentsSemaphore.release();
@@ -198,7 +202,7 @@ public class GoogleClassroomCommunicator {
 	public void getAssignments(ClassroomData course, DataFetchListener fetchListener) throws IOException {
 		if (course.isEmpty()) {
 			return;
-		}
+		}		
 		acquireReadAssignmentSemaphore();
 		acquireReadStudentsWorkSemaphore();
 		try {
@@ -209,9 +213,17 @@ public class GoogleClassroomCommunicator {
 			for (CourseWork courseWork : courseListResponse.getCourseWork()) {
 				if (cancelCurrentAssignmentRead) {
 					break;
+				}				
+				Date date = courseWork.getDueDate();
+				TimeOfDay timeOfDay = courseWork.getDueTime();
+				if (date != null && timeOfDay != null) {
+					Integer hours = timeOfDay.getHours();
+					Integer minutes = timeOfDay.getMinutes();
+					Calendar temp = new GregorianCalendar(date.getYear(), date.getMonth(), date.getDay(), (hours == null)?0:hours, (minutes == null)?0:minutes);
+					
+					java.util.Date dueDate = temp.getTime();
+					fetchListener.retrievedInfo(new ClassroomData(courseWork.getTitle(), courseWork.getId(), dueDate));
 				}
-				fetchListener.retrievedInfo(
-						new ClassroomData(courseWork.getTitle(), courseWork.getId(), courseWork.getCreationTime()));
 			}
 		} catch (IOException e) {
 			readStudentsWorkSemaphore.release();
@@ -230,9 +242,9 @@ public class GoogleClassroomCommunicator {
 		}
 		
 		try {
-			System.out.println("getting student work");
+
 			acquireReadStudentsWorkSemaphore();
-			System.out.println("got semaphore");
+
 			initServices();
 			ListStudentSubmissionsResponse studentSubmissionResponse = classroomService.courses().courseWork()
 					.studentSubmissions().list(course.getId(), assignment.getId()).execute();
@@ -250,7 +262,7 @@ public class GoogleClassroomCommunicator {
 						DriveFile driveFile = attachment.getDriveFile();
 						String title = driveFile.getTitle();
 						if (title.contains(".java")) {
-							System.out.println(driveFile.getTitle());
+
 							ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 							driveService.files().get(driveFile.getId()).executeMediaAndDownloadTo(outputStream);
 							String fileContents = outputStream.toString("US-ASCII");

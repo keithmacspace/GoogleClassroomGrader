@@ -2,12 +2,27 @@ package gui;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
+import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.security.GeneralSecurityException;
+import java.util.List;
+import java.util.Scanner;
 
 import javax.swing.JFrame;
+import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
 import javax.swing.UIManager;
 import javax.swing.UIManager.LookAndFeelInfo;
 import javax.swing.UnsupportedLookAndFeelException;
@@ -20,27 +35,32 @@ import googleClassroomInterface.FetchDoneListener;
 import googleClassroomInterface.FileFetcher;
 import googleClassroomInterface.GoogleClassroomCommunicator;
 import googleClassroomInterface.StudentFetcher;
+import inMemoryJavaCompiler.CompileListener;
+import inMemoryJavaCompiler.CompilerMessage;
 import inMemoryJavaCompiler.StudentWorkCompiler;
 import model.ClassroomData;
 import model.FileData;
 import model.StudentData;
 
-public class MainGoogleClassroomFrame extends JFrame implements MainToolBarListener {
+public class MainGoogleClassroomFrame extends JFrame
+		implements MainToolBarListener, CompileListener, StudentPanelListener {
 	private static final long serialVersionUID = 7452928818734325088L;
 	private static final String APP_NAME = "Google Classroom Grader";
+	private GoogleClassroomCommunicator googleClassroom;
+	private StudentPanel studentPanel;
+	private StudentWorkCompiler studentWorkCompiler;
 	private MainToolBar mainToolBar;
-	GoogleClassroomCommunicator googleClassroom;
-	StudentPanel studentPanel;
-	StudentWorkCompiler studentWorkCompiler;
+	private JSplitPane splitPanePrimary;
+	private ConsoleAndSourcePanel consoleAndSourcePanel;
+
+
 
 	public MainGoogleClassroomFrame() {
 		super(APP_NAME);
 		initGoogle();
 		setLayout();
 		initClassOptions();
-		studentWorkCompiler = new StudentWorkCompiler();
-		setMinimumSize(new Dimension(400, 400));
-		setSize(800, 500);
+		studentWorkCompiler = new StudentWorkCompiler(this);
 		setVisible(true);
 	}
 
@@ -79,16 +99,28 @@ public class MainGoogleClassroomFrame extends JFrame implements MainToolBarListe
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		setMinimumSize(new Dimension(400, 400));
+		setSize(800, 500);
 		setLayout(new BorderLayout());
+		consoleAndSourcePanel = new ConsoleAndSourcePanel();
+
 		mainToolBar = new MainToolBar();
 		studentPanel = new StudentPanel();
+		
 		add(mainToolBar, BorderLayout.PAGE_START);
-		add(studentPanel);
+		add(studentPanel, BorderLayout.WEST);
+		studentPanel.setStudentPanelListener(this);		
+		splitPanePrimary = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, studentPanel, consoleAndSourcePanel);
+		add(splitPanePrimary, BorderLayout.CENTER);
+
+
+
 		mainToolBar.addListener(this);
 		setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
 		addWindowListener(new WindowAdapter() {
 			@Override
 			public void windowClosing(WindowEvent ev) {
+				consoleAndSourcePanel.setDone();
 				dispose();
 				System.gc();
 
@@ -140,11 +172,14 @@ public class MainGoogleClassroomFrame extends JFrame implements MainToolBarListe
 		if (studentWorkCompiler != null) {
 
 			studentWorkCompiler.clearData();
+			studentPanel.setAssignment(mainToolBar.getCourse());
 			FileFetcher fetcher = new FileFetcher(mainToolBar.getCourse(), data, googleClassroom,
 					new DataFetchListener() {
 						@Override
 						public void retrievedInfo(ClassroomData data) {
-							studentWorkCompiler.addFile((FileData) data);
+							FileData fileData = (FileData) data;
+							studentWorkCompiler.addFile(fileData);
+							studentPanel.addFileData(fileData);
 						}
 					}, new FetchDoneListener() {
 
@@ -158,5 +193,43 @@ public class MainGoogleClassroomFrame extends JFrame implements MainToolBarListe
 		}
 
 	}
+
+	@Override
+	public void runClicked() {
+		String id = studentPanel.getSelectedId();
+		if (id != null) {
+			consoleAndSourcePanel.runStarted(id);
+			studentWorkCompiler.run(id);
+		}
+	}
+
+	@Override
+	public void runAllClicked() {
+		studentWorkCompiler.runAll();
+
+	}
+
+	@Override
+	public void compileResults(List<CompilerMessage> result) {
+		studentPanel.addCompilerMessages(result);
+	}
+
+	@Override
+	public void compileDone() {
+
+	}
+	
+	@Override
+	public void runDone() {
+		consoleAndSourcePanel.runStopped();
+	}
+
+	@Override
+	public void studentSelected(String id) {
+		List<FileData> fileDataList = studentWorkCompiler.getSourceCode(id);
+		consoleAndSourcePanel.studentSelected(id, fileDataList);
+	}
+
+
 
 }

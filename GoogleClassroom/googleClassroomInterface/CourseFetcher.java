@@ -1,10 +1,5 @@
 package googleClassroomInterface;
 
-import java.util.List;
-
-import javax.swing.SwingWorker;
-
-import model.ClassroomData;
 
 public class CourseFetcher extends ClassroomDataFetcher {
 	public CourseFetcher(GoogleClassroomCommunicator authorize, DataFetchListener listener) {

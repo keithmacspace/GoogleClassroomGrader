@@ -2,9 +2,9 @@ package model;
 
 public class FileData extends ClassroomData {
 
-	String fileContents;
-	String packageName;
-	String className;
+	private String fileContents;
+	private String packageName;
+	private String className;
 	public FileData(String name, String fileContents, String id, String creationTime) {
 		super(name, id, creationTime);
 		this.fileContents = fileContents;
@@ -14,8 +14,7 @@ public class FileData extends ClassroomData {
 		if (packageIndex != -1) {
 			int semicolonIndex = fileContents.indexOf(";", packageIndex);
 			packageName = fileContents.substring(packageIndex + "package ".length(), semicolonIndex);
-			packageName = packageName.replaceAll("\\s", "");
-			System.out.println(packageName);
+			packageName = packageName.replaceAll("\\s", "");			
 			className = packageName + "." + className;
 		}									
 	}
