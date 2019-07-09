@@ -2,26 +2,15 @@ package gui;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
-import java.io.PrintStream;
-import java.io.PrintWriter;
 import java.security.GeneralSecurityException;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
 
 import javax.swing.JFrame;
-import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
-import javax.swing.JTextArea;
-import javax.swing.JTextField;
-import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 import javax.swing.UIManager;
 import javax.swing.UIManager.LookAndFeelInfo;
@@ -40,6 +29,7 @@ import inMemoryJavaCompiler.CompilerMessage;
 import inMemoryJavaCompiler.StudentWorkCompiler;
 import model.ClassroomData;
 import model.FileData;
+import model.Rubric;
 import model.StudentData;
 
 public class MainGoogleClassroomFrame extends JFrame
@@ -52,14 +42,15 @@ public class MainGoogleClassroomFrame extends JFrame
 	private MainToolBar mainToolBar;
 	private JSplitPane splitPanePrimary;
 	private ConsoleAndSourcePanel consoleAndSourcePanel;
-
-
+	private SwingWorker<Void, Void> getRubricWorker;
+	private SwingWorker<Void, Void> runAllWorker;
 
 	public MainGoogleClassroomFrame() {
 		super(APP_NAME);
 		initGoogle();
 		setLayout();
 		initClassOptions();
+		initRubrics();
 		studentWorkCompiler = new StudentWorkCompiler(this);
 		setVisible(true);
 	}
@@ -106,14 +97,12 @@ public class MainGoogleClassroomFrame extends JFrame
 
 		mainToolBar = new MainToolBar();
 		studentPanel = new StudentPanel();
-		
+
 		add(mainToolBar, BorderLayout.PAGE_START);
 		add(studentPanel, BorderLayout.WEST);
-		studentPanel.setStudentPanelListener(this);		
+		studentPanel.setStudentPanelListener(this);
 		splitPanePrimary = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, studentPanel, consoleAndSourcePanel);
 		add(splitPanePrimary, BorderLayout.CENTER);
-
-
 
 		mainToolBar.addListener(this);
 		setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
@@ -161,6 +150,25 @@ public class MainGoogleClassroomFrame extends JFrame
 		fetcher.execute();
 	}
 
+	private void initRubrics() {
+		getRubricWorker = new SwingWorker<Void, Void>() {
+
+			@Override
+			protected Void doInBackground() throws Exception {
+				// TODO Auto-generated method stub
+				List<Rubric> rubrics = new ArrayList<Rubric>();
+				googleClassroom.getRubrics(
+						"https://drive.google.com/open?id=1EYN9SBQWd9gqz5eK7UDy_qQY0B1529f6r-aOw8n2Oyk", rubrics);
+				mainToolBar.setRubrics(rubrics);
+				return null;
+
+			}
+
+		};
+		getRubricWorker.execute();
+
+	}
+
 	@Override
 	public void classSelected(ClassroomData data) {
 		initAssignmentOptions(data);
@@ -195,6 +203,11 @@ public class MainGoogleClassroomFrame extends JFrame
 	}
 
 	@Override
+	public void rubricSelected(Rubric rubric) {
+		studentPanel.setRubric(rubric);
+	}
+
+	@Override
 	public void runClicked() {
 		String id = studentPanel.getSelectedId();
 		if (id != null) {
@@ -205,8 +218,26 @@ public class MainGoogleClassroomFrame extends JFrame
 
 	@Override
 	public void runAllClicked() {
-		studentWorkCompiler.runAll();
+		runAllWorker = new SwingWorker<Void, Void>() {
 
+			@Override
+			protected Void doInBackground() throws Exception {
+
+				int student = 0;
+				String id = studentPanel.getStudentId(student);
+				while (id != null) {
+					studentPanel.selectStudent(student);
+					runClicked();
+					student++;
+					id = studentPanel.getStudentId(student);
+					wait(500);
+					System.out.println("moving on");
+				}
+				return null;
+			}
+
+		};
+		runAllWorker.execute();
 	}
 
 	@Override
@@ -218,7 +249,7 @@ public class MainGoogleClassroomFrame extends JFrame
 	public void compileDone() {
 
 	}
-	
+
 	@Override
 	public void runDone() {
 		consoleAndSourcePanel.runStopped();
@@ -229,7 +260,5 @@ public class MainGoogleClassroomFrame extends JFrame
 		List<FileData> fileDataList = studentWorkCompiler.getSourceCode(id);
 		consoleAndSourcePanel.studentSelected(id, fileDataList);
 	}
-
-
 
 }

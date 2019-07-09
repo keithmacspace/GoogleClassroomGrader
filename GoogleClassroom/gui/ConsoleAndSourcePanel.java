@@ -58,22 +58,31 @@ public class ConsoleAndSourcePanel extends JPanel {
 	}
 
 	public void studentSelected(String id, List<FileData> fileDataList) {
-		sourceCode.setText("");
-		if (outputMap.containsKey(id)) {
-			consoleOutput.setText(outputMap.get(id));
-		} else {
-			consoleOutput.setText("");
-		}
-		if (fileDataList != null) {
-			SwingUtilities.invokeLater(new Runnable() {
-				@Override
-				public void run() {
-					for (FileData fileData : fileDataList) {
-						sourceCode.append(fileData.getFileContents());
-					}
+		SwingUtilities.invokeLater(new Runnable() {
+
+			@Override
+			public void run() {
+				sourceCode.setText("");
+				if (outputMap.containsKey(id)) {
+					consoleOutput.setText(outputMap.get(id));
+				} else {
+					consoleOutput.setText("");
 				}
-			});
-		}
+				if (fileDataList != null) {
+					SwingUtilities.invokeLater(new Runnable() {
+						@Override
+						public void run() {
+							for (FileData fileData : fileDataList) {
+								sourceCode.append(fileData.getFileContents());
+								sourceCode.setCaretPosition(0);
+							}
+						}
+					});
+				}				
+			}
+			
+		});
+
 	}
 
 	public void runStarted(String id) {
@@ -168,7 +177,6 @@ public class ConsoleAndSourcePanel extends JPanel {
 		consoleWorker = new SwingWorker<Void, Character>() {
 			@Override
 			protected void done() {
-				System.out.println("Closing streams");
 				super.done();
 			}
 

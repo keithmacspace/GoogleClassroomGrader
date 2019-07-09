@@ -24,5 +24,7 @@
 	<classpathentry kind="lib" path="C:/java_jars/classroom_maven/jsr305-1.3.9.jar"/>
 	<classpathentry kind="lib" path="C:/java_jars/classroom_maven/servlet-api-2.5-20081211.jar"/>
 	<classpathentry kind="lib" path="C:/java_jars/google_drive/google-api-services-drive-v3-rev165-1.25.0.jar"/>
+	<classpathentry kind="lib" path="C:/java_jars/sqlite-jdbc-3.27.2.1.jar"/>
+	<classpathentry kind="lib" path="C:/java_jars/classroom_maven/google-api-services-sheets-v4-rev516-1.23.0.jar"/>
 	<classpathentry kind="output" path=""/>
 </classpath>

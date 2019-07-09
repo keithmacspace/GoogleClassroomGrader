@@ -11,20 +11,25 @@ import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JToolBar;
+import javax.swing.SwingUtilities;
 import javax.swing.border.BevelBorder;
 
 import model.ClassroomData;
+import model.Rubric;
 
 public class MainToolBar extends JToolBar {
 	private static final long serialVersionUID = 5112657453014257288L;
 	private List<MainToolBarListener> listeners;
 	private JComboBox<ClassroomData> classroomCombo;
 	private JComboBox<ClassroomData> assignmentCombo;
+	private JComboBox<Rubric> rubricCombo; 
 	private DefaultComboBoxModel<ClassroomData> assignmentModel;
-	private DefaultComboBoxModel<ClassroomData> classModel;
+	private DefaultComboBoxModel<ClassroomData> classModel; 
+	private DefaultComboBoxModel<Rubric> rubricModel;
 	private ClassroomData empty;
 	private JButton run;
 	private JButton runAll;
+	private List<Rubric> rubrics;
 
 
 	public MainToolBar() {
@@ -36,6 +41,10 @@ public class MainToolBar extends JToolBar {
 		assignmentCombo = new JComboBox<ClassroomData>();
 		assignmentModel = new DefaultComboBoxModel<ClassroomData>();
 		assignmentCombo.setModel(assignmentModel);
+		rubricCombo = new JComboBox<Rubric>();
+		rubricModel = new DefaultComboBoxModel<Rubric>();
+		rubricCombo.setModel(rubricModel);
+		rubricModel.addElement(new Rubric("", "None", 0));
 		run = new JButton("Run");
 		runAll = new JButton("RunAll");
 
@@ -43,6 +52,7 @@ public class MainToolBar extends JToolBar {
 		empty = new ClassroomData();
 		add(classroomCombo);
 		add(assignmentCombo);
+		add(rubricCombo);
 		add(run);
 		add(runAll);
 
@@ -82,8 +92,24 @@ public class MainToolBar extends JToolBar {
 				for (MainToolBarListener listener : listeners) {
 					listener.assignmentSelected(data);
 				}
-
+				rubricCombo.setSelectedIndex(0);
 			}
+		});
+		
+		rubricCombo.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				Object item = rubricCombo.getSelectedItem();
+				if (item != null) {
+					Rubric rubric = (Rubric)item;
+					for (MainToolBarListener listener : listeners) {
+						listener.rubricSelected(rubric);
+					}
+				}
+				
+			}
+			
 		});
 		
 		run.addActionListener(new ActionListener() {
@@ -127,11 +153,37 @@ public class MainToolBar extends JToolBar {
 	}
 
 	public void addClass(ClassroomData className) {
-		classModel.addElement(className);
+		SwingUtilities.invokeLater(new Runnable() {
+			@Override
+			public void run() {
+				classModel.addElement(className);
+			}
+		});
 	}
 
 	public void addAssignment(ClassroomData data) {
-		assignmentModel.insertElementAt(data, 1);
+		SwingUtilities.invokeLater(new Runnable() {
+
+			@Override
+			public void run() {
+				assignmentModel.insertElementAt(data, 1);
+			}
+		});
+	}
+
+	public void setRubrics(List<Rubric> rubrics) {
+		this.rubrics = rubrics;
+		SwingUtilities.invokeLater(new Runnable() {
+
+			@Override
+			public void run() {
+				for (Rubric rubric : rubrics)  {
+					rubricModel.addElement(rubric);
+				}
+				
+			}
+			
+		});
 	}
 
 }

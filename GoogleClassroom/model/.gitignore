@@ -2,3 +2,13 @@
 /StudentData.class
 /StudentListModel.class
 /FileData.class
+/DataBase.class
+/ClassroomData$fieldNames.class
+/FileData$fieldNames.class
+/StudentData$fieldNames.class
+/RubricNames.class
+/Rubric.class
+/RubricEntry.class
+/RubricEntry$automationType.class
+/RubricEntry$AutomationTypes.class
+/RubricEntry$HeadingNames.class

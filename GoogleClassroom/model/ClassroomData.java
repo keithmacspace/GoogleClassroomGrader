@@ -3,12 +3,15 @@ package model;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Map;
 
 public class ClassroomData implements Comparable<ClassroomData> {
 	private String name;
 	private String id;
 	private Date date;
 	private boolean isEmpty;
+	public static enum fieldNames {ID, NAME, DATE}
+
 	static SimpleDateFormat formatter = new SimpleDateFormat("yyy-MM-dd'T'HH:mm:ss.SSSZ");
 	public ClassroomData() {
 		isEmpty = true;
@@ -84,5 +87,29 @@ public class ClassroomData implements Comparable<ClassroomData> {
 
 		return o.name.compareToIgnoreCase(name);
 	}
+	
+	
+	public String[] getDBValues() {
+		String [] dbString = {getId(), getName(), "" + date.getTime()};
+		return dbString;
+		
+	}
+	
+	public void setDBValue(fieldNames field, String value) {		
+		switch (field) {
+		case ID:
+			id = value;
+			break;
+		case NAME:
+			name = value;
+			break;
+		case DATE:
+			date = new Date(Long.parseLong(value));
+			break;
+		default:
+			throw new IllegalArgumentException("Missing enum value");
+		}
+	}
+	
 
 }

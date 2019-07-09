@@ -10,6 +10,8 @@ import javax.swing.table.DefaultTableCellRenderer;
 
 import inMemoryJavaCompiler.CompilerMessage;
 import model.ClassroomData;
+import model.FileData;
+import model.StudentData;
 
 public class StudentListRenderer extends DefaultTableCellRenderer {
 	private static final long serialVersionUID = -7082168845923165249L;
@@ -19,42 +21,62 @@ public class StudentListRenderer extends DefaultTableCellRenderer {
 	@Override
 	public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus,
 			int row, int column) {
-		String valueString = null;
-		boolean makeRed = false;
-		if (value != null && value instanceof Date) {
-			Date date = (Date) value;
-			valueString = date.toString();
-			
-			if (assignmentDate != null && date.compareTo(assignmentDate) < 0) {
-				makeRed = true;
-			}
-		}
-		if (value != null && value instanceof CompilerMessage) {
-			CompilerMessage message = (CompilerMessage) value;
-			if (message.isSuccessful()) {
-				valueString = "Y";
-			} else {
-				valueString = "N - " + message.getCompilerMessage();
-				makeRed = true;
-			}
-		}
 
-		Component c = super.getTableCellRendererComponent(table, valueString, isSelected, hasFocus, row, column);
-		if (makeRed) {			
-			c.setForeground(Color.RED);
+		Component c = null;
+		boolean makeRed = false;
+		if (value != null) {
+			String valueString = null;
+
+			switch (column) {
+			case StudentListModel.DATE_COLUMN:
+				Date date = ((FileData)value).getDate();
+				if (date != null) {
+					valueString = date.toString();
+
+					if (assignmentDate != null && date.compareTo(assignmentDate) < 0) {
+						makeRed = true;
+					}					
+				}else {
+					valueString = value.toString();
+				}
+				break;
+			case StudentListModel.COMPILER_COLUMN:
+				CompilerMessage message = (CompilerMessage) value;
+				if (message.isSuccessful()) {
+					valueString = "Y";
+				} else {
+					valueString = "N - " + message.getCompilerMessage();
+					makeRed = true;
+				}
+				break;
+			case StudentListModel.LAST_NAME_COLUMN:
+				StudentData studentData = (StudentData)value;
+				valueString = studentData.getFirstName();
+				break;
+			case StudentListModel.FIRST_NAME_COLUMN:
+				StudentData lastNameStudentData = (StudentData)value;
+				valueString = lastNameStudentData.getName();
+				break;
+			default:
+				valueString = value.toString();
+				break;				
+			}
+			c = super.getTableCellRendererComponent(table, valueString, isSelected, hasFocus, row, column);
+		} else {
+			c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
 		}
-		else {
+		if (makeRed) {
+			c.setForeground(Color.RED);
+		} else {
 			c.setForeground(Color.BLACK);
 		}
-
 		return c;
 	}
 
 	public void setAssignment(ClassroomData assignment) {
 		if (assignment == null) {
 			assignmentDate = null;
-		}
-		else {
+		} else {
 			assignmentDate = assignment.getDate();
 		}
 	}

@@ -154,7 +154,4 @@ public class StudentWorkCompiler {
 
 	}
 
-	public void runAll() {
-	}
-
 }

@@ -6,11 +6,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.swing.SwingUtilities;
 import javax.swing.table.AbstractTableModel;
 
 import inMemoryJavaCompiler.CompilerMessage;
 import model.ClassroomData;
 import model.FileData;
+import model.Rubric;
+import model.RubricEntry;
 import model.StudentData;
 
 public class StudentListModel extends AbstractTableModel {
@@ -21,10 +24,14 @@ public class StudentListModel extends AbstractTableModel {
 	private Map<String, Integer> idToRowMap;
 	private List<CompilerMessage> compilerMessage;
 	private List<FileData> fileData;
+	private List<Integer> maxValues;
+	private Rubric currentRubric;
 
-	private static final int DATE_COLUMN = 2;
-	private static final int COMPILER_COLUMN = 3;	
-	private static final int NUM_DEFAULT_COLUMNS = 4;
+	public static final int LAST_NAME_COLUMN = 0;
+	public static final int FIRST_NAME_COLUMN = 1;
+	public static final int DATE_COLUMN = 2;
+	public static final int COMPILER_COLUMN = 3;
+	public static final int NUM_DEFAULT_COLUMNS = 4;
 
 	public StudentListModel() {
 		studentData = new ArrayList<StudentData>();
@@ -33,13 +40,13 @@ public class StudentListModel extends AbstractTableModel {
 		fileData = new ArrayList<FileData>();
 		columnNames = new ArrayList<String>();
 		idToRowMap = new HashMap<String, Integer>();
+		maxValues = new ArrayList<Integer>();
 		clearAll();
 		addColumn("Last Name");
 		addColumn("First Name");
 		addColumn("Turned In");
 		addColumn("Compiled");
 	}
-
 
 	@Override
 	public String getColumnName(int column) {
@@ -49,15 +56,15 @@ public class StudentListModel extends AbstractTableModel {
 	@Override
 	public Class<?> getColumnClass(int columnIndex) {
 		if (columnIndex == DATE_COLUMN) {
-			return Date.class;
-		}
-		else if (columnIndex == COMPILER_COLUMN) {
+			return FileData.class;
+		} else if (columnIndex == COMPILER_COLUMN) {
 			return CompilerMessage.class;
 		}
-		else if (columnIndex < NUM_DEFAULT_COLUMNS) {
-			return String.class;
+
+		else if (columnIndex <= FIRST_NAME_COLUMN) {
+			return StudentData.class;
 		}
-		return Double.class;
+		return String.class;
 	}
 
 	@Override
@@ -75,7 +82,8 @@ public class StudentListModel extends AbstractTableModel {
 
 	@Override
 	public int getColumnCount() {
-		return rubricValues.size() + NUM_DEFAULT_COLUMNS;
+		int size = rubricValues.size() + NUM_DEFAULT_COLUMNS;
+		return size;
 	}
 
 	@Override
@@ -84,26 +92,72 @@ public class StudentListModel extends AbstractTableModel {
 			return null;
 		}
 		switch (columnIndex) {
-		case 0:
-			return studentData.get(rowIndex).getName();
-		case 1:
-			return studentData.get(rowIndex).getFirstName();
-		case 2:
+		case LAST_NAME_COLUMN:
+			return studentData.get(rowIndex);
+		case FIRST_NAME_COLUMN:
+			return studentData.get(rowIndex);
+		case DATE_COLUMN:
 			Date date = null;
 			FileData file = fileData.get(rowIndex);
-			if (file != null) {
-				date = fileData.get(rowIndex).getDate();
-			}
-			return date;
-		case 3:
-			CompilerMessage message = compilerMessage.get(rowIndex);			
+			return file;
+		case COMPILER_COLUMN:
+			CompilerMessage message = compilerMessage.get(rowIndex);
 			return message;
 		default:
-			return rubricValues.get(columnIndex - NUM_DEFAULT_COLUMNS).get(rowIndex);
+			double value = rubricValues.get(columnIndex - NUM_DEFAULT_COLUMNS).get(rowIndex);
+			if ((int) value == value) {
+				return "" + ((int) value);
+			}
+			return "" + value;
 
 		}
 	}
-	
+
+	@Override
+	public void setValueAt(Object aValue, int rowIndex, int columnIndex) {
+
+		if (aValue != null) {
+			if (columnIndex >= NUM_DEFAULT_COLUMNS) {
+				if (aValue instanceof String) {				
+					int valueIndex = columnIndex - NUM_DEFAULT_COLUMNS;
+					Double value = 0.0;
+					try {
+						value = Double.parseDouble((String) aValue);
+					} catch (NumberFormatException e) {
+						return;
+					}
+					if (value <= maxValues.get(valueIndex)) {
+						rubricValues.get(valueIndex).set(rowIndex, value);
+						fireTableCellUpdated(rowIndex, columnIndex);
+					}
+				}
+			}
+			else if (columnIndex == DATE_COLUMN) {
+				fileData.set(rowIndex, (FileData)aValue);				
+			}
+			else if (columnIndex <= FIRST_NAME_COLUMN) {
+				studentData.set(rowIndex, (StudentData)aValue);
+			}
+			else if (columnIndex == COMPILER_COLUMN) {
+				if (currentRubric != null) {
+					SwingUtilities.invokeLater(new Runnable() {
+						@Override
+						public void run() {
+							Map<Integer, Double> columnsToChange = currentRubric.compileDone((CompilerMessage)aValue, COMPILER_COLUMN + 1);
+							if (columnsToChange != null) {
+								for (Integer column : columnsToChange.keySet()) {
+									setValueAt(columnsToChange.get(column).toString(), rowIndex, columnIndex);
+								}
+							}
+						}	
+					});
+					
+				}
+			}
+		}
+
+	}
+
 	public void clearAll() {
 		studentData.clear();
 		rubricValues.clear();
@@ -114,30 +168,38 @@ public class StudentListModel extends AbstractTableModel {
 		addColumn("Last Name");
 		addColumn("First Name");
 		addColumn("Turned In");
-		addColumn("Compiled");		
+		addColumn("Compiled");
 	}
-	
-	public void clearRubric() {
-		rubricValues.clear();
+
+	public void newAssignmentSelected() {
+		clearRubric();
 		for (int i = 0; i < fileData.size(); i++) {
 			fileData.set(i, null);
 		}
 		for (int i = 0; i < compilerMessage.size(); i++) {
 			compilerMessage.set(i, null);
 		}
+		fireTableDataChanged();
+	}
+
+	public void clearRubric() {
+		currentRubric = null;
+		rubricValues.clear();
+		maxValues.clear();
+		fireTableStructureChanged();
 	}
 
 	public void addColumn(String name) {
 		columnNames.add(name);
-	}	
+	}
 
 	public void addCompilerMessages(List<CompilerMessage> messages) {
 		for (CompilerMessage message : messages) {
 			compilerMessage.set(idToRowMap.get(message.getStudentId()), message);
 		}
-		fireTableDataChanged();		
+		fireTableDataChanged();
 	}
-	
+
 	public void addFileData(FileData fileDataInfo) {
 		if (fileDataInfo.getDate() != null) {
 			int index = idToRowMap.get(fileDataInfo.getId());
@@ -149,7 +211,7 @@ public class StudentListModel extends AbstractTableModel {
 		fireTableDataChanged();
 	}
 
-	public void addStudent(StudentData student) {		
+	public void addStudent(StudentData student) {
 		boolean inserted = false;
 		for (int i = 0; i < studentData.size(); i++) {
 			StudentData other = studentData.get(i);
@@ -165,6 +227,9 @@ public class StudentListModel extends AbstractTableModel {
 		compilerMessage.add(null);
 		fileData.add(null);
 		idToRowMap.clear();
+		for (List<Double> rubricValue : rubricValues) {
+			rubricValue.add(0.0);
+		}
 		int index = 0;
 		for (StudentData data : studentData) {
 			idToRowMap.put(data.getId(), index);
@@ -172,12 +237,30 @@ public class StudentListModel extends AbstractTableModel {
 		}
 		fireTableDataChanged();
 	}
-	
+
 	public String getStudentId(int row) {
-		if (row >= 0 && row < studentData.size()) {			
-			ClassroomData student = studentData.get(row);
+		if (row >= 0 && row < studentData.size()) {
+			ClassroomData student = (ClassroomData)getValueAt(row, 0);
 			return student.getId();
 		}
 		return null;
 	}
+
+	public void setRubric(Rubric rubric) {
+		clearRubric();
+		currentRubric = rubric;
+		for (RubricEntry entry : rubric.getEntries()) {
+			ArrayList<Double> values = new ArrayList<Double>();
+			maxValues.add(entry.getValue());
+			rubricValues.add(values);
+			String name = entry.getName();
+			name = "<html>" + name + "<br>Value = " + entry.getValue() + "</html>";
+			addColumn(name);
+			for (int i = 0; i < studentData.size(); i++) {
+				values.add(0.0);
+			}
+		}
+		fireTableStructureChanged();
+	}
+	 
 }

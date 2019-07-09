@@ -6,10 +6,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.security.GeneralSecurityException;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.concurrent.Semaphore;
+
+import javax.swing.SwingWorker;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
@@ -40,10 +43,16 @@ import com.google.api.services.classroom.model.TimeOfDay;
 import com.google.api.services.classroom.model.UserProfile;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
+import com.google.api.services.sheets.v4.Sheets;
+import com.google.api.services.sheets.v4.SheetsScopes;
+import com.google.api.services.sheets.v4.model.Sheet;
+import com.google.api.services.sheets.v4.model.Spreadsheet;
+import com.google.api.services.sheets.v4.model.ValueRange;
 import com.google.common.collect.ImmutableList;
 
 import model.ClassroomData;
 import model.FileData;
+import model.Rubric;
 import model.StudentData;
 
 public class GoogleClassroomCommunicator {
@@ -57,7 +66,7 @@ public class GoogleClassroomCommunicator {
 			.add(ClassroomScopes.CLASSROOM_COURSES_READONLY).add(ClassroomScopes.CLASSROOM_ROSTERS_READONLY)
 			.add(ClassroomScopes.CLASSROOM_COURSEWORK_STUDENTS_READONLY).add(DriveScopes.DRIVE)
 			.add(DriveScopes.DRIVE_FILE).add(DriveScopes.DRIVE_APPDATA).add(DriveScopes.DRIVE_METADATA_READONLY)
-			.build();
+			.add(SheetsScopes.SPREADSHEETS).build();
 
 	NetHttpTransport httpTransport;
 	private String applicationName;
@@ -65,6 +74,7 @@ public class GoogleClassroomCommunicator {
 	private String credentialsFilePath;
 	private Classroom classroomService;
 	private Drive driveService;
+	private Sheets sheetsService;
 	private static Semaphore readAssignmentsSemaphore = new Semaphore(1);
 	private static Semaphore getCredentialsSemaphore = new Semaphore(1);
 	private static Semaphore readStudentsSemaphore = new Semaphore(1);
@@ -72,6 +82,7 @@ public class GoogleClassroomCommunicator {
 	private static boolean cancelCurrentAssignmentRead = false;
 	private static boolean cancelCurrentStudentRead = false;
 	private static boolean cancelCurrentStudentWorkRead = false;
+
 
 	public GoogleClassroomCommunicator(String applicationName, String tokensDirectoryPath, String credentialsFilePath)
 			throws IOException, GeneralSecurityException {
@@ -89,13 +100,20 @@ public class GoogleClassroomCommunicator {
 		}
 		// Build a new authorized API client service.
 
-		if (classroomService == null) {
-			classroomService = new Classroom.Builder(httpTransport, JSON_FACTORY, getCredentials())
-					.setApplicationName(applicationName).build();
-		}
-		if (driveService == null) {
-			driveService = new Drive.Builder(httpTransport, JSON_FACTORY, getCredentials())
-					.setApplicationName(applicationName).build();
+		if (classroomService == null || driveService == null || sheetsService == null) {
+			Credential credentials = getCredentials();
+			if (classroomService == null) {
+				classroomService = new Classroom.Builder(httpTransport, JSON_FACTORY, credentials)
+						.setApplicationName(applicationName).build();
+			}
+			if (driveService == null) {
+				driveService = new Drive.Builder(httpTransport, JSON_FACTORY, credentials)
+						.setApplicationName(applicationName).build();
+			}
+			if (sheetsService == null) {
+				sheetsService = new Sheets.Builder(httpTransport, JSON_FACTORY, credentials)
+						.setApplicationName(applicationName).build();
+			}
 		}
 		getCredentialsSemaphore.release();
 	}
@@ -120,7 +138,7 @@ public class GoogleClassroomCommunicator {
 	}
 
 	private void acquireReadAssignmentSemaphore() {
-		
+
 		cancelCurrentAssignmentRead = true;
 		try {
 			readAssignmentsSemaphore.acquire();
@@ -131,7 +149,7 @@ public class GoogleClassroomCommunicator {
 	}
 
 	private void acquireReadStudentsSemaphore() {
-		
+
 		cancelCurrentStudentRead = true;
 		try {
 			readStudentsSemaphore.acquire();
@@ -142,7 +160,7 @@ public class GoogleClassroomCommunicator {
 	}
 
 	private void acquireReadStudentsWorkSemaphore() {
-		
+
 		cancelCurrentStudentWorkRead = true;
 		try {
 			readStudentsWorkSemaphore.acquire();
@@ -154,14 +172,15 @@ public class GoogleClassroomCommunicator {
 
 	public void getClasses(DataFetchListener fetchListener) throws IOException {
 
-		initServices();		
+		initServices();
 		acquireReadAssignmentSemaphore();
 		acquireReadStudentsSemaphore();
 		try {
 			ListCoursesResponse response = classroomService.courses().list().execute();
 			List<Course> courses = response.getCourses();
 			for (Course course : courses) {
-				fetchListener.retrievedInfo(new ClassroomData(course.getName(), course.getId(), course.getCreationTime()));
+				fetchListener
+						.retrievedInfo(new ClassroomData(course.getName(), course.getId(), course.getCreationTime()));
 			}
 		} catch (IOException e) {
 			readAssignmentsSemaphore.release();
@@ -171,7 +190,6 @@ public class GoogleClassroomCommunicator {
 		readAssignmentsSemaphore.release();
 		readStudentsSemaphore.release();
 	}
-
 
 	public void getStudents(ClassroomData course, DataFetchListener fetchListener) throws IOException {
 		if (course.isEmpty()) {
@@ -202,7 +220,7 @@ public class GoogleClassroomCommunicator {
 	public void getAssignments(ClassroomData course, DataFetchListener fetchListener) throws IOException {
 		if (course.isEmpty()) {
 			return;
-		}		
+		}
 		acquireReadAssignmentSemaphore();
 		acquireReadStudentsWorkSemaphore();
 		try {
@@ -213,14 +231,15 @@ public class GoogleClassroomCommunicator {
 			for (CourseWork courseWork : courseListResponse.getCourseWork()) {
 				if (cancelCurrentAssignmentRead) {
 					break;
-				}				
+				}
 				Date date = courseWork.getDueDate();
 				TimeOfDay timeOfDay = courseWork.getDueTime();
 				if (date != null && timeOfDay != null) {
 					Integer hours = timeOfDay.getHours();
 					Integer minutes = timeOfDay.getMinutes();
-					Calendar temp = new GregorianCalendar(date.getYear(), date.getMonth(), date.getDay(), (hours == null)?0:hours, (minutes == null)?0:minutes);
-					
+					Calendar temp = new GregorianCalendar(date.getYear(), date.getMonth(), date.getDay(),
+							(hours == null) ? 0 : hours, (minutes == null) ? 0 : minutes);
+
 					java.util.Date dueDate = temp.getTime();
 					fetchListener.retrievedInfo(new ClassroomData(courseWork.getTitle(), courseWork.getId(), dueDate));
 				}
@@ -240,7 +259,7 @@ public class GoogleClassroomCommunicator {
 		if (course.isEmpty() || assignment.isEmpty()) {
 			return;
 		}
-		
+
 		try {
 
 			acquireReadStudentsWorkSemaphore();
@@ -279,5 +298,50 @@ public class GoogleClassroomCommunicator {
 		}
 		readStudentsWorkSemaphore.release();
 	}
+	
+	public void getRubrics(String sheetURL, java.util.List<Rubric> rubrics) throws IOException {
+		initServices();
+		final String ID_QUERY = "?id=";
+		int idIndex = sheetURL.indexOf(ID_QUERY);
+		if (idIndex == -1) {
+			System.out.println("Cannot load sheet, bad url");
+		}
+		
+		String id = sheetURL.substring(idIndex + ID_QUERY.length());
+		Spreadsheet spreadSheet = sheetsService.spreadsheets().get(id).execute();
+		List<Sheet> innerSheets = spreadSheet.getSheets();
+		for (Sheet sheet : innerSheets) {			
+			// Read out the titles
+			String name = sheet.getProperties().getTitle();
+			Rubric rubric = new Rubric(id, name, sheet.getProperties().getSheetId());
+			String range = name + "!A1:Z1000";
+			ValueRange response = sheetsService.spreadsheets().values().get(id, range).execute();
+			
+			List<List<Object> > values = response.getValues();
+			rubric.addEntries(values);
+			if (rubric.isEmpty() == false) {
+				rubrics.add(rubric);
+			}
+		}
+
+	}
+	
+//	public static void main(String [] args) throws IOException, GeneralSecurityException {
+//		
+////		String temp = "[#&]gid=([0-9]+)";
+////		String url = "https://docs.google.com/spreadsheets/d/1EYN9SBQWd9gqz5eK7UDy_qQY0B1529f6r-aOw8n2Oyk/edit#gid=1251270873";
+////		String temp2 = "/spreadsheets/d/([a-zA-Z0-9-_]+)";
+////		Pattern pattern = Pattern.compile(temp);
+////		Pattern pattern2 = Pattern.compile(temp2);
+////		Matcher sheetId = pattern.matcher(url);
+////		Matcher fullId = pattern2.matcher(url);
+////		System.out.println(sheetId.group());
+////		System.out.println(fullId.group());
+//		
+//		List<Rubric> rubrics = new ArrayList<Rubric>();
+//		GoogleClassroomCommunicator communicator = new GoogleClassroomCommunicator("Google Classroom Grader", "tokens", "/credentials.json");
+//		communicator.getRubrics("https://drive.google.com/open?id=1EYN9SBQWd9gqz5eK7UDy_qQY0B1529f6r-aOw8n2Oyk", rubrics);
+//		System.out.println(rubrics);
+//	}
 
 }
