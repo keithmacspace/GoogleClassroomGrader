@@ -9,16 +9,18 @@ import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 
 public class Rubric {
 	String name;
-	String urlID;
-	int rubricID;
+
+	String rubricID;
 	List<RubricEntry> entries;
-	public Rubric(String urlID, String name, int rubricID) {
+	boolean finalized;
+	public Rubric(String name, String rubricID) {
 		super();
 		this.name = name;
-		this.urlID = urlID;
 		this.rubricID = rubricID;
 		entries = new ArrayList<RubricEntry>();
 	}
+	
+
 	public void addEntries(List<List<Object> > sheetEntries) {
 		if (sheetEntries.size() > 0) {
 			List<Object> headings = sheetEntries.get(0);
@@ -28,6 +30,10 @@ public class Rubric {
 		}
 	}
 	
+	public String getName() {
+		return name;
+	}
+
 	public boolean isEmpty() {
 		return entries.isEmpty();
 	}
@@ -61,22 +67,20 @@ public class Rubric {
 		return null;
 	}
 	
-	public Map<Integer, Double> compileDone(CompilerMessage message, int startColumn) {
-		Map<Integer, Double> columnsToChange = null;
-		
-		int columnNumber = startColumn;
+	public void runAutomation(CompilerMessage message) {				
 		for (RubricEntry entry : entries) {
-			Double newValue = entry.compileDone(message);
-			if (newValue != null) {
-				if (columnsToChange != null) {
-					columnsToChange = new HashMap<Integer, Double>();
-				}
-				columnsToChange.put(columnNumber, newValue);
-				columnNumber++;
-			}
+			entry.runAutomation(message);
 		}
-		return columnsToChange;
+
 	}
+	
+	public void clearStudentData() {
+		for (RubricEntry entry : entries) {
+			entry.clearStudentData();
+		}
+	}
+	
+
 	
 
 }

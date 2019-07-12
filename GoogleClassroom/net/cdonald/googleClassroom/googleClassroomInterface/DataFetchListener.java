@@ -2,8 +2,11 @@ package net.cdonald.googleClassroom.googleClassroomInterface;
 
 
 
+import java.util.Set;
+
 import net.cdonald.googleClassroom.model.ClassroomData;
 
 public interface DataFetchListener {
-	public abstract void retrievedInfo(ClassroomData data);
+	public void retrievedInfo(ClassroomData data);
+	public void remove(Set<String> ids);
 }

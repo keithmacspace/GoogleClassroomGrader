@@ -3,12 +3,10 @@ package net.cdonald.googleClassroom.gui;
 import java.awt.BorderLayout;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
-import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.util.Date;
+import java.util.ArrayList;
 import java.util.List;
 
-import javax.swing.Action;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
@@ -20,11 +18,10 @@ import javax.swing.table.JTableHeader;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
 
+import net.cdonald.googleClassroom.control.StudentListInfo;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
-import net.cdonald.googleClassroom.model.ClassroomData;
 import net.cdonald.googleClassroom.model.FileData;
 import net.cdonald.googleClassroom.model.Rubric;
-import net.cdonald.googleClassroom.model.RubricEntry;
 import net.cdonald.googleClassroom.model.StudentData;
 
 public class StudentPanel extends JPanel {
@@ -32,38 +29,23 @@ public class StudentPanel extends JPanel {
 	private StudentListModel studentModel;
 	private JTable studentTable;
 	private StudentListRenderer studentListRenderer;
-	private StudentListEditor studentListEditor;
 	private StudentPanelListener studentPanelListener;	
 	private VerticalTableHeaderCellRenderer verticalHeaderRenderer;
 	private boolean resizing;
-	private Rubric currentRubric;
-	private ExcelAdapter excelAdapter;
 
-
-
-
-	public StudentPanel() {
+	public StudentPanel(StudentListInfo studentListInfo) {
 		setLayout(new BorderLayout());
-		studentModel = new StudentListModel();
+		studentModel = new StudentListModel(studentListInfo);
 		studentTable = new JTable(studentModel) {
-            //Implement table header tool tips. 
+			private static final long serialVersionUID = 1L;
+			//Implement table header tool tips. 
             protected JTableHeader createDefaultTableHeader() {
                 return new JTableHeader(columnModel) {
-                    public String getToolTipText(MouseEvent e) {
+					private static final long serialVersionUID = 1L;
+					public String getToolTipText(MouseEvent e) {
                         java.awt.Point p = e.getPoint();
                         int index = columnModel.getColumnIndexAtX(p.x);
-                        int realIndex = columnModel.getColumn(index).getModelIndex();
-                        if (currentRubric != null) {
-                        	realIndex -= StudentListModel.NUM_DEFAULT_COLUMNS;
-                        	if (realIndex >= 0) {
-                        		RubricEntry entry = currentRubric.getEntry(realIndex);
-                        		if (entry != null) {
-                        			return entry.getDescription();
-                        		}
-                        		
-                        	}
-                        }
-                        return null;
+                        return studentListInfo.getColumnTip(index);
                     }
                 };
             }
@@ -73,19 +55,27 @@ public class StudentPanel extends JPanel {
 		studentTable.setCellSelectionEnabled(true);
 		studentTable.getTableHeader().setReorderingAllowed(false);				
 		studentListRenderer = new StudentListRenderer();
-		excelAdapter = new ExcelAdapter(studentTable);
-		//studentListEditor = new StudentListEditor();
+		new ExcelAdapter(studentTable);
+
 		
 		verticalHeaderRenderer = new VerticalTableHeaderCellRenderer();
 		studentTable.setDefaultRenderer(FileData.class, studentListRenderer);
 		studentTable.setDefaultRenderer(CompilerMessage.class, studentListRenderer);
 		studentTable.setDefaultRenderer(StudentData.class, studentListRenderer);
-		studentTable.setDefaultEditor(String.class, studentListEditor);
+
 		setHeaderRenderer();
 	    addComponentListener( new ComponentListener() {
 	        @Override
 	        public void componentResized(ComponentEvent e) {
-	            resizeColumns();
+	        	SwingUtilities.invokeLater(new Runnable() {
+
+					@Override
+					public void run() {					   
+						resizeColumns();						
+					}
+	        		
+	        	});
+	            
 	        }
 
 			@Override
@@ -136,9 +126,9 @@ public class StudentPanel extends JPanel {
 				ListSelectionModel lsm = (ListSelectionModel)e.getSource();
 				if (lsm.isSelectionEmpty() == false) {
 					int selectedRow = lsm.getMinSelectionIndex();
-					String id = studentModel.getStudentId(selectedRow);
-					if (id != null && studentPanelListener != null) {
-						studentPanelListener.studentSelected(id);
+					Object student = studentModel.getValueAt(selectedRow, StudentListInfo.LAST_NAME_COLUMN);
+					if (student != null && studentPanelListener != null) {
+						studentPanelListener.studentSelected(((StudentData)student).getId());
 					}
 				}
 				
@@ -161,19 +151,20 @@ public class StudentPanel extends JPanel {
 	    int width = studentTable.getWidth();
 	    TableColumn column;
 
-	    TableColumnModel jTableColumnModel = studentTable.getColumnModel();
+	    TableColumnModel jTableColumnModel = studentTable.getColumnModel();	    
 	    int numCols = jTableColumnModel.getColumnCount();
 	    final int FIXED_PREFERRED_SIZE = 30;
-	    width = width - (FIXED_PREFERRED_SIZE * (numCols - StudentListModel.COMPILER_COLUMN));
+	    width = width - (FIXED_PREFERRED_SIZE * (numCols - StudentListInfo.COMPILER_COLUMN));
 	    width /= 3;
 	    for (int i = 0; i < numCols; i++) {
 	        column = jTableColumnModel.getColumn(i);
 	        int preferredWidth = FIXED_PREFERRED_SIZE;
-	        if (i < StudentListModel.COMPILER_COLUMN) {
+	        if (i < StudentListInfo.COMPILER_COLUMN) {
 	        	preferredWidth = width;
 	        }
 	        column.setPreferredWidth(preferredWidth);
 	    }
+	    setHeaderRenderer();
 	    resizing = false;
 	}
 	
@@ -189,44 +180,24 @@ public class StudentPanel extends JPanel {
 		studentModel.clearAll();
 	}
 
-	public void addStudent(StudentData student) {
-		studentModel.addStudent(student);
+	public void assignmentSet() {
 		resizeColumns();
-	}
-
-	public void addColumn(String name) {
-		studentModel.addColumn(name);
-	}
-
-	public void setAssignment(ClassroomData assignment) {
-		studentListRenderer.setAssignment(assignment);
-		studentModel.newAssignmentSelected();
-		resizeColumns();
-	}
-
-	public void addCompilerMessages(List<CompilerMessage> messages) {
-		studentModel.addCompilerMessages(messages);
-	}
-
-	public void addFileData(FileData fileDataInfo) {
-		studentModel.addFileData(fileDataInfo);
 	}
 
 	public void setStudentPanelListener(StudentPanelListener studentPanelListener) {
 		this.studentPanelListener = studentPanelListener;
 	}
 	
-	public String[] getSelectedIds() {
+	public List<String> getSelectedIds() {
 		int [] selectedRows = studentTable.getSelectedRows();
-		String [] ids = new String[selectedRows.length];
+		List<String> ids = new ArrayList<String>();		
 		for (int i = 0; i < selectedRows.length; i++) {
-			ids[i] = studentModel.getStudentId(selectedRows[i]);
+			Object student = studentModel.getValueAt(selectedRows[i], StudentListInfo.LAST_NAME_COLUMN);
+			if (student != null) {
+				ids.add(((StudentData)student).getId()); 
+			}
 		}
 		return ids;
-	}
-	
-	public String getStudentId(int row) {
-		return studentModel.getStudentId(row);
 	}
 	
 	public void selectStudent(int row) {
@@ -234,12 +205,10 @@ public class StudentPanel extends JPanel {
 	}
 	
 	public void setRubric(Rubric rubric) {
-		currentRubric = rubric;
 		SwingUtilities.invokeLater(new Runnable() {
 
 			@Override
 			public void run() {
-				studentModel.setRubric(rubric);
 				setHeaderRenderer();
 				revalidate();
 				resizeColumns();
@@ -247,22 +216,31 @@ public class StudentPanel extends JPanel {
 			
 		});
 	}
-	 
 	
-	public List<List<Object> > getColumnValuesForSheet() {
-		List<List<Object> > retVal = studentModel.getColumnValuesForSheet();
-		int columnIndex = 0;
-		for (int i = 0; i < retVal.size(); i++) {
-			String columnName = studentTable.getColumnModel().getColumn(i).getHeaderValue().toString();
-			columnName = columnName.replaceAll("<br>", "\n");
-			columnName = columnName.replaceAll("<html>", "");
-			columnName = columnName.replaceAll("</html>", "");
-			retVal.get(i).add(0, columnName);
-		}
-		return retVal;
+	public void dataChanged() {
+		SwingUtilities.invokeLater(new Runnable() {
+
+			@Override
+			public void run() {
+				studentModel.fireTableDataChanged();				
+			}
+			
+		});		
+		
 	}
 	
-
-
+	public void structureChanged() {
+		studentModel.structureChanged();
+		SwingUtilities.invokeLater(new Runnable() {
+			@Override
+			public void run() {
+				setHeaderRenderer();
+				revalidate();
+				resizeColumns();
+			}
+		});
+		
+	}
+	
 
 }

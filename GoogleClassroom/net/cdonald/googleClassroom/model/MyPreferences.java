@@ -37,10 +37,12 @@ public class MyPreferences {
 	}
 	
 	
-	public void setClassroom(ClassroomData classroom) {		
-		preferences.put(PrefNames.CLASS_NAME.toString(), classroom.getName());
-		preferences.put(PrefNames.CLASS_ID.toString(), classroom.getId());
-		makeDirs();
+	public void setClassroom(ClassroomData classroom) {
+		if (classroom != null) {
+			preferences.put(PrefNames.CLASS_NAME.toString(), classroom.getName());
+			preferences.put(PrefNames.CLASS_ID.toString(), classroom.getId());
+			makeDirs();
+		}
 	}
 	
 	public String getTokenDir() {

@@ -2,6 +2,7 @@ package net.cdonald.googleClassroom.model;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Map;
 
@@ -10,14 +11,18 @@ public class ClassroomData implements Comparable<ClassroomData> {
 	private String id;
 	private Date date;
 	private boolean isEmpty;
+	private boolean retrievedFromGoogle;
 	public static enum fieldNames {ID, NAME, DATE}
 
 	static SimpleDateFormat formatter = new SimpleDateFormat("yyy-MM-dd'T'HH:mm:ss.SSSZ");
+	
+	
 	public ClassroomData() {
 		isEmpty = true;
 		name = "None";
 		id = "0";
 		date = null;
+		retrievedFromGoogle = false;
 	}
 
 	public ClassroomData(String name, String id, String creationTime) {
@@ -36,6 +41,16 @@ public class ClassroomData implements Comparable<ClassroomData> {
 	
 	public ClassroomData(String name, String id) {
 		init(name, id, null);
+	}
+	
+	public ClassroomData(Map<String, String> dbInfo) {
+		for (String fieldName : dbInfo.keySet()) {
+			for (fieldNames field : fieldNames.values()) {
+				if (fieldName.compareToIgnoreCase(field.toString()) == 0) {
+					setDBValue(field, dbInfo.get(fieldName));
+				}
+			}
+		}
 	}
 	
 	private void init(String name, String id, Date creationTime) {
@@ -90,13 +105,15 @@ public class ClassroomData implements Comparable<ClassroomData> {
 	
 	
 	public String[] getDBValues() {
-		String [] dbString = {getId(), getName(), "" + date.getTime()};
+		String [] dbString = {getId(), getName(), (date == null) ? "" : "" + date.getTime()};
 		return dbString;
 		
 	}
 	
-	public void setDBValue(fieldNames field, String value) {		
-		switch (field) {
+
+				
+	public void setDBValue(fieldNames field, String value) { 
+		switch(field) {
 		case ID:
 			id = value;
 			break;
@@ -109,6 +126,14 @@ public class ClassroomData implements Comparable<ClassroomData> {
 		default:
 			throw new IllegalArgumentException("Missing enum value");
 		}
+	}
+
+	public boolean isRetrievedFromGoogle() {
+		return retrievedFromGoogle;
+	}
+
+	public void setRetrievedFromGoogle(boolean retrievedFromGoogle) {
+		this.retrievedFromGoogle = retrievedFromGoogle;
 	}
 	
 

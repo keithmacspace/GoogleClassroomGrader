@@ -13,6 +13,7 @@ import javax.swing.JComponent;
 import javax.swing.JOptionPane;
 import javax.swing.JTable;
 import javax.swing.KeyStroke;
+import javax.swing.table.AbstractTableModel;
 
 /**
  * pulled from
@@ -134,6 +135,9 @@ public class ExcelAdapter implements ActionListener {
 					}
 				}
 			}
+			AbstractTableModel model = (AbstractTableModel)jTable1.getModel();
+			model.fireTableDataChanged();
+			
 		}
 	}
 }

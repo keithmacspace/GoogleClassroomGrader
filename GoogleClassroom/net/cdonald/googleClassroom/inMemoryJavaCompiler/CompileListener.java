@@ -1,8 +1,8 @@
 package net.cdonald.googleClassroom.inMemoryJavaCompiler;
 
-import java.util.List;
+import net.cdonald.googleClassroom.gui.DataUpdateListener;
 
-public interface CompileListener {
-	public void compileResults(List<CompilerMessage> result);
+public interface CompileListener extends DataUpdateListener {
 	public void compileDone();
+
 }

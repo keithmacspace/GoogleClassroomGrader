@@ -10,6 +10,8 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Semaphore;
 
 import javax.swing.JFileChooser;
@@ -22,6 +24,7 @@ import javax.swing.UIManager.LookAndFeelInfo;
 import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.WindowConstants;
 
+import net.cdonald.googleClassroom.control.DataController;
 import net.cdonald.googleClassroom.googleClassroomInterface.AssignmentFetcher;
 import net.cdonald.googleClassroom.googleClassroomInterface.CourseFetcher;
 import net.cdonald.googleClassroom.googleClassroomInterface.DataFetchListener;
@@ -40,44 +43,44 @@ import net.cdonald.googleClassroom.model.Rubric;
 import net.cdonald.googleClassroom.model.StudentData;
 
 public class MainGoogleClassroomFrame extends JFrame implements MainToolBarListener, CompileListener,
-		StudentPanelListener, MainMenuListener, SelectWorkingDirListener, GoogleSheetDialogListener {
+		StudentPanelListener, MainMenuListener, FileResponseListener, GoogleSheetDialogListener, DataStructureChangedListener {
 	private static final long serialVersionUID = 7452928818734325088L;
-	private static final String APP_NAME = "Google Classroom Grader";
-	private GoogleClassroomCommunicator googleClassroom;
+	public static final String APP_NAME = "Google Classroom Grader";
 	private StudentPanel studentPanel;
-	private StudentWorkCompiler studentWorkCompiler;
 	private MainToolBar mainToolBar;
 	private JSplitPane splitPanePrimary;
 	private ConsoleAndSourcePanel consoleAndSourcePanel;
-	private SwingWorker<Void, Void> getRubricWorker;
-	private SwingWorker<Void, Void> runWorker;
+	private SwingWorker<Void, Void> rubricWorker;
+	private SwingWorker<Void, String> runWorker;
 	private SwingWorker<Void, Void> loadSaveWorker;
 	private MainMenu mainMenu;
-	private ClassroomData currentCourse;
-	private MyPreferences prefs;
 	private GoogleSheetDialog importExportDialog;
-	static Semaphore pauseSemaphore = new Semaphore(1);
 	private final String TEMP_URL = "https://drive.google.com/open?id=1EYN9SBQWd9gqz5eK7UDy_qQY0B1529f6r-aOw8n2Oyk";
+	private DataController dataController;
+	private GoogleClassroomCommunicator googleClassroom;
+	private MyPreferences prefs;
 
-	public MainGoogleClassroomFrame() {
+
+	public MainGoogleClassroomFrame() throws InterruptedException {
 		super(APP_NAME);
+
+		dataController = new DataController(this);
 		prefs = new MyPreferences();
 		initGoogle();
 		setLayout();
 		initClassOptions();
 		initRubrics();
+		
 		importExportDialog = new GoogleSheetDialog(this, this, "Google Sheet URL");
-		studentWorkCompiler = new StudentWorkCompiler(this);
 		if (prefs.getClassroom() != null) {
 			classSelected(prefs.getClassroom());
 		}
-
 		setVisible(true);
 	}
 
 	private void initGoogle() {
 		try {
-			googleClassroom = new GoogleClassroomCommunicator(APP_NAME, prefs.getTokenDir(), prefs.getJsonPath());
+			googleClassroom = new GoogleClassroomCommunicator(MainGoogleClassroomFrame.APP_NAME, prefs.getTokenDir(), prefs.getJsonPath());
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -86,6 +89,7 @@ public class MainGoogleClassroomFrame extends JFrame implements MainToolBarListe
 			e.printStackTrace();
 		}
 	}
+
 
 	private void setLayout() {
 		try {
@@ -114,10 +118,11 @@ public class MainGoogleClassroomFrame extends JFrame implements MainToolBarListe
 		setSize(800, 500);
 		setLayout(new BorderLayout());
 		consoleAndSourcePanel = new ConsoleAndSourcePanel();
+		dataController.addConsoleListener(consoleAndSourcePanel);
 
 		mainToolBar = new MainToolBar();
-		studentPanel = new StudentPanel();
-		mainMenu = new MainMenu();
+		studentPanel = new StudentPanel(dataController);
+		mainMenu = new MainMenu(this);
 		mainMenu.setListener(this);
 		setJMenuBar(mainMenu);
 
@@ -132,10 +137,9 @@ public class MainGoogleClassroomFrame extends JFrame implements MainToolBarListe
 		addWindowListener(new WindowAdapter() {
 			@Override
 			public void windowClosing(WindowEvent ev) {
-				consoleAndSourcePanel.setDone();
+				dataController.closing();
 				dispose();
 				System.gc();
-
 			}
 		});
 	}
@@ -147,139 +151,198 @@ public class MainGoogleClassroomFrame extends JFrame implements MainToolBarListe
 			public void retrievedInfo(ClassroomData data) {
 				mainMenu.addClass(data);
 			}
+
+			@Override
+			public void remove(Set<String> ids) {
+				mainMenu.removeClasses(ids);				
+			}
 		});
 		fetcher.execute();
+	}
+	
+	@Override
+	public void classSelected(ClassroomData data) {
+		prefs.setClassroom(data);
+		dataController.setCurrentCourse(prefs, data);		
+		initAssignmentOptions(data);
+		initStudentList(data);
+		if (data != null) {
+			setTitle(APP_NAME + " - " + data.getName());
+		}
 	}
 
 	private void initAssignmentOptions(ClassroomData classSelected) {
 		mainToolBar.clearAssignment();
-		AssignmentFetcher fetcher = new AssignmentFetcher(classSelected, googleClassroom, new DataFetchListener() {
-			@Override
-			public void retrievedInfo(ClassroomData data) {
-				mainToolBar.addAssignment(data);
-			}
-		});
-		fetcher.execute();
-	}
-
-	private void initStudentList(ClassroomData classSelected) {
-		studentPanel.clearStudents();
-		StudentFetcher fetcher = new StudentFetcher(classSelected, googleClassroom, new DataFetchListener() {
-			@Override
-			public void retrievedInfo(ClassroomData data) {
-				studentPanel.addStudent((StudentData) data);
-			}
-		});
-		fetcher.execute();
-	}
-
-	private void initRubrics() {
-		getRubricWorker = new SwingWorker<Void, Void>() {
-
-			@Override
-			protected Void doInBackground() throws Exception {
-				// TODO Auto-generated method stub
-				List<Rubric> rubrics = new ArrayList<Rubric>();
-				googleClassroom.getRubrics(
-						TEMP_URL, rubrics);
-				mainToolBar.setRubrics(rubrics);
-				return null;
-
-			}
-
-		};
-		getRubricWorker.execute();
-
-	}
-
-	@Override
-	public void assignmentSelected(ClassroomData data) {
-		consoleAndSourcePanel.assignmentSelected();
-		if (studentWorkCompiler != null) {
-
-			studentWorkCompiler.clearData();
-			if (currentCourse != null) {
-				studentPanel.setAssignment(currentCourse);
-				FileFetcher fetcher = new FileFetcher(currentCourse, data, googleClassroom, new DataFetchListener() {
-					@Override
-					public void retrievedInfo(ClassroomData data) {
-						FileData fileData = (FileData) data;
-						studentWorkCompiler.addFile(fileData);
-						studentPanel.addFileData(fileData);
-					}
-				}, new FetchDoneListener() {
-
-					@Override
-					public void done() {
-						studentWorkCompiler.compileAll();
-					}
-
-				});
-				fetcher.execute();
-			}
-
+		if (classSelected != null) {
+			dataController.initAssignments(googleClassroom, new DataFetchListener() {
+				@Override
+				public void retrievedInfo(ClassroomData data) {
+					mainToolBar.addAssignment(data);
+				}
+				@Override
+				public void remove(Set<String> ids) {
+					
+				}
+			});
 		}
 
 	}
 
-	@Override
-	public void rubricSelected(Rubric rubric) {
-		studentPanel.setRubric(rubric);
+	private void initStudentList(ClassroomData classSelected) {
+		studentPanel.clearStudents();
+		dataController.initStudents(prefs, googleClassroom);
+	}
+
+	private void initRubrics() {
+		dataController.initRubrics(prefs, TEMP_URL, googleClassroom, new DataFetchListener() {
+			@Override
+			public void retrievedInfo(ClassroomData data) {
+				mainToolBar.addRubric(data);
+			}
+			@Override
+			public void remove(Set<String> ids) {
+				
+			}
+		});
 	}
 
 	@Override
-	public void runClicked() {
-		String[] ids = studentPanel.getSelectedIds();
+	public void assignmentSelected(ClassroomData data) {
+		if (data == null || data.isEmpty()) {
+			return;
+		}
+		consoleAndSourcePanel.assignmentSelected();
+		dataController.assignmentSelected(data, googleClassroom);
 
-		runWorker = new SwingWorker<Void, Void>() {
+	}
+
+	@Override
+	public void rubricSelected(ClassroomData data) {
+		SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
+			
+			protected Void doInBackground() {
+				Rubric rubric = new Rubric(data.getName(), data.getId());
+				try {
+					googleClassroom.fillRubric(TEMP_URL, rubric);
+				} catch (IOException e) {
+					JOptionPane.showMessageDialog(MainGoogleClassroomFrame.this, e.getMessage(), "Error accessing rubric db sheet",
+							JOptionPane.ERROR_MESSAGE);
+					e.printStackTrace();
+					rubric = null;
+				}
+				dataController.setRubric(rubric);
+				if (rubric != null) {
+					mainToolBar.enableRunRubricButton();
+				}
+				return null;
+			}
+		};
+		worker.execute();
+	}
+
+	@Override
+	public void runRubricSelected() {
+		if (dataController.getRubric() == null) {
+			return;
+		}
+
+			
+		rubricWorker = new SwingWorker<Void, Void>() {
+
+			@Override
+			protected Void doInBackground() throws Exception {
+				disableRuns();
+				List<String> ids = studentPanel.getSelectedIds();
+				
+				if (ids.size() == 0) {
+					ids = dataController.getAllIDs();
+				}
+				try {
+					for (String id : ids) {
+						List<FileData> fileDataList = dataController.getSourceCode(id);
+						consoleAndSourcePanel.setWindowData(fileDataList, dataController.getConsoleOutput(id),
+								dataController.getConsoleInputHistory(id));
+						dataController.runRubric(id);
+					}
+				} catch (Exception e) {
+					JOptionPane.showMessageDialog(MainGoogleClassroomFrame.this, e.getMessage(), "Error running the auto-check rubrics",
+							JOptionPane.ERROR_MESSAGE);
+				}
+				return null;
+			}
+			@Override
+			protected void done() {
+				enableRuns();
+
+			}
+		};
+		rubricWorker.execute();
+	}
+
+	@Override
+	public void runSelected() {
+		runWorker = new SwingWorker<Void, String>() {
 
 			@Override
 			protected Void doInBackground() {
-				try {
-					pauseSemaphore.acquire();
-					for (String id : ids) {
-						if (studentWorkCompiler.isRunnable(id)) {
-							consoleAndSourcePanel.runStarted(id);
-							System.err.println("Running " + id);
-							List<FileData> fileDataList = studentWorkCompiler.getSourceCode(id);
-							// This will release the semaphore when we have completed redirecting the screen
-							consoleAndSourcePanel.studentSelected(id, fileDataList, pauseSemaphore);
-							pauseSemaphore.acquire();
-							studentWorkCompiler.run(id);
-						}
-					}
-				} catch (InterruptedException e) {
+				disableRuns();
 
+				List<String> ids = studentPanel.getSelectedIds();
+				
+				if (ids.size() == 0) {
+					ids = dataController.getAllIDs();
 				}
-				pauseSemaphore.release();
+				for (String id : ids) {
+					dataController.run(id);
+					publish(id);
+				}
 				return null;
 			}
-
+			
+			@Override
+			protected void done() {
+				enableRuns();
+				dataController.debugPrint();
+			}
 		};
 		runWorker.execute();
 	}
+	
+	private void disableRuns() {
+		mainToolBar.disableButtons();
+	}
+	
+	private void enableRuns() {
+		mainToolBar.enableRunButton();
+		if (dataController.getRubric() != null) {
+			mainToolBar.enableRunRubricButton();
+		}		
+	}
 
 	@Override
-	public void compileResults(List<CompilerMessage> result) {
-		studentPanel.addCompilerMessages(result);
+	public void dataUpdated() {
+		studentPanel.dataChanged();
+	}
+	
+	@Override
+	public void dataStructureChanged() {
+		studentPanel.structureChanged();
 	}
 
 	@Override
 	public void compileDone() {
-
+		mainToolBar.enableRunButton();
+		mainToolBar.enableRunRubricButton();
 	}
 
 	@Override
 	public void studentSelected(String id) {
-		List<FileData> fileDataList = studentWorkCompiler.getSourceCode(id);
-		consoleAndSourcePanel.studentSelected(id, fileDataList, null);
+		List<FileData> fileDataList = dataController.getSourceCode(id);
+		String outputText = dataController.getConsoleOutput(id);
+		String inputHistoryText = dataController.getConsoleInputHistory(id); 
+		consoleAndSourcePanel.setWindowData(fileDataList, outputText, inputHistoryText);
 	}
 
-	@Override
-	public void runFired() {
-		runClicked();
-
-	}
 
 	@Override
 	public void exitFired() {
@@ -289,14 +352,6 @@ public class MainGoogleClassroomFrame extends JFrame implements MainToolBarListe
 		}
 	}
 
-	@Override
-	public void classSelected(ClassroomData data) {
-		currentCourse = data;
-		prefs.setClassroom(data);
-		initAssignmentOptions(data);
-		initStudentList(data);
-		setTitle(APP_NAME + " - " + data.getName());
-	}
 
 	@Override
 	public void exportFired() {
@@ -327,32 +382,39 @@ public class MainGoogleClassroomFrame extends JFrame implements MainToolBarListe
 			prefs.setWorkingDir(directoryPath);
 		}
 	}
+	
+	@Override
+	public void loadTestFile(String testFile) {
+		classSelected(null);
+		dataController.setCurrentCourse(prefs, null);
+		dataController.loadTestFile(testFile);
+	}
 
 	@Override
 	public boolean urlChanged(String url) {
 		// Validate the url doesn't match the rubric db
 		if (TEMP_URL.equals(url)) {
-			JOptionPane.showMessageDialog(this, "Cannot use rubric db as grade sheet", "Bad URL Name", JOptionPane.ERROR_MESSAGE);
+			JOptionPane.showMessageDialog(this, "Cannot use rubric db as grade sheet", "Don't do that!",
+					JOptionPane.ERROR_MESSAGE);
 			return false;
-		}		
+		}
+		//System.err.println("Fetching from url:" + url);		
 		SheetFetcher fetcher = new SheetFetcher(url, googleClassroom, importExportDialog, importExportDialog);
 		fetcher.execute();
-		return true;		
+		return true;
 	}
 
 	@Override
 	public boolean okSelected(String url, String sheetName) {
 		loadSaveWorker = new SwingWorker<Void, Void>() {
-			
-
 			@Override
 			protected Void doInBackground() throws Exception {
-				List<List<Object> >currentStatus = studentPanel.getColumnValuesForSheet();
+				List<List<Object>> currentStatus = dataController.getColumnValuesForSheet();
 				try {
 					googleClassroom.writeSheet(url, sheetName, currentStatus);
-				}
-				catch (Exception e) {
-					JOptionPane.showMessageDialog(MainGoogleClassroomFrame.this, e.getMessage(), e.getMessage(), JOptionPane.ERROR_MESSAGE);
+				} catch (Exception e) {
+					JOptionPane.showMessageDialog(MainGoogleClassroomFrame.this, e.getMessage(), e.getMessage(),
+							JOptionPane.ERROR_MESSAGE);
 				}
 				return null;
 			}
