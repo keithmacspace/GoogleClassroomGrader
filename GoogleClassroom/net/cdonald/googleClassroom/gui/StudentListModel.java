@@ -1,15 +1,10 @@
 package net.cdonald.googleClassroom.gui;
 
-import java.util.ArrayList;
-import java.util.List;
 
-import javax.swing.SwingUtilities;
 import javax.swing.table.AbstractTableModel;
-import javax.swing.table.DefaultTableModel;
-
 import net.cdonald.googleClassroom.control.StudentListInfo;
 import net.cdonald.googleClassroom.model.ClassroomData;
-import net.cdonald.googleClassroom.model.StudentData;
+
 
 public class StudentListModel extends AbstractTableModel {
 	private static final long serialVersionUID = -3240265069491780098L;

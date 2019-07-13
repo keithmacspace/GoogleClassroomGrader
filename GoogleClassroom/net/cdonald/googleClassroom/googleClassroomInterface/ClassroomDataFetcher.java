@@ -23,8 +23,8 @@ public abstract class ClassroomDataFetcher extends SwingWorker<Integer, Classroo
 	private FetchDoneListener fetchDoneListener;
 	protected IOException communicationException;
 	private SQLException databaseException;
-	private SQLDataBase dataBase;
 	private Exception miscException;
+	private SQLDataBase dataBase;
 	private String dataBaseTable;
 	private Class<? extends Enum<?>> tableLabelEnum;
 
@@ -127,7 +127,7 @@ public abstract class ClassroomDataFetcher extends SwingWorker<Integer, Classroo
 		SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
 
-				if (dataBase != null && databaseException == null) {
+				if (dataBase != null && databaseException == null && miscException == null) {
 					try {						
 						dataBase.save(dataBaseTable, tableLabelEnum, dbAdd);
 						for (ClassroomData dataCheck : dbAdd) {
@@ -167,5 +167,9 @@ public abstract class ClassroomDataFetcher extends SwingWorker<Integer, Classroo
 
 	public SQLException getDatabaseException() {
 		return databaseException;
+	}
+
+	public Exception getMiscException() {
+		return miscException;
 	}
 }

@@ -1,22 +1,23 @@
 package net.cdonald.googleClassroom.model;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 
 public class Rubric {
-	String name;
-
-	String rubricID;
+	GoogleSheetData sheetData;
 	List<RubricEntry> entries;
-	boolean finalized;
-	public Rubric(String name, String rubricID) {
+	boolean inModifiedState;
+	public Rubric(GoogleSheetData sheetData) {
 		super();
-		this.name = name;
-		this.rubricID = rubricID;
+		this.sheetData = sheetData;
+		entries = new ArrayList<RubricEntry>();
+	}
+	
+	// This form is used when we are creating a new rubric from scratch
+	public Rubric() {
+		inModifiedState = true;
 		entries = new ArrayList<RubricEntry>();
 	}
 	
@@ -31,7 +32,11 @@ public class Rubric {
 	}
 	
 	public String getName() {
-		return name;
+		return sheetData.getName();
+	}
+	
+	public String getSpreadsheetId() {
+		return sheetData.getSpreadsheetId();
 	}
 
 	public boolean isEmpty() {
@@ -53,7 +58,7 @@ public class Rubric {
 	}
 	@Override
 	public String toString() {
-		return name;
+		return sheetData.getName();
 	}
 
 	public List<RubricEntry> getEntries() {
@@ -79,6 +84,15 @@ public class Rubric {
 			entry.clearStudentData();
 		}
 	}
+
+	public boolean isInModifiedState() {
+		return inModifiedState;
+	}
+
+	public void setInModifiedState(boolean inModifiedState) {
+		this.inModifiedState = inModifiedState;
+	}
+	
 	
 
 	

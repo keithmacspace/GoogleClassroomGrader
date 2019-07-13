@@ -11,10 +11,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
 import javax.swing.SwingWorker;
-
 import net.cdonald.googleClassroom.gui.ConsoleDisplayListener;
 import net.cdonald.googleClassroom.gui.ConsoleInputListener;
-import net.cdonald.googleClassroom.gui.MainToolBarListener;
+
 
 public class ConsoleData implements ConsoleInputListener{
 	private PipedInputStream inPipe;

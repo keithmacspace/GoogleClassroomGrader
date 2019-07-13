@@ -1,13 +1,18 @@
 package net.cdonald.googleClassroom.gui;
 
 import java.awt.BorderLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.swing.Action;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
@@ -17,6 +22,7 @@ import javax.swing.event.ListSelectionListener;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
+import javax.swing.text.DefaultEditorKit;
 
 import net.cdonald.googleClassroom.control.StudentListInfo;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
@@ -32,6 +38,7 @@ public class StudentPanel extends JPanel {
 	private StudentPanelListener studentPanelListener;	
 	private VerticalTableHeaderCellRenderer verticalHeaderRenderer;
 	private boolean resizing;
+	private JPopupMenu rightClickPopup;
 
 	public StudentPanel(StudentListInfo studentListInfo) {
 		setLayout(new BorderLayout());
@@ -62,60 +69,35 @@ public class StudentPanel extends JPanel {
 		studentTable.setDefaultRenderer(FileData.class, studentListRenderer);
 		studentTable.setDefaultRenderer(CompilerMessage.class, studentListRenderer);
 		studentTable.setDefaultRenderer(StudentData.class, studentListRenderer);
+		
+		createPopupMenu();
 
 		setHeaderRenderer();
 	    addComponentListener( new ComponentListener() {
 	        @Override
 	        public void componentResized(ComponentEvent e) {
 	        	SwingUtilities.invokeLater(new Runnable() {
-
 					@Override
 					public void run() {					   
 						resizeColumns();						
 					}
 	        		
-	        	});
-	            
+	        	});	            
 	        }
-
 			@Override
-			public void componentMoved(ComponentEvent e) {
-				// TODO Auto-generated method stub
-				
+			public void componentMoved(ComponentEvent e) {				
 			}
 
 			@Override
-			public void componentShown(ComponentEvent e) {
-				// TODO Auto-generated method stub
-				
+			public void componentShown(ComponentEvent e) {				
 			}
 
 			@Override
 			public void componentHidden(ComponentEvent e) {
-				// TODO Auto-generated method stub
-				
 			}
 	    });
 	    
 
-//		studentTable.addMouseListener(new MouseAdapter() {			
-//			@Override
-//			public void mouseClicked(MouseEvent e) {				
-//				super.mouseClicked(e);
-//				if (studentPanelListener != null) {
-//					if (e.getButton() == MouseEvent.BUTTON1) {
-//						int row = studentTable.rowAtPoint(e.getPoint());
-//						String id = studentModel.getStudentId(row);
-//						if (id != null) {
-//							studentPanelListener.studentSelected(id);
-//						}
-//					}
-//					
-//					
-//				}
-//			}
-//			
-//		});
 		studentTable.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
 
 			@Override
@@ -138,6 +120,29 @@ public class StudentPanel extends JPanel {
 		});
 		// studentList.setRowHeight(25);
 		add(new JScrollPane(studentTable), BorderLayout.CENTER);
+	}
+	
+	private void createPopupMenu() {
+		rightClickPopup = new JPopupMenu();
+		Action copy = new DefaultEditorKit.CopyAction();
+		rightClickPopup.add(copy);
+		Action paste = new DefaultEditorKit.PasteAction();
+		rightClickPopup.add(paste);
+		
+		JMenuItem addRubricColumn = new JMenuItem("Add Rubric Column...");
+		rightClickPopup.add(addRubricColumn);
+		addRubricColumn.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				if (studentPanelListener != null) {
+					studentPanelListener.openRubricEditorDialog();					
+				}
+			}
+			
+		});
+		
+		studentTable.setComponentPopupMenu(rightClickPopup);
 	}
 	
 

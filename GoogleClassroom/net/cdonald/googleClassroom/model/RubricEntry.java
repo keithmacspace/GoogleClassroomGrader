@@ -8,13 +8,14 @@ import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 
 public class RubricEntry {
 	public static enum HeadingNames {
-		NAME, VALUE, DESCRIPTION, AUTOMATION, AUTOMATION_FILE, AUTOMATION_METHOD
+		ID, NAME, VALUE, DESCRIPTION, METHOD_TO_CALL, NUM_PARAMS, AUTOMATION_TYPE, AUTOMATION_FILE, AUTOMATION_METHOD
 	}
 
 	public static enum AutomationTypes {
-		COMPILES, RUNS, METHOD, NONE
+		NONE, COMPILES, CALL_MAIN, CALL_METHOD, RUN_CODE
 	}
 
+	String id;
 	String name;
 	String description;
 	String automationFile;
@@ -38,6 +39,11 @@ public class RubricEntry {
 				}
 			}
 		}
+		studentScores = new HashMap<String, String>();
+	}
+	
+	// This is the form used when we create it via the dialog box in addRubricEntry
+	public RubricEntry() {
 		studentScores = new HashMap<String, String>();
 	}
 
@@ -88,7 +94,7 @@ public class RubricEntry {
 		case DESCRIPTION:
 			description = param;
 			break;
-		case AUTOMATION:
+		case AUTOMATION_TYPE:
 			for (AutomationTypes automation : AutomationTypes.values()) {
 				if (automation.name().compareToIgnoreCase(param) == 0) {
 					automationType = automation;
@@ -147,10 +153,7 @@ public class RubricEntry {
 				studentScores.put(message.getStudentId(), "0");
 			}
 			break;
-		case RUNS:
-			break;
-		case METHOD:
-			break;
+
 		default:
 			break;
 		}

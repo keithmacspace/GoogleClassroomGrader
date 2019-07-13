@@ -10,7 +10,7 @@ import javax.swing.JTextField;
 import javax.swing.table.TableCellEditor;
 
 public class StudentListEditor extends AbstractCellEditor implements TableCellEditor {
-
+	private static final long serialVersionUID = 1501619200543325132L;
 	private JTextField textField;
 
 	public StudentListEditor() {

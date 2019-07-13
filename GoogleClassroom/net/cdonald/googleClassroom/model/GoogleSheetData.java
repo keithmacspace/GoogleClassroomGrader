@@ -2,15 +2,14 @@ package net.cdonald.googleClassroom.model;
 
 import java.util.Map;
 
-import net.cdonald.googleClassroom.model.FileData.fieldNames;
 
 public class GoogleSheetData extends ClassroomData {
-	private String sheetID;
+	private String sheetId;
 	public enum fieldNames{URL_ID, NAME, SHEET_ID}
 	public static final String DB_NAME = "Rubric_Names";
 	public GoogleSheetData(String name, String urlID, String sheetID) {
-		super(name, urlID + "?gid=" + sheetID);
-		this.sheetID = sheetID;
+		super(name, urlID + sheetID);
+		this.sheetId = sheetID;
 	}
 	
 	public GoogleSheetData(Map<String, String> dbInfo) {
@@ -32,20 +31,27 @@ public class GoogleSheetData extends ClassroomData {
 			super.setDBValue(ClassroomData.fieldNames.NAME, value);
 			break;
 		case SHEET_ID:
-			sheetID = value;
+			sheetId = value;
 			break;
 		default:
 			throw new IllegalArgumentException();
 		}
 	}
+	
+	public String getSpreadsheetId() {
+		// The url id of the spreadsheet is our id after removing the sheetID
+		String spreadsheetId = getId();
+		spreadsheetId = spreadsheetId.substring(0, spreadsheetId.length() - sheetId.length());
+		return spreadsheetId;
+	}
 
-	public String getSheetID() {
-		return sheetID;
+	public String getSheetId() {
+		return sheetId;
 	}
 	
 	public String[] getDBValues() {
 		String [] superString = super.getDBValues();
-		String [] dbString = {superString[0], superString[1], sheetID};
+		String [] dbString = {superString[0], superString[1], sheetId};
 		return dbString;
 	}
 	

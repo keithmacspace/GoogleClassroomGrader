@@ -26,8 +26,9 @@ import javax.swing.UIManager;
  */
 public class VerticalTableHeaderCellRenderer
         extends DefaultTableHeaderCellRenderer {
+	private static final long serialVersionUID = -4823426140319023721L;
 
-  /**
+/**
    * Constructs a <code>VerticalTableHeaderCellRenderer</code>.
    * <P>
    * The horizontal and vertical alignments and text positions are set as

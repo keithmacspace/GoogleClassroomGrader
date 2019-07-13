@@ -1,6 +1,7 @@
 package net.cdonald.googleClassroom.inMemoryJavaCompiler;
 
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.List;
@@ -9,7 +10,6 @@ import java.util.Set;
 
 import javax.swing.SwingWorker;
 
-import net.cdonald.googleClassroom.gui.CompileErrorListener;
 import net.cdonald.googleClassroom.gui.RecompileListener;
 import net.cdonald.googleClassroom.model.FileData;
 
@@ -54,6 +54,23 @@ public class StudentWorkCompiler {
 		this.listener = listener;
 	}
 	
+	public String runSpecificMethod(boolean expectingReturn, String methodName, CompilerMessage message, Class<?> []params, Object[] args) {
+		String id = message.getStudentId();
+		if (studentBuildInfoMap.containsKey(id)) {
+			StudentBuildInfo studentBuildInfo = studentBuildInfoMap.get(id);
+			if (studentBuildInfo.getStudentCompilerMap() != null) {				
+				Map<String, Class<?>> compiled = studentBuildInfo.getStudentCompilerMap();
+				List<FileData> files = studentBuildInfo.getStudentFileData();
+				for (FileData fileData : files) {
+					Class<?> aClass = compiled.get(fileData.getClassName());
+					Method method = getMethod(aClass, methodName, params);
+					String results = runCore(expectingReturn, method, args);
+					return results;
+				}
+			}
+		}
+		throw new IllegalArgumentException();
+	}
 
 	public void compileAll() {
 		compilerWorker = new SwingWorker<Void, CompilerMessage>() {
@@ -121,9 +138,11 @@ public class StudentWorkCompiler {
 				List<FileData> files = studentBuildInfo.getStudentFileData();
 				for (FileData fileData : files) {
 					Class<?> aClass = compiled.get(fileData.getClassName());
-					runCore(aClass);
+					Method method = getMethod(aClass);
+					if (method != null) {
+						runCore(method);
+					}
 				}
-
 			}
 		}
 	}
@@ -144,8 +163,10 @@ public class StudentWorkCompiler {
 				}
 				
 				if (aClass != null) {
-					//System.err.println("Running ");
-					runCore(aClass);
+					Method method = getMethod(aClass);
+					if (method != null) {
+						runCore(method);
+					}
 				}
 				return null;
 			}
@@ -154,25 +175,49 @@ public class StudentWorkCompiler {
 		compilerWorker.execute();
 		
 	}
+	
+	Method getMethod(Class<?> aClass) {
+		Class<?> []params = { String[].class };
+		return getMethod(aClass, "main", params);
+	}
+	
+	Method getMethod(Class<?> aClass, String methodName, Class<?> []params) {
 
-	private void runCore(Class<?> aClass) {
-		Class<?> params[] = { String[].class };
+		Method method = null;
 		try {
-			Method method = aClass.getDeclaredMethod("main", params);
-			Object[] args = { null };
-			method.invoke(null, args);
-			System.out.println("Ran Successfully");
-			// This is how I send the message that execution has completed
-			// Hopefully none of the students will print a zero.
-			// I hate doing this, but I needed some sort of semaphore
-			System.out.println("\0");
+			method = aClass.getDeclaredMethod(methodName, params);
+		} catch (NoSuchMethodException | SecurityException e1) {
+			method = null;
+		}
+		return method;
+	}
+	private String runCore(boolean expectReturn, Method method, Object[] args) {
+		String result = "";
+		try {		
+				if (expectReturn) {
+					result = method.invoke(null, args).toString();
+				}
+				else {
+					method.invoke(null, args);
+				}
+				System.out.println("Ran Successfully");
+				// This is how I send the message that execution has completed
+				// Hopefully none of the students will print a zero.
+				// I hate doing this, but I needed some sort of semaphore
+				System.out.println("\0");
+			
 		} 
 		catch (Exception e) {
 			System.err.println("Exception Caught");
-			System.out.println("Exception Caught\n" + e.getMessage() + "\n");
+			System.out.println("Exception Caught\n" + e.getClass() + e.getMessage() + "\n");
 			System.out.println("\0");
 		}
-		
+		return result;
+	}
+
+	private void runCore(Method method) {
+		Object[] args = {null};
+		runCore(false, method, args);
 	}
 	
 	public boolean isRunnable(String id) {

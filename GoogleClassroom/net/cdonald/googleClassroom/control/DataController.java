@@ -12,6 +12,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.Set;
 
+import javax.swing.JOptionPane;
+
 import net.cdonald.googleClassroom.googleClassroomInterface.AssignmentFetcher;
 import net.cdonald.googleClassroom.googleClassroomInterface.DataFetchListener;
 import net.cdonald.googleClassroom.googleClassroomInterface.FetchDoneListener;
@@ -36,6 +38,7 @@ import net.cdonald.googleClassroom.model.Rubric;
 import net.cdonald.googleClassroom.model.RubricEntry;
 import net.cdonald.googleClassroom.model.SQLDataBase;
 import net.cdonald.googleClassroom.model.StudentData;
+
 
 public class DataController implements StudentListInfo, RecompileListener {
 	private StudentWorkCompiler studentWorkCompiler;
@@ -76,9 +79,16 @@ public class DataController implements StudentListInfo, RecompileListener {
 	}
 
 
-	public void setRubric(Rubric rubric) {
+	public int setRubric(Rubric rubric) {
+		if (this.rubric != null && this.rubric.isInModifiedState() && rubric != this.rubric) {
+			int dialogResult = JOptionPane.showConfirmDialog(null, "Do you want to save the current rubric before changing this one (cancel means do not change rubric)?", "Current Rubric Modified", JOptionPane.YES_NO_CANCEL_OPTION);
+			if (dialogResult != JOptionPane.NO_OPTION) {
+				return dialogResult;
+			}
+		}
 		this.rubric = rubric;
 		structureListener.dataStructureChanged();
+		return JOptionPane.NO_OPTION;
 	}
 	
 

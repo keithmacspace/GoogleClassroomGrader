@@ -2,8 +2,6 @@ package net.cdonald.googleClassroom.model;
 
 import java.util.Map;
 
-import net.cdonald.googleClassroom.model.StudentData.fieldNames;
-
 public class FileData extends ClassroomData {
 
 	private String fileContents;

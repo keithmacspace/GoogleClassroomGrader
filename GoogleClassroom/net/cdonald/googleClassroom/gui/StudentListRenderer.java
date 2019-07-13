@@ -2,17 +2,9 @@ package net.cdonald.googleClassroom.gui;
 
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.Font;
-import java.util.Date;
-
 import javax.swing.JTable;
 import javax.swing.table.DefaultTableCellRenderer;
-
 import net.cdonald.googleClassroom.control.StudentListInfo;
-import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
-import net.cdonald.googleClassroom.model.ClassroomData;
-import net.cdonald.googleClassroom.model.FileData;
-import net.cdonald.googleClassroom.model.StudentData;
 
 public class StudentListRenderer extends DefaultTableCellRenderer {
 	private static final long serialVersionUID = -7082168845923165249L;

@@ -363,9 +363,9 @@ public class GoogleClassroomCommunicator {
 		return innerSheets;
 	}
 
-	public void fillRubric(String sheetURL, Rubric rubric) throws IOException {
+	public void fillRubric(Rubric rubric) throws IOException {
 		initServices();
-		String id = googleSheetID(sheetURL);
+		String id = rubric.getSpreadsheetId();
 		String name = rubric.getName();
 		String range = name + "!A1:Z1000";
 		ValueRange response = sheetsService.spreadsheets().values().get(id, range).execute();
@@ -440,7 +440,7 @@ public class GoogleClassroomCommunicator {
 				.setSpaces("drive").setFields("nextPageToken, files(id, name, parents)").execute();
 		List<com.google.api.services.drive.model.File> folders = result.getFiles();
 		for (com.google.api.services.drive.model.File folder : folders) {
-			//System.out.println(folder);
+			System.out.println(folder);
 		}
 
 	}

@@ -1,6 +1,7 @@
 package net.cdonald.googleClassroom.inMemoryJavaCompiler;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -13,8 +14,15 @@ public class InMemoryJavaCompilerTest {
 		StringBuffer sourceCode = new StringBuffer();
 
 		sourceCode.append("package org.mdkt;\n");
+		sourceCode.append("import java.util.List;");
 		sourceCode.append("public class HelloClass {\n");
-		sourceCode.append("   public String hello() { return \"hello\"; }");
+		sourceCode.append("   public String hello(List<Integer> a) { " 
+				+ "String temp = \"hello\";" 				
+				+ "for (Integer value : a) {" 
+				+ "temp += value;" 
+				+ "}" 
+				+ "return temp;" 
+				+ "}");
 		sourceCode.append("public static void main(String[] args) {");
 		sourceCode.append("    System.out.println(\"Hello World!\");");
 		sourceCode.append("}");
@@ -23,10 +31,17 @@ public class InMemoryJavaCompilerTest {
 
 		Class<?> helloClass = InMemoryJavaCompiler.newInstance().compile("org.mdkt.HelloClass", sourceCode.toString());
 		Object obj = helloClass.getDeclaredConstructor().newInstance();
-		Class<?> noparams[] = {};
-		Method method = helloClass.getDeclaredMethod("hello", noparams);
-		System.out.println(method.invoke(obj));
-		Class<?> params[] = {String[].class};
+		List<Integer> temp = new ArrayList<Integer>();
+		temp.add(1);
+		temp.add(2);
+		temp.add(3);
+		Object[] paramValues = {temp};
+		Class<?> paramClasses[] = {List.class};
+		Method method = helloClass.getDeclaredMethod("hello", paramClasses);
+		
+		System.out.println(method.invoke(obj, paramValues));
+		
+		Class<?>[] params = {String[].class};
 		Method main = helloClass.getDeclaredMethod("main", params);
 		String[] empty = {};
 		Object[] args = {null };
@@ -122,6 +137,8 @@ public class InMemoryJavaCompilerTest {
 	}
 	
 	public static void main(String [] args) throws Exception {
+
+
 		InMemoryJavaCompilerTest test = new InMemoryJavaCompilerTest();
 		test.compile_WhenTypical();
 		try {

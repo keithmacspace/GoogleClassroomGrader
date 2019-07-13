@@ -16,6 +16,7 @@ import javax.swing.KeyStroke;
 import net.cdonald.googleClassroom.model.ClassroomData;
 
 public class MainMenu extends JMenuBar {
+	private static final long serialVersionUID = 5459790818047149118L;
 	private JMenu file;
 	private JMenu help;
 	private JMenu edit;

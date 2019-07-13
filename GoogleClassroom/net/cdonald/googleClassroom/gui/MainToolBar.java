@@ -15,15 +15,16 @@ import javax.swing.SwingUtilities;
 import javax.swing.border.BevelBorder;
 
 import net.cdonald.googleClassroom.model.ClassroomData;
-import net.cdonald.googleClassroom.model.Rubric;
+import net.cdonald.googleClassroom.model.GoogleSheetData;
+
 
 public class MainToolBar extends JToolBar {
 	private static final long serialVersionUID = 5112657453014257288L;
 	private List<MainToolBarListener> listeners;
 	private JComboBox<ClassroomData> assignmentCombo;
-	private JComboBox<ClassroomData> rubricCombo; 
+	private JComboBox<GoogleSheetData> rubricCombo; 
 	private DefaultComboBoxModel<ClassroomData> assignmentModel;
-	private DefaultComboBoxModel<ClassroomData> rubricModel;
+	private DefaultComboBoxModel<GoogleSheetData> rubricModel;
 	private ClassroomData empty;
 	private JButton runButton;
 	private JButton runRubricButton;
@@ -38,10 +39,9 @@ public class MainToolBar extends JToolBar {
 		assignmentCombo = new JComboBox<ClassroomData>();
 		assignmentModel = new DefaultComboBoxModel<ClassroomData>();		
 		assignmentCombo.setModel(assignmentModel);
-		rubricCombo = new JComboBox<ClassroomData>();
-		rubricModel = new DefaultComboBoxModel<ClassroomData>();
-		rubricCombo.setModel(rubricModel);
-		rubricModel.addElement(empty);
+		rubricCombo = new JComboBox<GoogleSheetData>();
+		rubricModel = new DefaultComboBoxModel<GoogleSheetData>();
+		rubricCombo.setModel(rubricModel);		
 		runButton = new JButton("Run");
 		runRubricButton = new JButton("Run Rubrics");
 
@@ -95,7 +95,7 @@ public class MainToolBar extends JToolBar {
 				for (MainToolBarListener listener : listeners) {
 					listener.assignmentSelected(data);
 				}
-				rubricCombo.setSelectedIndex(0);
+				//rubricCombo.setSelectedIndex(0);
 			}
 		});
 		
@@ -105,7 +105,7 @@ public class MainToolBar extends JToolBar {
 			public void actionPerformed(ActionEvent e) {
 				Object item = rubricCombo.getSelectedItem();
 				if (item != null) {
-					ClassroomData rubric = (ClassroomData)item;
+					GoogleSheetData rubric = (GoogleSheetData)item;
 					for (MainToolBarListener listener : listeners) {
 						listener.rubricSelected(rubric);
 					}
@@ -157,7 +157,7 @@ public class MainToolBar extends JToolBar {
 		});
 	}
 
-	public void addRubric(ClassroomData rubric) {
+	public void addRubric(GoogleSheetData rubric) {
 		rubricModel.addElement(rubric);
 	}
 

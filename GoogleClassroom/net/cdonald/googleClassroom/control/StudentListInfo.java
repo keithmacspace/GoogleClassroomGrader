@@ -1,7 +1,7 @@
 package net.cdonald.googleClassroom.control;
 
 import net.cdonald.googleClassroom.gui.StudentListModel;
-import net.cdonald.googleClassroom.model.StudentData;
+
 
 public interface StudentListInfo {
 	public static final int LAST_NAME_COLUMN = 0;

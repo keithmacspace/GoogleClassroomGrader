@@ -60,8 +60,7 @@ public class GoogleSheetDialog extends JDialog implements DataFetchListener, Fet
 
 		int space = 6;
 		Border titleBorder = BorderFactory.createTitledBorder("Copy in the url of the Google sheet you wish to use");
-		Border spaceBorder = BorderFactory.createEmptyBorder(space, space, space, space);
-		Border both = BorderFactory.createCompoundBorder(spaceBorder, titleBorder);
+		Border spaceBorder = BorderFactory.createEmptyBorder(space, space, space, space);		
 		textPanel.setBorder(spaceBorder);
 		controlPanel.setBorder(titleBorder);
 		buttonsPanel.setBorder(spaceBorder);

@@ -3,7 +3,6 @@ package net.cdonald.googleClassroom.model;
 import java.util.Date;
 import java.util.Map;
 
-import net.cdonald.googleClassroom.model.ClassroomData.fieldNames;
 
 public class StudentData extends ClassroomData {
 	private String firstName;	
