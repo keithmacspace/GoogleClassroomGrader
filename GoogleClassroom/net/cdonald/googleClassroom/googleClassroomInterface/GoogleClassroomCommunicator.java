@@ -103,6 +103,8 @@ public class GoogleClassroomCommunicator {
 		this.credentialsFilePath = credentialsFilePath;// .replace('\\', '/');
 		httpTransport = GoogleNetHttpTransport.newTrustedTransport();
 	}
+	
+
 
 	private void initServices() throws IOException {
 		try {
@@ -111,6 +113,7 @@ public class GoogleClassroomCommunicator {
 			getCredentialsSemaphore.release();
 		}
 		// Build a new authorized API client service.
+
 
 		if (classroomService == null || driveService == null || sheetsService == null) {
 			Credential credentials = getCredentials();
@@ -214,9 +217,11 @@ public class GoogleClassroomCommunicator {
 				if (cancelCurrentStudentRead) {
 					break;
 				}
+
 				Name name = studentProfile.getName();
 				StudentData data = new StudentData(name.getGivenName(), name.getFamilyName(), studentProfile.getId(),
 						course.getDate());
+
 				data.setRetrievedFromGoogle(true);
 				fetchListener.retrievedInfo(data);
 			}
@@ -316,7 +321,7 @@ public class GoogleClassroomCommunicator {
 		readStudentsWorkSemaphore.release();
 	}
 
-	private String googleSheetID(String sheetURL) {
+	public String googleSheetID(String sheetURL) {
 
 		final Pattern p = Pattern.compile("/spreadsheets/d/([a-zA-Z0-9-_]+)");
 		Matcher m = p.matcher(sheetURL);
@@ -342,13 +347,38 @@ public class GoogleClassroomCommunicator {
 		// System.err.println(id);
 		return id;
 	}
+	
+	public Spreadsheet getValidSheet(String url) {
+		try {
+			initServices();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		String id = googleSheetID(url);
+		if (id.length() < 25) {
+			return null;
+		}		
+		Spreadsheet spreadSheet = null;
+		try {
+			spreadSheet = sheetsService.spreadsheets().get(id).execute();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			return null;
+		}
+		if (spreadSheet == null) {
+			return null;
+		}
+		return spreadSheet;
+	}
 
 	public List<Sheet> getSheetNames(String sheetURL, DataFetchListener fetchListener) throws IOException {
 		initServices();
-		//System.err.println("Sheet url = " + sheetURL);
+		Spreadsheet spreadSheet = getValidSheet(sheetURL);
+		if (spreadSheet == null) {
+			return null;
+		}
 		String id = googleSheetID(sheetURL);
-		// System.err.println("id = " + id);
-		Spreadsheet spreadSheet = sheetsService.spreadsheets().get(id).execute();
 		List<Sheet> innerSheets = spreadSheet.getSheets();
 		for (Sheet sheet : innerSheets) {
 			if (fetchListener != null) {
@@ -474,27 +504,21 @@ public class GoogleClassroomCommunicator {
 	}
 
 	public static void main(String[] args) throws IOException, GeneralSecurityException {
-
-//		String temp = "https://drive.google.com/open?id=1qWx7zrmbKctD8XDx8TJ_3fecPgedE6fIumuPF41Cej8";
-//		List<ArrayList<Object> > tempValues = new ArrayList<ArrayList<Object> >();
-//		ArrayList<Object> col0 = new ArrayList<Object>();
-//		col0.add("Name");
-//		col0.add("Josh");
-//		col0.add("Hi");
-//		tempValues.add(col0);
-//	
-//		ArrayList<Object> col1 = new ArrayList<Object>();
-//		col1.add("");
-//		col1.add("");
-//		col1.add("here");
-//		col1.add("");
-//		col1.add("");
-//		col1.add("dog");
-//		tempValues.add(col1);
-//		GoogleClassroomCommunicator communicator = new GoogleClassroomCommunicator("Google Classroom Grader", "C:\\Users\\kdmacdon\\Documents\\Teals\\GoogleClassroomData\\tokens", "C:\\Users\\kdmacdon\\Documents\\Teals\\GoogleClassroomData\\credentials.json");
+		GoogleClassroomCommunicator communicator = new GoogleClassroomCommunicator("Google Classroom Grader", "C:\\Users\\kdmacdon\\Documents\\Teals\\GoogleClassroomData\\tokens", "C:\\Users\\kdmacdon\\Documents\\Teals\\GoogleClassroomData\\credentials.json");
+		String test = "";
+		String test2 = "https://drive.google.com/open?id=1qWx7zrmbKctD8XDx8TJ_3fecPgedE6fIumuPF41Cej8";
+		for (int i = 0; i < test2.length(); i++) {
+			test += test2.charAt(i);
+			System.out.println(communicator.getValidSheet(test));
+		}
+		//Matcher m = p.matcher("https://drive.google.com/open?id=1EYN9SBQWd9gqz5eK7UDy_qQY0B1529f6r-aOw8n2Oyk");
+		System.out.println();
+		
+		
+		//GoogleClassroomCommunicator communicator = new GoogleClassroomCommunicator("Google Classroom Grader", "C:\\Users\\kdmacdon\\Documents\\Teals\\GoogleClassroomData\\tokens", "C:\\Users\\kdmacdon\\Documents\\Teals\\GoogleClassroomData\\credentials.json");
 //		communicator.listFoldersInRoot();
-//		System.out.println()
-//		communicator.writeSheet(temp, "Test3", null, tempValues);
+		//System.out.println();
+
 	}
 
 }

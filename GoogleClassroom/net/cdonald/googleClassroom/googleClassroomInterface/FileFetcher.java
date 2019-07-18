@@ -1,24 +1,33 @@
 package net.cdonald.googleClassroom.googleClassroomInterface;
 
-import java.util.Map;
 
+import java.util.Map;
+import net.cdonald.googleClassroom.listenerCoordinator.GetCurrentAssignmentQuery;
+import net.cdonald.googleClassroom.listenerCoordinator.GetCurrentClassQuery;
+import net.cdonald.googleClassroom.listenerCoordinator.GetDBNameQuery;
+import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.model.ClassroomData;
 import net.cdonald.googleClassroom.model.FileData;
-import net.cdonald.googleClassroom.model.SQLDataBase;
+
 
 public class FileFetcher extends ClassroomDataFetcher {
-	ClassroomData course;
-	ClassroomData assignment;
-	public FileFetcher(SQLDataBase dataBase, ClassroomData course, ClassroomData assignment, GoogleClassroomCommunicator authorize, DataFetchListener listener, FetchDoneListener fetchListener) {
-		super(dataBase, FileData.dbTableName(assignment), FileData.fieldNames.class, authorize, listener, fetchListener);
-		this.course = course;
-		this.assignment = assignment;
+
+	public FileFetcher(GoogleClassroomCommunicator authorize) {
+		super(authorize);
 	}
 
 	@Override
-	protected Integer doInBackground() throws Exception {
-		authorize.getStudentWork(course, assignment, this);
-		return 0;
+	protected Void doInBackground() throws Exception {
+		ClassroomData course = (ClassroomData) ListenerCoordinator.runQuery(GetCurrentClassQuery.class);
+		ClassroomData assignment = (ClassroomData)ListenerCoordinator.runQuery(GetCurrentAssignmentQuery.class);		
+		if (course != null && assignment != null) {
+			
+			String assignmentFilesDBName = (String)ListenerCoordinator.runQuery(GetDBNameQuery.class, GetDBNameQuery.DBType.ASSIGNMENT_FILES_DB);
+//			String dataBaseTable = FileData.dbTableName(assignment);
+//			readDataBase(assignmentFilesDBName, dataBaseTable, FileData.fieldNames.class);
+			authorize.getStudentWork(course, assignment, this);
+		}
+		return null;
 	}
 
 	@Override

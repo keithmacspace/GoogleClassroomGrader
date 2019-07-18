@@ -5,15 +5,15 @@ import java.util.Map;
 import net.cdonald.googleClassroom.model.ClassroomData;
 
 public class CourseFetcher extends ClassroomDataFetcher {
-	public CourseFetcher(GoogleClassroomCommunicator authorize, DataFetchListener listener) {
-		super(authorize, listener);
+	public CourseFetcher(GoogleClassroomCommunicator authorize) {
+		super(authorize);
 	}
 	
 	
 	@Override
-	protected Integer doInBackground() throws Exception {
+	protected Void doInBackground() throws Exception {
 		authorize.getClasses(this);
-		return 0;
+		return null;
 	}
 
 

@@ -4,6 +4,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.io.File;
+import java.util.List;
 import java.util.Set;
 
 import javax.swing.JFileChooser;
@@ -13,6 +14,15 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.KeyStroke;
 
+import net.cdonald.googleClassroom.googleClassroomInterface.CourseFetcher;
+import net.cdonald.googleClassroom.listenerCoordinator.ClassSelectedListener;
+import net.cdonald.googleClassroom.listenerCoordinator.ExitFiredListener;
+import net.cdonald.googleClassroom.listenerCoordinator.GetWorkingDirQuery;
+import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
+import net.cdonald.googleClassroom.listenerCoordinator.LoadTestFileListener;
+import net.cdonald.googleClassroom.listenerCoordinator.LongQueryListener;
+import net.cdonald.googleClassroom.listenerCoordinator.SaveGradesListener;
+import net.cdonald.googleClassroom.listenerCoordinator.SetWorkingDirListener;
 import net.cdonald.googleClassroom.model.ClassroomData;
 
 public class MainMenu extends JMenuBar {
@@ -22,7 +32,6 @@ public class MainMenu extends JMenuBar {
 	private JMenu edit;
 	private JMenu run;
 	private JMenu openClassroom;
-	private MainMenuListener listener;
 	private JFrame owner;
 
 
@@ -71,9 +80,7 @@ public class MainMenu extends JMenuBar {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				if (listener != null) {
-					listener.exitFired();
-				}				
+				ListenerCoordinator.fire(ExitFiredListener.class);
 			}			
 		});
 		
@@ -81,17 +88,26 @@ public class MainMenu extends JMenuBar {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				if (listener != null) {
-					listener.setWorkingDirFired();
+				JFileChooser workingDirChooser = null;
+				String currentWorkingDir = (String)ListenerCoordinator.runQuery(GetWorkingDirQuery.class);
+				if (currentWorkingDir != null) {
+					workingDirChooser = new JFileChooser(currentWorkingDir);
+				} else {
+					workingDirChooser = new JFileChooser();
+				}
+				workingDirChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+
+				if (workingDirChooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+					File directory = workingDirChooser.getSelectedFile();
+					String directoryPath = directory.getAbsolutePath();
+					ListenerCoordinator.fire(SetWorkingDirListener.class, directoryPath);
 				}
 			}			
 		});
 		exportToSheet.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				if (listener != null) {
-					listener.exportFired();					
-				}
+				ListenerCoordinator.fire(SaveGradesListener.class);
 				
 			}
 		});
@@ -104,12 +120,21 @@ public class MainMenu extends JMenuBar {
 				if (tempFileChooser.showOpenDialog(owner) == JFileChooser.APPROVE_OPTION) {
 					File file = tempFileChooser.getSelectedFile();
 					String directoryPath = file.getAbsolutePath();
-					listener.loadTestFile(directoryPath);
+					ListenerCoordinator.fire(LoadTestFileListener.class, directoryPath);
 				}	
 			}
-		});
-		
+		});	
 		add(file);
+		ListenerCoordinator.runLongQuery(CourseFetcher.class, new LongQueryListener<ClassroomData>() {
+
+			@Override
+			public void process(List<ClassroomData> list) {
+				for (ClassroomData classroom : list) {
+					addClass(classroom);
+				}
+			}
+			
+		});
 	}
 	
 	public void addClass(ClassroomData classroom) {
@@ -148,13 +173,8 @@ public class MainMenu extends JMenuBar {
 		
 		@Override
 		public void actionPerformed(ActionEvent e) {
-			if (listener != null) {
-				listener.classSelected(classroom);
-			}			
+			ListenerCoordinator.fire(ClassSelectedListener.class, classroom);			
 		}
-
-
-
 		
 	}
 	
@@ -168,9 +188,5 @@ public class MainMenu extends JMenuBar {
 	
 	private void fillHelpMenu() {
 		
-	}
-
-	public void setListener(MainMenuListener listener) {
-		this.listener = listener;
 	}
 }

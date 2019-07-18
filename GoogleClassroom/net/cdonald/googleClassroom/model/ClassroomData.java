@@ -27,9 +27,11 @@ public class ClassroomData implements Comparable<ClassroomData> {
 	public ClassroomData(String name, String id, String creationTime) {
 		super();
 		Date date = null;
-		try {
-			date = formatter.parse(creationTime.replaceAll("Z$",  "+0000"));
-		} catch (ParseException e) {
+		if (creationTime != null) {
+			try {
+				date = formatter.parse(creationTime.replaceAll("Z$",  "+0000"));
+			} catch (ParseException e) {
+			}
 		}
 		init(name, id, date);
 	}

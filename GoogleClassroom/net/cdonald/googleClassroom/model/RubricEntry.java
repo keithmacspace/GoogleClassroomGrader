@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
+import net.cdonald.googleClassroom.inMemoryJavaCompiler.StudentWorkCompiler;
 
 public class RubricEntry {
 	public static enum HeadingNames {
@@ -18,11 +19,13 @@ public class RubricEntry {
 	String id;
 	String name;
 	String description;
-	String automationFile;
-	String automationMethod;
 	int value;
 	AutomationTypes automationType;
 	Map<String, String> studentScores;
+	RubricAutomation automation;
+
+
+
 
 	public RubricEntry(List<Object> headings, List<Object> entries) {
 		value = 0;
@@ -82,8 +85,16 @@ public class RubricEntry {
 		}
 		return displayValue;
 	}
+	
+	public String getRubricOutput(String studentID) {
+		if (automation != null) {
+			automation.getRubricOutput(studentID);
+		}
+		return "";
+	}
 
 	public void setValue(HeadingNames headingName, String param) {
+
 		switch (headingName) {
 		case NAME:
 			name = param;
@@ -102,11 +113,7 @@ public class RubricEntry {
 				}
 			}
 			break;
-		case AUTOMATION_FILE:
-			automationFile = param;
-			break;
-		case AUTOMATION_METHOD:
-			automationMethod = param;
+		default:
 			break;
 		}
 	}
@@ -123,13 +130,6 @@ public class RubricEntry {
 		return description;
 	}
 
-	public String getAutomationFile() {
-		return automationFile;
-	}
-
-	public String getAutomationMethod() {
-		return automationMethod;
-	}
 
 	public AutomationTypes getAutomationType() {
 		return automationType;
@@ -137,25 +137,39 @@ public class RubricEntry {
 
 	@Override
 	public String toString() {
-		return "RubricEntry [name=" + name + ", description=" + description + ", automationFile=" + automationFile
-				+ ", automationMethod=" + automationMethod + ", value=" + value + ", automationType=" + automationType
+		return "RubricEntry [name=" + name + ", description=" + description + 
+			  ", value=" + value + ", automationType=" + automationType
 				+ "]";
 	}
 
-	void runAutomation(CompilerMessage message) {
+	void runAutomation(CompilerMessage message, StudentWorkCompiler compiler) {
 
-		switch (automationType) {
-		case COMPILES:
-			if (message.isSuccessful()) {
-				studentScores.put(message.getStudentId(), "" + value);
-			}
-			else {
-				studentScores.put(message.getStudentId(), "0");
-			}
-			break;
 
-		default:
-			break;
+		if (automation != null) {
+			double score = 0.0;
+			score = automation.runAutomation(message, compiler);
+			score *= value;
+			// Just truncate below two digits of precision
+			score *= 100.0;
+			score = (int)score;
+			score /= 100.0;						
+			studentScores.put(message.getStudentId(), "" + score);
+
+		}
+		
+		else {
+			switch (automationType) {
+			case COMPILES:
+				if (message.isSuccessful()) {
+					studentScores.put(message.getStudentId(), "" + value);
+				}
+				else {
+					studentScores.put(message.getStudentId(), "0");
+				}
+				break;
+			default:
+				break;
+			}
 		}
 	}
 
@@ -167,5 +181,30 @@ public class RubricEntry {
 		String header = getName();
 		header = "<html>" + header + "<br>Value = " + getValue() + "</html>";
 		return header;
+	}
+	
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
+
+	public void setValue(int value) {
+		this.value = value;
+	}
+
+	public void setAutomationType(AutomationTypes automationType) {
+		this.automationType = automationType;
+	}
+
+
+	public void setAutomation(RubricAutomation automation) {
+		this.automation = automation;
+		if (automation != null) {
+			automation.setOwnerName(getName());
+		}
 	}
 }

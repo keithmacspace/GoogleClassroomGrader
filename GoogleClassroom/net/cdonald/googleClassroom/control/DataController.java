@@ -6,41 +6,56 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.sql.SQLException;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Set;
 
 import javax.swing.JOptionPane;
+import javax.swing.SwingWorker;
 
 import net.cdonald.googleClassroom.googleClassroomInterface.AssignmentFetcher;
-import net.cdonald.googleClassroom.googleClassroomInterface.DataFetchListener;
-import net.cdonald.googleClassroom.googleClassroomInterface.FetchDoneListener;
+import net.cdonald.googleClassroom.googleClassroomInterface.CourseFetcher;
 import net.cdonald.googleClassroom.googleClassroomInterface.FileFetcher;
 import net.cdonald.googleClassroom.googleClassroomInterface.GoogleClassroomCommunicator;
 import net.cdonald.googleClassroom.googleClassroomInterface.SheetFetcher;
 import net.cdonald.googleClassroom.googleClassroomInterface.StudentFetcher;
-import net.cdonald.googleClassroom.gui.ConsoleDisplayListener;
 import net.cdonald.googleClassroom.gui.DataStructureChangedListener;
 import net.cdonald.googleClassroom.gui.DataUpdateListener;
 import net.cdonald.googleClassroom.gui.MainGoogleClassroomFrame;
-import net.cdonald.googleClassroom.gui.RecompileListener;
 import net.cdonald.googleClassroom.gui.StudentListModel;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.StudentWorkCompiler;
+import net.cdonald.googleClassroom.listenerCoordinator.AssignmentSelected;
+import net.cdonald.googleClassroom.listenerCoordinator.ClassSelectedListener;
+import net.cdonald.googleClassroom.listenerCoordinator.EnableRunRubricQuery;
+import net.cdonald.googleClassroom.listenerCoordinator.GetCurrentClassQuery;
+import net.cdonald.googleClassroom.listenerCoordinator.GetDBNameQuery;
+import net.cdonald.googleClassroom.listenerCoordinator.GetRubricOutputQuery;
+import net.cdonald.googleClassroom.listenerCoordinator.GetStudentFilesQuery;
+import net.cdonald.googleClassroom.listenerCoordinator.GetWorkingDirQuery;
+import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
+import net.cdonald.googleClassroom.listenerCoordinator.LoadTestFileListener;
+import net.cdonald.googleClassroom.listenerCoordinator.LongQueryListener;
+import net.cdonald.googleClassroom.listenerCoordinator.RecompileListener;
+import net.cdonald.googleClassroom.listenerCoordinator.RubricFileSelectedListener;
+import net.cdonald.googleClassroom.listenerCoordinator.RubricSelected;
+import net.cdonald.googleClassroom.listenerCoordinator.SetRunRubricEnableStateListener;
+import net.cdonald.googleClassroom.listenerCoordinator.SetWorkingDirListener;
+import net.cdonald.googleClassroom.listenerCoordinator.StudentListInfo;
 import net.cdonald.googleClassroom.model.ClassroomData;
+import net.cdonald.googleClassroom.model.CompileErrorListener;
 import net.cdonald.googleClassroom.model.ConsoleData;
 import net.cdonald.googleClassroom.model.FileData;
 import net.cdonald.googleClassroom.model.GoogleSheetData;
 import net.cdonald.googleClassroom.model.MyPreferences;
 import net.cdonald.googleClassroom.model.Rubric;
 import net.cdonald.googleClassroom.model.RubricEntry;
-import net.cdonald.googleClassroom.model.SQLDataBase;
+import net.cdonald.googleClassroom.model.RubricEntryRunCode;
 import net.cdonald.googleClassroom.model.StudentData;
 
 
-public class DataController implements StudentListInfo, RecompileListener {
+public class DataController implements StudentListInfo {
 	private StudentWorkCompiler studentWorkCompiler;
 	private ConsoleData consoleData;
 	private ClassroomData currentCourse;
@@ -48,31 +63,213 @@ public class DataController implements StudentListInfo, RecompileListener {
 	private Rubric rubric;
 	private DataStructureChangedListener structureListener;
 	private DataUpdateListener updateListener;
-	// Create these  to avoid data lock issues
-	private SQLDataBase assignmentFilesDataBase;
-	private SQLDataBase rubricDataBase;
-	private SQLDataBase classDataBase;
-
-	private StudentFetcher studentFetcher;
+	private GoogleClassroomCommunicator googleClassroom;
+	private MyPreferences prefs;
+	private final String TEMP_URL = "https://drive.google.com/open?id=1EYN9SBQWd9gqz5eK7UDy_qQY0B1529f6r-aOw8n2Oyk";
 
 	public DataController(MainGoogleClassroomFrame mainFrame) {
+		prefs = new MyPreferences();
 		studentWorkCompiler = new StudentWorkCompiler(mainFrame);
 		studentData = new ArrayList<StudentData>();
 		consoleData = new ConsoleData();		
 		currentCourse = null;
 		structureListener = mainFrame;
 		updateListener = mainFrame;
-		classDataBase = new SQLDataBase();
-		rubricDataBase = new SQLDataBase();
-		assignmentFilesDataBase = new SQLDataBase();
-		studentFetcher = null;
+		initGoogle();
+		registerListeners();
 	}
 	
-	public void addConsoleListener(ConsoleDisplayListener listener) {
-		consoleData.addListener(listener);
-		listener.setRecompileListener(this);
+	private void initGoogle() {
+		try {
+			googleClassroom = new GoogleClassroomCommunicator(MainGoogleClassroomFrame.APP_NAME, prefs.getTokenDir(), prefs.getJsonPath());
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (GeneralSecurityException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
+	
+	public void performFirstInit() {
+		if (prefs.getClassroom() != null) {
+			currentCourse = prefs.getClassroom();
+			ListenerCoordinator.fire(ClassSelectedListener.class, currentCourse);
+		}
+		ListenerCoordinator.fire(RubricFileSelectedListener.class, TEMP_URL);
+	}
+	
+	private void registerListeners() {
+		
+		ListenerCoordinator.addLongQueryReponder(StudentFetcher.class, new StudentFetcher(googleClassroom));
+		ListenerCoordinator.addLongQueryReponder(AssignmentFetcher.class, new AssignmentFetcher(googleClassroom));
+		ListenerCoordinator.addLongQueryReponder(CourseFetcher.class, new CourseFetcher(googleClassroom));
+		ListenerCoordinator.addLongQueryReponder(FileFetcher.class, new FileFetcher(googleClassroom));
+		ListenerCoordinator.addLongQueryReponder(SheetFetcher.class, new SheetFetcher(googleClassroom));
+		
+		ListenerCoordinator.addListener(ClassSelectedListener.class, new ClassSelectedListener() {
 
+			@Override
+			public void fired(ClassroomData course) {
+				setCurrentCourse(course);				
+			}
+			
+		});
+		
+		ListenerCoordinator.addListener(AssignmentSelected.class, new AssignmentSelected() {
+			@Override
+			public void fired(ClassroomData data) {
+				ListenerCoordinator.runLongQuery(FileFetcher.class, new LongQueryListener<ClassroomData>() {
+					@Override
+					public void process(List<ClassroomData> list) {
+						for (ClassroomData data : list) {
+							FileData fileData = (FileData) data;
+							studentWorkCompiler.addFile(fileData);
+							updateListener.dataUpdated();
+						}
+					}
+					@Override
+					public void done() {
+						studentWorkCompiler.compileAll();
+					}					
+				});
+			}			
+		});
+		
+		ListenerCoordinator.addListener(RecompileListener.class, new RecompileListener() {
+			@Override
+			public void fired(FileData fileData, String text) {
+				if (fileData != null) {
+					fileData.setFileContents(text);
+					List<FileData> temp = new ArrayList<FileData>();
+					temp.add(fileData);
+					consoleData.runStarted(fileData.getId(), temp);
+					//studentWorkCompiler.compileAndRun(this, fileData, text);
+				}
+			}			
+		});
+		ListenerCoordinator.addListener(CompileErrorListener.class, new CompileErrorListener() {
+			@Override
+			public void fired(String text) {
+				System.err.println("Compile error caught " + text);				
+			}			
+		});
+		
+		ListenerCoordinator.addQueryResponder(GetCurrentClassQuery.class, new GetCurrentClassQuery() {
+			@Override
+			public ClassroomData fired() {
+				return currentCourse;
+			}
+		});	
+		
+		ListenerCoordinator.addQueryResponder(GetDBNameQuery.class, new GetDBNameQuery() {
+			@Override
+			public String fired(DBType type) {
+				switch (type) {
+				case ASSIGNMENT_FILES_DB:
+					return prefs.getClassroomDir() + File.separator +  "files.db";
+				case CLASS_DB:
+					return prefs.getClassroomDir() + File.separator +  "class.db";
+				case RUBRIC_DB:
+					return prefs.getWorkingDir() + File.separator + "rubric.db";
+				case STUDENT_DB:
+					return prefs.getClassroomDir() + File.separator  + "student.db";
+				default:				
+				}
+				// TODO Auto-generated method stub
+				return null;
+			}
+		});
+
+		ListenerCoordinator.addQueryResponder(GetWorkingDirQuery.class, new GetWorkingDirQuery() {
+
+			@Override
+			public String fired() {
+				return prefs.getWorkingDir();
+			}
+			
+		});
+		
+		ListenerCoordinator.addQueryResponder(EnableRunRubricQuery.class, new EnableRunRubricQuery() {
+			@Override
+			public Boolean fired() {
+				return (Boolean)(rubric != null);
+			}
+			
+		});
+		
+		ListenerCoordinator.addQueryResponder(GetStudentFilesQuery.class, new GetStudentFilesQuery() {
+			@Override
+			public List<FileData> fired(String studentID) {
+				// TODO Auto-generated method stub
+				return studentWorkCompiler.getSourceCode(studentID);
+			}			
+		});
+		
+		ListenerCoordinator.addQueryResponder(GetRubricOutputQuery.class, new GetRubricOutputQuery() {
+			@Override
+			public String fired(String rubricName, String studentID) {
+				if (rubric != null) {
+					return rubric.getRubricOutput(rubricName, studentID);
+				}
+				return null;
+			}		
+		});
+		
+		ListenerCoordinator.addListener(SetWorkingDirListener.class,  new SetWorkingDirListener() {
+
+			@Override
+			public void fired(String workingDir) {
+				prefs.setWorkingDir(workingDir);
+				
+			}
+			
+		});
+		
+		ListenerCoordinator.addListener(RubricFileSelectedListener.class, new RubricFileSelectedListener() {
+			@Override
+			public void fired(String url) {
+				
+			}
+		});
+		
+		ListenerCoordinator.addListener(LoadTestFileListener.class, new LoadTestFileListener() {
+			@Override
+			public void fired(String file) {
+				loadTestFile(file);				
+			}			
+		});
+		
+		ListenerCoordinator.addListener(RubricSelected.class, new RubricSelected() {
+			@Override
+			public void fired(GoogleSheetData data) {
+				rubric = null;
+				if (data != null && data.isEmpty() == false) {
+					rubric = new Rubric(data);
+					try {
+						googleClassroom.fillRubric(rubric);
+					} catch (IOException e) {
+						JOptionPane.showMessageDialog(null, e.getMessage(), "Error accessing rubric db sheet",
+								JOptionPane.ERROR_MESSAGE);
+						e.printStackTrace();
+						rubric = null;
+					}
+	
+					if (setRubric(rubric) == JOptionPane.YES_OPTION) {
+						saveRubric();
+					}
+					
+				}
+				ListenerCoordinator.fire(SetRunRubricEnableStateListener.class, (Boolean)(rubric != null));
+				updateListener.dataUpdated();
+				
+			}
+		});		
+		
+
+		
+		
+	}
 
 	public Rubric getRubric() {
 		return rubric;
@@ -87,6 +284,8 @@ public class DataController implements StudentListInfo, RecompileListener {
 			}
 		}
 		this.rubric = rubric;
+		//rubric.addEntry(RubricEntryCallMethod.createTest());
+		rubric.addEntry(RubricEntryRunCode.createTest());
 		structureListener.dataStructureChanged();
 		return JOptionPane.NO_OPTION;
 	}
@@ -97,36 +296,20 @@ public class DataController implements StudentListInfo, RecompileListener {
 	}
 	
 	private void clearAllData() {
-		classDataBase.disconnect();
-		assignmentFilesDataBase.disconnect();
 		studentData.clear();
-		studentWorkCompiler.clearData();
-		
+		studentWorkCompiler.clearData();		
 	}
 
 
-	public void setCurrentCourse(MyPreferences prefs, ClassroomData currentCourse) {
-		clearAllData();		
+	private void setCurrentCourse(ClassroomData currentCourse) {
 		this.currentCourse = currentCourse;
-		if (currentCourse != null) {
-			String classDBName = prefs.getClassroomDir() + File.separator +  "classroom.db";
-			String assignmentFilesDBName = prefs.getClassroomDir() + File.separator +  "files.db";
-			try {
-				classDataBase.connect(classDBName);
-				assignmentFilesDataBase.connect(assignmentFilesDBName);
-			} catch (SQLException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
+		clearAllData();
+		initStudents();
 	}
 
 
 	public void closing() {
 		consoleData.setDone();
-		assignmentFilesDataBase.disconnect();
-		classDataBase.disconnect();
-		rubricDataBase.disconnect();
 	}
 
 	public List<FileData> getSourceCode(String id) {
@@ -142,6 +325,7 @@ public class DataController implements StudentListInfo, RecompileListener {
 	
 	
 	public void run(String id) {
+
 		if (studentWorkCompiler.isRunnable(id)) {
 			List<FileData> fileDataList = getSourceCode(id);
 			consoleData.runStarted(id, fileDataList);
@@ -153,100 +337,38 @@ public class DataController implements StudentListInfo, RecompileListener {
 		consoleData.debugPrint();
 	}
 	
-	public void assignmentSelected(ClassroomData data, GoogleClassroomCommunicator googleClassroom) {
-		if (rubric != null) {
-			rubric.clearStudentData();
-		}
-		if (studentWorkCompiler != null) {
-			studentWorkCompiler.clearData();
-			if (currentCourse != null) {
-				FileFetcher fetcher = new FileFetcher(assignmentFilesDataBase, currentCourse, data, googleClassroom, new DataFetchListener() {
-					@Override
-					public void retrievedInfo(ClassroomData data) {
-						FileData fileData = (FileData) data;
-						studentWorkCompiler.addFile(fileData);
-						updateListener.dataUpdated();
-
-					}
-					@Override
-					public void remove(Set<String> ids) {
-						studentWorkCompiler.removeFiles(ids);					
-					}
-				}, new FetchDoneListener() {
-
-					@Override
-					public void done() {
-						studentWorkCompiler.compileAll();
-					}
-				});
-				fetcher.execute();
-			}
-		}
-	}
 	
 	public void runRubric(String studentId) {
 		if (rubric != null) {
 			CompilerMessage message = studentWorkCompiler.getCompilerMessage(studentId);
 			if (message != null) {
-				rubric.runAutomation(message);
-				updateListener.dataUpdated();
+				SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
+					@Override
+					protected Void doInBackground() throws Exception {
+						rubric.runAutomation(message, studentWorkCompiler);
+						updateListener.dataUpdated();
+						return null;
+					}					
+				};
+				worker.execute();
 			}			
 		}
 	}
 	
-	public void initAssignments(GoogleClassroomCommunicator googleClassroom, DataFetchListener listener) {
-		if (currentCourse != null) {
-			AssignmentFetcher fetcher = new AssignmentFetcher(classDataBase, currentCourse, googleClassroom, listener);
-			fetcher.execute();
-		}
-	}
 	
-	public void initRubrics(MyPreferences prefs, String urlName, GoogleClassroomCommunicator googleClassroom, DataFetchListener listener) {
-		String dbName = prefs.getWorkingDir() + File.separator +  "rubric.db";
-		try {
-			rubricDataBase.connect(dbName);
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		SheetFetcher fetcher = new SheetFetcher(rubricDataBase, GoogleSheetData.DB_NAME, urlName, googleClassroom, listener, null);
-		fetcher.execute();
-	}
-	
-	public void initStudents(MyPreferences prefs, GoogleClassroomCommunicator googleClassroom)  {
+	public void initStudents()  {
 		if (currentCourse != null) {
 			studentData.clear();
-			DataFetchListener dataFetchListener = new DataFetchListener() {
-				@Override
-				public void retrievedInfo(ClassroomData data) {
-					addStudent((StudentData) data);
-				}
+			ListenerCoordinator.runLongQuery(StudentFetcher.class,  new LongQueryListener<ClassroomData>() {
 
 				@Override
-				public void remove(Set<String> ids) {					
-					for (String id : ids) {
-						for (int i = studentData.size() - 1; i >= 0; i++) {
-							if (studentData.get(i).getId().equals(id)) {
-								studentData.remove(i);
-								break;
-							}
-						}
+				public void process(List<ClassroomData> list) {
+					for (ClassroomData data : list) {
+						addStudent((StudentData) data);
 					}					
 				}
-
-			};
-
-			
-			studentFetcher = new StudentFetcher(classDataBase, currentCourse, googleClassroom, dataFetchListener, new FetchDoneListener() {
-				@Override
-				public void done() {
-					if (updateListener != null) {
-						updateListener.dataUpdated();
-					}
-				}		
+				
 			});
-
-			studentFetcher.execute();
 		}
 	}
 	
@@ -430,22 +552,9 @@ public class DataController implements StudentListInfo, RecompileListener {
 		}
 		return true;		
 	}
+	
+	private void saveRubric() {
+		
+	}
 
-	@Override
-	public void recompileAndRun(FileData fileData, String text) {
-		//System.err.println("here " + fileData + " " + fileData.getId());
-		
-		if (fileData != null) {
-			fileData.setFileContents(text);
-			List<FileData> temp = new ArrayList<FileData>();
-			temp.add(fileData);
-			consoleData.runStarted(fileData.getId(), temp);
-			studentWorkCompiler.compileAndRun(this, fileData, text);
-		}
-		
-	}
-	@Override
-	public void compileError(String text) {
-		System.err.println(text);
-	}
 }

@@ -1,7 +1,7 @@
-package net.cdonald.googleClassroom.gui;
+package net.cdonald.googleClassroom.listenerCoordinator;
 
 import net.cdonald.googleClassroom.model.ClassroomData;
 
 public interface ClassSelectedListener {
-	public void classSelected(ClassroomData data);
+	public void fired(ClassroomData course);
 }

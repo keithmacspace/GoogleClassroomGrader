@@ -128,7 +128,7 @@ public class SQLDataBase {
 				statement += fieldName + "=" + fieldValue.toString();
 				first = false; 
 			}
-			System.err.println(statement);
+			//System.err.println(statement);
 			try {
 				PreparedStatement removeStmt = conn.prepareStatement(statement);
 				removeStmt.execute();

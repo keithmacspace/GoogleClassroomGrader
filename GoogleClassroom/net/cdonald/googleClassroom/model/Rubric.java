@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
+import net.cdonald.googleClassroom.inMemoryJavaCompiler.StudentWorkCompiler;
 
 public class Rubric {
 	GoogleSheetData sheetData;
@@ -72,9 +73,9 @@ public class Rubric {
 		return null;
 	}
 	
-	public void runAutomation(CompilerMessage message) {				
+	public void runAutomation(CompilerMessage message, StudentWorkCompiler compiler) {				
 		for (RubricEntry entry : entries) {
-			entry.runAutomation(message);
+			entry.runAutomation(message, compiler);
 		}
 
 	}
@@ -91,6 +92,15 @@ public class Rubric {
 
 	public void setInModifiedState(boolean inModifiedState) {
 		this.inModifiedState = inModifiedState;
+	}
+	
+	public String getRubricOutput(String name, String studentID) {
+		for (RubricEntry entry : entries) {
+			if (entry.getName().compareToIgnoreCase(name) == 0) {
+				return entry.getRubricOutput(studentID);
+			}
+		}
+		return "";
 	}
 	
 	

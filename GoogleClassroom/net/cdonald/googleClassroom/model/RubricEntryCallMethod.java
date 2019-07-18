@@ -2,20 +2,19 @@ package net.cdonald.googleClassroom.model;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.StudentWorkCompiler;
 
-public class RubricEntryCallMethod {
+public class RubricEntryCallMethod extends RubricAutomation {
 	public static Class<?>[] classesSupported = { int.class, boolean.class, double.class, String.class, Integer.class,
 			Double.class, Boolean.class, int[].class, boolean[].class, double[].class, String[].class, List.class,
-			ArrayList.class, };
+			ArrayList.class };
 	private Class<?>[] paramTypes;
 	private String methodToCall;
 	boolean checkSystemOut;
 	List<List<String>> inputs;
 	List<String> outputs;
-	String sysOut;
+	RubricEntrySystemListeners sysListeners;
 
 	public RubricEntryCallMethod(List<String> paramTypes, String methodToCall, String returnType) {
 		super();
@@ -30,6 +29,7 @@ public class RubricEntryCallMethod {
 		this.methodToCall = methodToCall;
 		inputs = new ArrayList<List<String>>();
 		outputs = new ArrayList<String>();
+		sysListeners = new RubricEntrySystemListeners("Call Method");
 	}
 
 	public void addParameterPair(List<String> inputs, String output) {
@@ -37,37 +37,77 @@ public class RubricEntryCallMethod {
 		this.outputs.add(output);
 	}
 
-	public void runAutomation(CompilerMessage message, StudentWorkCompiler compiler) {
+	protected double runAutomation_(CompilerMessage message, StudentWorkCompiler compiler) {
 		int runCount = 0;
-		int failCount = 0;
+		int passCount = 0;
 		if (message.isSuccessful()) {
-			if (checkSystemOut) {
-				// attach a listener to system out, system out only, not system. in
-			}
+
 			Object[] args = new Object[paramTypes.length];
 			for (int i = 0; i < inputs.size(); i++) {
+				if (checkSystemOut) {
+					sysListeners.prepareForNextTest();
+				}
 				List<String> inputList = inputs.get(i);
 				int argCount = 0;
-				for (String input : inputList) {
-					args[argCount] = convertStringToObject(input, paramTypes[argCount]);
-					argCount++;
+				String resultsMessage = "";
+				for (int index = 0; index < inputList.size(); index++) {
+					String input = inputList.get(index);
+					Object value = convertStringToObject(input, paramTypes[argCount]);
+					args[argCount] = value;
+					resultsMessage += value;
+					if (index < inputList.size() - 1) {
+						resultsMessage += ", ";
+						argCount++;
+					}
 				}
 				runCount++;
 
 				// here is where we translate the individual param types into that actual type
-				String results = compiler.runSpecificMethod(!checkSystemOut, methodToCall, message, paramTypes,
-						classesSupported);
+				String results = compiler.runSpecificMethod(!checkSystemOut, methodToCall, message, paramTypes, args);
 				if (checkSystemOut) {
-					results = sysOut;
+					results = sysListeners.getSysOutText();
 				}
-				if (results.equals(outputs.get(i)) == false) {
-					failCount++;
+				String expected = outputs.get(i);
+				resultsMessage += " = " + results;
+				resultsMessage += ". Expected = " + expected + "\n";				
+
+				if (results.equals(expected) == true) {
+					passCount++;
+					resultsMessage = "Pass: " + resultsMessage;
 				}
+				else {
+					resultsMessage = "Fail: " + resultsMessage;
+				}
+				addOutput(message.getStudentId(), resultsMessage);
 			}
+		}		
+		if (runCount > 0) {
+			return (double) passCount / (double) runCount;
 		}
+		return 0.0;
 	}
 
-	public Object convertStringToObject(String value, Class<?> typeToCovertTo) {
+	public Object convertStringToObject(String value, Class<?> typeToConvertTo) {
+
+		if (typeToConvertTo == int.class) {
+			return (int) Integer.decode(value);
+		} else if (typeToConvertTo == boolean.class) {
+			return (boolean) Boolean.parseBoolean(value);
+		} else if (typeToConvertTo == double.class) {
+			return (double) Double.parseDouble(value);
+		} else if (typeToConvertTo == String.class) {
+			return value;
+		} else if (typeToConvertTo == Integer.class) {
+			return Integer.decode(value);
+		} else if (typeToConvertTo == Double.class) {
+			return Double.parseDouble(value);
+		} else if (typeToConvertTo == Boolean.class) {
+			return Boolean.parseBoolean(value);
+		}
+		/*
+		 * int[].class, boolean[].class, double[].class, String[].class, List.class,
+		 * ArrayList.class
+		 */
 		return null;
 	}
 
@@ -81,11 +121,42 @@ public class RubricEntryCallMethod {
 		return null;
 	}
 
-	public static void main(String[] args) {
-		for (Class<?> x : classesSupported) {
-			System.out.println(x);
-			System.out.println(convertStringToClass(x.toString()));
+	public static RubricEntry createTest() {
+		List<String> paramTypes = new ArrayList<String>();
+		paramTypes.add(RubricEntryCallMethod.classesSupported[0].toString());
+		paramTypes.add(RubricEntryCallMethod.classesSupported[0].toString());
+		RubricEntryCallMethod test = new RubricEntryCallMethod(paramTypes, "add", paramTypes.get(0));
+
+		for (int j = 0; j < 20; j++) {
+			List<String> inputs = new ArrayList<String>();
+			int value = 0;
+
+			inputs.add("" + j);
+			inputs.add("" + j);
+			value = j + j;
+
+			test.addParameterPair(inputs, "" + value);
 		}
+
+		RubricEntry entry = new RubricEntry();
+		entry.setName("Test");
+		entry.setValue(5);
+		entry.setAutomationType(RubricEntry.AutomationTypes.CALL_METHOD);
+		entry.setAutomation(test);
+		return entry;
+
 	}
 
+	public static void main(String[] args) {
+		try {
+			Class<?> otherClassType = java.util.Scanner[].class;
+			System.out.println(otherClassType);
+			Class<?> classType = Class.forName("java.util.Scanner");
+			System.out.println(classType);
+		} catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}
 }

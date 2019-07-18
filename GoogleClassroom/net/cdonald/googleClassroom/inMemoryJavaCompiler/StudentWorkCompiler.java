@@ -10,7 +10,10 @@ import java.util.Set;
 
 import javax.swing.SwingWorker;
 
-import net.cdonald.googleClassroom.gui.RecompileListener;
+import org.mdkt.compiler.CompilationException;
+import org.mdkt.compiler.InMemoryJavaCompiler;
+
+import net.cdonald.googleClassroom.listenerCoordinator.RecompileListener;
 import net.cdonald.googleClassroom.model.FileData;
 
 public class StudentWorkCompiler {
@@ -31,6 +34,7 @@ public class StudentWorkCompiler {
 
 	public void addFile(FileData fileData) {
 		String key = fileData.getId();
+		
 		if (studentBuildInfoMap.containsKey(key) == false) {
 			studentBuildInfoMap.put(key, new StudentBuildInfo());
 		}
@@ -61,17 +65,42 @@ public class StudentWorkCompiler {
 			if (studentBuildInfo.getStudentCompilerMap() != null) {				
 				Map<String, Class<?>> compiled = studentBuildInfo.getStudentCompilerMap();
 				List<FileData> files = studentBuildInfo.getStudentFileData();
-				for (FileData fileData : files) {
-					Class<?> aClass = compiled.get(fileData.getClassName());
-					Method method = getMethod(aClass, methodName, params);
-					String results = runCore(expectingReturn, method, args);
-					return results;
-				}
+				return runSpecificMethod(expectingReturn, methodName, files, compiled, params, args);
 			}
 		}
 		throw new IllegalArgumentException();
 	}
 
+	private String runSpecificMethod(boolean expectingReturn, String methodName, List<FileData> files, Map<String, Class<?>> compiled, Class<?>[] params, Object[] args) {
+		for (FileData fileData : files) {
+			Class<?> aClass = compiled.get(fileData.getClassName());
+			Method method = getMethod(aClass, methodName, params);
+			if (method != null) {
+				//System.err.println("Running " + fileData.getClassName());
+				//System.out.println("Running " + fileData.getClassName());
+				return runCore(expectingReturn, method, args);
+			}		
+		}
+		return null;
+		
+	}
+	
+	public String compileAndRun(boolean expectingReturn, List<FileData> fileDataList, String methodName, Class<?> []params, Object[] args) {
+		InMemoryJavaCompiler compiler = InMemoryJavaCompiler.newInstance();
+		Map<String, Class<?>> compiled = null;
+		try {
+			for (FileData fileData : fileDataList) {				
+				compiler.addSource(fileData.getClassName(), fileData.getFileContents());
+			}
+			compiled = compiler.compileAll();
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return null;
+		}
+		return runSpecificMethod(expectingReturn, methodName, fileDataList, compiled, params, args);
+	}
+	
 	public void compileAll() {
 		compilerWorker = new SwingWorker<Void, CompilerMessage>() {
 
@@ -147,33 +176,13 @@ public class StudentWorkCompiler {
 		}
 	}
 
-	public void compileAndRun(RecompileListener listener, FileData fileData, String text) {
-		compilerWorker = new SwingWorker<Void, CompilerMessage>() {
 
-			@Override
-			protected Void doInBackground() throws Exception {
-				InMemoryJavaCompiler compiler = InMemoryJavaCompiler.newInstance();
-				Class<?> aClass = null;
-				try {
-					
-					aClass = compiler.compile(fileData.getClassName(), text);
-				} catch (Exception e) {
-					System.err.println(e.getMessage());
-					listener.compileError(e.getMessage());
-				}
-				
-				if (aClass != null) {
-					Method method = getMethod(aClass);
-					if (method != null) {
-						runCore(method);
-					}
-				}
-				return null;
-			}
-			
-		};
-		compilerWorker.execute();
-		
+	public String getCompleteMethodName(String studentId, String methodName) {
+		StudentBuildInfo buildInfo = studentBuildInfoMap.get(studentId);
+		if (buildInfo != null) {
+			return buildInfo.getCompleteMethodName(methodName);
+		}
+		return null;
 	}
 	
 	Method getMethod(Class<?> aClass) {
@@ -195,7 +204,7 @@ public class StudentWorkCompiler {
 		String result = "";
 		try {		
 				if (expectReturn) {
-					result = method.invoke(null, args).toString();
+					result = "" + method.invoke(null, args);
 				}
 				else {
 					method.invoke(null, args);
@@ -214,6 +223,7 @@ public class StudentWorkCompiler {
 		}
 		return result;
 	}
+		
 
 	private void runCore(Method method) {
 		Object[] args = {null};

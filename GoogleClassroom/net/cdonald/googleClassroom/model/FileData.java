@@ -8,6 +8,7 @@ public class FileData extends ClassroomData {
 	private String packageName;
 	private String className;
 	private static final String DB_NAME = "JavaFiles";
+	private boolean isRubricCode;
 
 	public static String dbTableName(ClassroomData assignment) {
 		return DB_NAME + assignment.getId();
@@ -82,5 +83,13 @@ public class FileData extends ClassroomData {
 		default:
 			throw new IllegalArgumentException();
 		}
+	}
+
+	public boolean isRubricCode() {
+		return isRubricCode;
+	}
+
+	public void setRubricCode(boolean isRubricCode) {
+		this.isRubricCode = isRubricCode;
 	}
 }

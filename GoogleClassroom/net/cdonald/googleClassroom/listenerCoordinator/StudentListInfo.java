@@ -1,4 +1,4 @@
-package net.cdonald.googleClassroom.control;
+package net.cdonald.googleClassroom.listenerCoordinator;
 
 import net.cdonald.googleClassroom.gui.StudentListModel;
 

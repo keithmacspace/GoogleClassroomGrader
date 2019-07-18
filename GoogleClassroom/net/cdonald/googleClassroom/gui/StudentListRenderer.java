@@ -4,7 +4,8 @@ import java.awt.Color;
 import java.awt.Component;
 import javax.swing.JTable;
 import javax.swing.table.DefaultTableCellRenderer;
-import net.cdonald.googleClassroom.control.StudentListInfo;
+
+import net.cdonald.googleClassroom.listenerCoordinator.StudentListInfo;
 
 public class StudentListRenderer extends DefaultTableCellRenderer {
 	private static final long serialVersionUID = -7082168845923165249L;

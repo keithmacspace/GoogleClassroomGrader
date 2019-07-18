@@ -2,7 +2,8 @@ package net.cdonald.googleClassroom.gui;
 
 
 import javax.swing.table.AbstractTableModel;
-import net.cdonald.googleClassroom.control.StudentListInfo;
+
+import net.cdonald.googleClassroom.listenerCoordinator.StudentListInfo;
 import net.cdonald.googleClassroom.model.ClassroomData;
 
 

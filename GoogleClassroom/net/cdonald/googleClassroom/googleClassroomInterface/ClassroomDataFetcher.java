@@ -11,46 +11,28 @@ import java.util.Set;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 
+import net.cdonald.googleClassroom.listenerCoordinator.LongQueryResponder;
 import net.cdonald.googleClassroom.model.ClassroomData;
 import net.cdonald.googleClassroom.model.SQLDataBase;
 
-public abstract class ClassroomDataFetcher extends SwingWorker<Integer, ClassroomData> implements DataFetchListener {
+public abstract class ClassroomDataFetcher extends LongQueryResponder<ClassroomData> implements DataFetchListener {
 
 	private List<ClassroomData> dbAdd;
-	private Set<String> readFromDB;
+	private Set<String> readFromDB;		
 	protected GoogleClassroomCommunicator authorize;
-	private DataFetchListener listener;
-	private FetchDoneListener fetchDoneListener;
+	private String dataBaseTable;
+	private Class<? extends Enum<?>>  tableLabelEnum;
+	private SQLDataBase dataBase;
+	
+	
 	protected IOException communicationException;
 	private SQLException databaseException;
 	private Exception miscException;
-	private SQLDataBase dataBase;
-	private String dataBaseTable;
-	private Class<? extends Enum<?>> tableLabelEnum;
 
-	public ClassroomDataFetcher(GoogleClassroomCommunicator authorize, DataFetchListener listener) {
-		this(null, null, null, authorize, listener, null);
-	}
 
-	public ClassroomDataFetcher(SQLDataBase dataBase, String dataBaseTable, GoogleClassroomCommunicator authorize,
-			DataFetchListener listener) {
-		this(dataBase, dataBaseTable, ClassroomData.fieldNames.class, authorize, listener, null);
-	}
-
-	public ClassroomDataFetcher(GoogleClassroomCommunicator authorize, DataFetchListener listener,
-			FetchDoneListener fetchDoneListener) {
-		this(null, null, null, authorize, listener, fetchDoneListener);
-	}
-
-	public ClassroomDataFetcher(SQLDataBase dataBase, String dataBaseTable, Class<? extends Enum<?>> tableLabelEnum,
-			GoogleClassroomCommunicator authorize, DataFetchListener listener, FetchDoneListener fetchDoneListener) {
+	public ClassroomDataFetcher(GoogleClassroomCommunicator authorize) {
 		super();
 		this.authorize = authorize;
-		this.listener = listener;
-		this.fetchDoneListener = fetchDoneListener;
-		this.dataBase = dataBase;
-		this.dataBaseTable = dataBaseTable;
-		this.tableLabelEnum = tableLabelEnum;
 		communicationException = null;
 		databaseException = null;
 		miscException = null;
@@ -65,10 +47,17 @@ public abstract class ClassroomDataFetcher extends SwingWorker<Integer, Classroo
 		publish(data);
 	}
 
-	protected void readDataBase() {		
-		if (dataBase != null) {
-			List<Map<String, String>> data = null;
+	protected void readDataBase(String dataBaseName, String dataBaseTable, Class<? extends Enum<?>>  tableLabelEnum) {		
+		if (dataBaseName != null && false) {
+			
+			
+			this.dataBaseTable = dataBaseTable;
+			this.tableLabelEnum = tableLabelEnum;
+			this.dataBase = new SQLDataBase();
 			try {
+
+				dataBase.connect(dataBaseName);
+				List<Map<String, String>> data = null;
 				data = dataBase.load(dataBaseTable, tableLabelEnum);			
 			if (data != null) {
 				for (Map<String, String> dbInfo : data) {
@@ -82,7 +71,7 @@ public abstract class ClassroomDataFetcher extends SwingWorker<Integer, Classroo
 			}
 			catch (Exception x) {
 				miscException = x;
-			}
+			}			
 		}
 	}
 
@@ -93,12 +82,13 @@ public abstract class ClassroomDataFetcher extends SwingWorker<Integer, Classroo
 			public void run() {
 				int currentSize = chunks.size();
 				if (currentSize != 0) {
+					List<ClassroomData> sendToListener = new ArrayList<ClassroomData>();
 					for (int i = 0; i < currentSize; i++) {
 						ClassroomData data = chunks.get(i);
 						// If it is in our readFromDB list, that means we got it from the database
 						// already & the listener added it
 						if (readFromDB == null || readFromDB.contains(data.getId()) == false) {
-							listener.retrievedInfo(data);
+							sendToListener.add(data);
 						}
 						if (data.isRetrievedFromGoogle() == true) {
 							dbAdd.add(data);							
@@ -110,6 +100,7 @@ public abstract class ClassroomDataFetcher extends SwingWorker<Integer, Classroo
 							readFromDB.add(data.getId());
 						}
 					}
+					getListener().process(sendToListener);
 				}
 			}
 		});
@@ -124,43 +115,37 @@ public abstract class ClassroomDataFetcher extends SwingWorker<Integer, Classroo
 		if (databaseException != null) {
 			System.err.println("local database error " + databaseException.getMessage());
 		}
-		SwingUtilities.invokeLater(new Runnable() {
+		if (dataBase != null) {
+		SwingUtilities.invokeLater(new Runnable() {			
 			public void run() {
 
-				if (dataBase != null && databaseException == null && miscException == null) {
-					try {						
-						dataBase.save(dataBaseTable, tableLabelEnum, dbAdd);
-						for (ClassroomData dataCheck : dbAdd) {
-							readFromDB.remove(dataCheck.getId());
-						}
-						if (readFromDB.size() != 0) {
-							dataBase.delete(dataBaseTable, tableLabelEnum, readFromDB);
-						}
+				
+					if (databaseException == null && miscException == null) {
+						try {						
+							dataBase.save(dataBaseTable, tableLabelEnum, dbAdd);
+							for (ClassroomData dataCheck : dbAdd) {
+								readFromDB.remove(dataCheck.getId());
+							}
+							if (readFromDB.size() != 0 && dbAdd.size() != 0) {
+								dataBase.delete(dataBaseTable, tableLabelEnum, readFromDB);
+							}
 
-						
-					} catch (SQLException e) {
-						System.err.println(e.getMessage());
-						databaseException = e;
-					} catch (Exception x) {
-						miscException = x;
+
+						} catch (SQLException e) {
+							System.err.println(e.getMessage());
+							databaseException = e;
+						} catch (Exception x) {
+							miscException = x;
+						}
+						dataBase.disconnect();
 					}
 
 				}
-			}
-		});
-		if (fetchDoneListener != null) {
-			fetchDoneListener.done();
+			});
 		}
+		super.done();
 	}
 	
-	/**
-	 * This will never be called by the googleClassroomInterface, only the add portion
-	 */
-	@Override
-	public void remove(Set<String> ids) {
-		
-	}
-
 	public IOException getCommunicationException() {
 		return communicationException;
 	}

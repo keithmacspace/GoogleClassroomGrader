@@ -24,8 +24,8 @@ import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
 import javax.swing.text.DefaultEditorKit;
 
-import net.cdonald.googleClassroom.control.StudentListInfo;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
+import net.cdonald.googleClassroom.listenerCoordinator.StudentListInfo;
 import net.cdonald.googleClassroom.model.FileData;
 import net.cdonald.googleClassroom.model.Rubric;
 import net.cdonald.googleClassroom.model.StudentData;

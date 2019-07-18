@@ -1,4 +1,4 @@
-package net.cdonald.googleClassroom.inMemoryJavaCompiler;
+package org.mdkt.compiler;
 import javax.tools.SimpleJavaFileObject;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

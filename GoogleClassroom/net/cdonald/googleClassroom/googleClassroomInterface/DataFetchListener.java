@@ -8,5 +8,4 @@ import net.cdonald.googleClassroom.model.ClassroomData;
 
 public interface DataFetchListener {
 	public void retrievedInfo(ClassroomData data);
-	public void remove(Set<String> ids);
 }

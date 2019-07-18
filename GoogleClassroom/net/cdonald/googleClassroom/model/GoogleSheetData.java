@@ -4,12 +4,17 @@ import java.util.Map;
 
 
 public class GoogleSheetData extends ClassroomData {
-	private String sheetId;
+	private String sheetId; 
 	public enum fieldNames{URL_ID, NAME, SHEET_ID}
 	public static final String DB_NAME = "Rubric_Names";
 	public GoogleSheetData(String name, String urlID, String sheetID) {
 		super(name, urlID + sheetID);
 		this.sheetId = sheetID;
+	}
+	
+	public GoogleSheetData() {
+		super();
+		sheetId = "";
 	}
 	
 	public GoogleSheetData(Map<String, String> dbInfo) {

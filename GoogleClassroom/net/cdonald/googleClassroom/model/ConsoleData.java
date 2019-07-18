@@ -10,12 +10,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
+
 import javax.swing.SwingWorker;
-import net.cdonald.googleClassroom.gui.ConsoleDisplayListener;
-import net.cdonald.googleClassroom.gui.ConsoleInputListener;
+
+import net.cdonald.googleClassroom.listenerCoordinator.GetConsoleInputHistoryQuery;
+import net.cdonald.googleClassroom.listenerCoordinator.GetConsoleOutputQuery;
+import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
+import net.cdonald.googleClassroom.listenerCoordinator.PreRunBlockingListener;
+import net.cdonald.googleClassroom.listenerCoordinator.SystemInListener;
+import net.cdonald.googleClassroom.listenerCoordinator.SystemOutListener;
 
 
-public class ConsoleData implements ConsoleInputListener{
+public class ConsoleData {
 	private PipedInputStream inPipe;
 	private final PipedInputStream outPipe = new PipedInputStream();
 	private PrintWriter inWriter;
@@ -27,8 +33,7 @@ public class ConsoleData implements ConsoleInputListener{
 	private String currentStudentID;
 	private PrintStream oldOut;
 	private InputStream oldIn;
-	private static Semaphore runSemaphore = new Semaphore(1);
-	private ConsoleDisplayListener listener;
+	private static Semaphore runSemaphore = new Semaphore(1);	
 
 
 
@@ -37,18 +42,48 @@ public class ConsoleData implements ConsoleInputListener{
 		oldIn = System.in;
 		outputMap = new HashMap<String, String>();
 		inputMap = new HashMap<String, String>();
+		registerListeners();
 		redirectConsole();
+		
+	}
+	
+	private void registerListeners() {
+		ListenerCoordinator.addListener(SystemInListener.class, new SystemInListener() {
+			@Override
+			public void fired(String text) {
+				// Only do this when we are running, don't accidentally absorb extra data.
+				if (runSemaphore.availablePermits() == 0) {
+					inWriter.println(text);
+					System.out.println();
+					String temp = outputMap.get(currentStudentID) + text;
+					outputMap.put(currentStudentID, temp);
+					temp = inputMap.get(currentStudentID) + text;
+					inputMap.put(currentStudentID, temp);
+				}		
+			}
+		});
+		
+		ListenerCoordinator.addQueryResponder(GetConsoleOutputQuery.class, new GetConsoleOutputQuery() {
+			@Override
+			public String fired(String studentID) {
+				// TODO Auto-generated method stub
+				return outputMap.get(studentID);
+			}			
+		});
+		ListenerCoordinator.addQueryResponder(GetConsoleInputHistoryQuery.class, new GetConsoleInputHistoryQuery() {
+			@Override
+			public String fired(String studentID) {
+				// TODO Auto-generated method stub
+				return inputMap.get(studentID);
+			}			
+		});
+
+		
 	}
 	
 	public void assignmentSelected() {
 		outputMap.clear();
 		inputMap.clear();
-	}
-
-
-	public void addListener(ConsoleDisplayListener listener) {
-		this.listener = listener;
-		listener.addListener(this);
 	}
 
 	public void studentSelected(String id) {
@@ -62,7 +97,8 @@ public class ConsoleData implements ConsoleInputListener{
 		} catch (InterruptedException e) {
 
 		}
-		listener.startRunning(fileDataList);
+		ListenerCoordinator.fire(PreRunBlockingListener.class, fileDataList);
+
 		currentStudentID = id;
 		outputMap.put(id, "");
 		inputMap.put(id, "");
@@ -127,15 +163,13 @@ public class ConsoleData implements ConsoleInputListener{
 					// program. I know it is a little ugly, I just can't figure out how to wait
 					// until
 					// all the output finishes flowing down
-					if (str == 0) {
+					if (str == 0) {						
 						done = true;
 					} else {						
 						temp += str.toString();
 					}
 				}
-				if (listener != null) {
-					listener.textAdded(temp);
-				}
+				ListenerCoordinator.fire(SystemOutListener.class, temp, (Boolean)done);
 				outputMap.put(currentStudentID, temp);
 				if (done == true) {
 					runStopped();
@@ -160,20 +194,6 @@ public class ConsoleData implements ConsoleInputListener{
 		};
 		consoleWorker.execute();
 	}
-
-	@Override
-	public void textInputted(String text) {
-		// Only do this when we are running, don't accidentally absorb extra data.
-		if (runSemaphore.availablePermits() == 0) {
-			inWriter.println(text);
-			System.out.println();
-			String temp = outputMap.get(currentStudentID) + text;
-			outputMap.put(currentStudentID, temp);
-			temp = inputMap.get(currentStudentID) + text;
-			inputMap.put(currentStudentID, temp);
-		}		
-	}
-	
 
 	public String getConsoleOutput(String studentID) {
 		if (outputMap.containsKey(studentID)) {

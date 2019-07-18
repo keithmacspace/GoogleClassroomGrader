@@ -1,4 +1,4 @@
-package net.cdonald.googleClassroom.inMemoryJavaCompiler;
+package org.mdkt.compiler;
 public class CompilationException extends RuntimeException {
 	private static final long serialVersionUID = 5272588827551900536L;
 

@@ -1,4 +1,4 @@
-package net.cdonald.googleClassroom.inMemoryJavaCompiler;
+package org.mdkt.compiler;
 import java.util.HashMap;
 import java.util.Map;
 

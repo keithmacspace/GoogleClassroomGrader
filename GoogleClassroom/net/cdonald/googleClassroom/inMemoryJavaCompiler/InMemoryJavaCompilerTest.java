@@ -5,6 +5,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.mdkt.compiler.CompilationException;
+import org.mdkt.compiler.InMemoryJavaCompiler;
+
 
 
 public class InMemoryJavaCompilerTest {

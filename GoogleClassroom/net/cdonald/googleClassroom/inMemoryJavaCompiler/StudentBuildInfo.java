@@ -1,5 +1,6 @@
 package net.cdonald.googleClassroom.inMemoryJavaCompiler;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -14,6 +15,7 @@ import net.cdonald.googleClassroom.model.FileData;
  *
  */
 public class StudentBuildInfo {
+	// mapped by class name, ex: net.cdonald.googleClassroom.inMemoryJavaCompiler would be the key
 	private Map<String, Class<?>> studentCompilerMap;
 	private List<FileData> studentFileData;
 	private CompilerMessage compilerMessage;
@@ -47,6 +49,21 @@ public class StudentBuildInfo {
 
 	public void setStudentCompilerMap(Map<String, Class<?>> studentCompilerMap) {
 		this.studentCompilerMap = studentCompilerMap;
-	}		
+	}
+	
+	public String getCompleteMethodName(String methodName) {
+		for (String key : studentCompilerMap.keySet()) {
+			Class<?> aClass = studentCompilerMap.get(key);
+			for (Method method : aClass.getMethods()) {
+				String currentMethodName = method.getName();
+
+				if (methodName.compareTo(currentMethodName) == 0) {
+					return key + "." + currentMethodName;
+				}
+			}
+		}
+		return null;
+	}
+
 
 }
