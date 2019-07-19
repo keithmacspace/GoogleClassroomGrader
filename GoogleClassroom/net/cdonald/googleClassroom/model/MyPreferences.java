@@ -10,7 +10,7 @@ import java.util.prefs.Preferences;
  */
 public class MyPreferences {
 	private Preferences preferences;
-	private enum PrefNames {WORKING_DIR, CLASS_ID, CLASS_NAME};
+	private enum PrefNames {WORKING_DIR, CLASS_ID, CLASS_NAME, FILE_DIR};
 	
 	public MyPreferences() {
 		preferences = Preferences.userNodeForPackage(net.cdonald.googleClassroom.gui.MainGoogleClassroomFrame.class);
@@ -22,8 +22,15 @@ public class MyPreferences {
 
 	public void setWorkingDir(String workingDir) {
 		preferences.put(PrefNames.WORKING_DIR.toString(), workingDir);
-		makeDirs();
-		
+		makeDirs();		
+	}
+	
+	public String getFileDir() {
+		return preferences.get(PrefNames.FILE_DIR.toString(), null);		
+	}
+	
+	public void setFileDir(String fileDir) {
+		preferences.put(PrefNames.FILE_DIR.toString(), fileDir);
 	}
 
 	

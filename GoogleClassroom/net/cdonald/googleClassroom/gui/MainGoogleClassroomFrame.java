@@ -240,13 +240,6 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 		mainToolBar.enableRunRubricButton();
 	}
 
-	@Override
-	public void studentSelected(String id) {
-		List<FileData> fileDataList = dataController.getSourceCode(id);
-		String outputText = dataController.getConsoleOutput(id);
-		String inputHistoryText = dataController.getConsoleInputHistory(id); 
-		consoleAndSourcePanel.setWindowData(fileDataList, outputText, inputHistoryText);
-	}
 	
 	@Override
 	public void openRubricEditorDialog() {

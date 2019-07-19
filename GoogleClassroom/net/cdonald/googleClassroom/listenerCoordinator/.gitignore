@@ -43,3 +43,6 @@
 /GetStudentFilesQuery.class
 /GetConsoleInputHistoryQuery.class
 /AddRubricTabListener.class
+/GetFileDirListener.class
+/GetFileDirQuery.class
+/SetFileDirListener.class

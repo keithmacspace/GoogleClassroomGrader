@@ -9,9 +9,8 @@ import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.StudentWorkCompiler;
 
 public class RubricEntryRunCode extends  RubricAutomation{
-	private String className;
-	private String methodToCall; 
-	private String sourceContents;
+	private String methodToCall;
+	private List<FileData> sourceFiles;
 	private String methodBeingChecked;
 	boolean checkSystemOut;	
 	RubricEntrySystemListeners sysListeners;	
@@ -21,6 +20,7 @@ public class RubricEntryRunCode extends  RubricAutomation{
 	public RubricEntryRunCode() {
 		sysListeners = new RubricEntrySystemListeners("Run Code");
 		perStudentResults = new HashMap<String, String>();
+		sourceFiles = new ArrayList<FileData>();
 	}
 
 
@@ -29,8 +29,10 @@ public class RubricEntryRunCode extends  RubricAutomation{
 	}
 
 
-	public void setSourceContents(String methodToCall) {
-		this.sourceContents = methodToCall;
+	public void addSourceContents(FileData file) {
+		file.setRubricCode(true);
+		this.sourceFiles.add(file);
+		
 	}
 	
 	
@@ -46,25 +48,24 @@ public class RubricEntryRunCode extends  RubricAutomation{
 			else {
 				List<FileData> studentFiles = compiler.getSourceCode(studentId);
 				List<FileData> rubricFiles = new ArrayList<FileData>(studentFiles);
-				String modifiedSource = replaceMethodName(completeMethodName);
-				sysListeners.prepareForNextTest();
-				FileData fileData = new FileData(className + ".java", modifiedSource, studentId,  null);
-				rubricFiles.add(fileData);
-				
-				fileData.setRubricCode(true);
+				sysListeners.prepareForNextTest();				
+				for (FileData sourceFile : sourceFiles) {
+					String modifiedSource = replaceMethodName(completeMethodName, sourceFile.getFileContents());
+					FileData temp = new FileData(sourceFile.getName(), modifiedSource, studentId, null);
+					rubricFiles.add(temp);				
+				}
 				Class<?> []params = {};
 				Object []args = {};
 				String returnValue = compiler.compileAndRun(true,  rubricFiles, methodToCall, params, args);
 				addOutput(studentId, sysListeners.getSysOutText());
-				double value = Double.parseDouble(returnValue);
-				
+				double value = Double.parseDouble(returnValue);				
 				return value;
 			}
 		}
 		return 0.0;
 	}
 	
-	String replaceMethodName(String completeMethodName) {
+	String replaceMethodName(String completeMethodName, String sourceContents) {
 		String search = methodBeingChecked + "(";
 		int methodIndex = 0;
 		int priorIndex = 0;
@@ -105,56 +106,56 @@ public class RubricEntryRunCode extends  RubricAutomation{
 		return fixedContents;
 	}
 	
-	public static RubricEntry createTest() {
+//	public static RubricEntry createTest() {
+//
+//		RubricEntryRunCode test = new RubricEntryRunCode();
+//		String file = "public class TestAdd {\n" + 
+//				"	public static double runAddTest() {\n" + 
+//				"		int numTests = 0;\n" + 
+//				"		int numPassed = 0;\n" + 
+//				"		for (int i = 0; i < 6; i++) {\n" + 
+//				"			for (int j = 0; j < 6; j++) {numTests++;\n" + 
+//				"				int expected = i + j;\n" + 
+//				"				int result = add(i, j);\n" + 
+//				"				if (result == expected) {\n" + 
+//				"					numPassed++;\n" + 
+//				"					System.out.print(\"Pass: \");\n" + 
+//				"				}\n" + 
+//				"				else {\n" + 
+//				"					System.out.print(\"Fail: \");\n" + 
+//				"				}\n" + 
+//				"				System.out.println(\"add(\" + i + \", \"  + j + \") returned: \"  + result + \". Expected: \"  + expected);\n" + 
+//				"			}\n" + 
+//				"               System.out.flush();" +
+//				"		}		return (double)numPassed/(numTests * 2);\n" + 
+//				"	}\n" + 
+//				"}";
+//
+//		test.setSourceContents(file);
+//		test.setClassName("TestAdd");
+//		test.setMethodBeingChecked("add");
+//		test.setMethodToCall("runAddTest");
+//		RubricEntry entry = new RubricEntry();
+//		entry.setName("TestAdd");
+//		entry.setValue(5);
+//		entry.setAutomationType(RubricEntry.AutomationTypes.RUN_CODE);
+//		entry.setAutomation(test);
+//		return entry;
+//		
+//	} 
+//	
 
-		RubricEntryRunCode test = new RubricEntryRunCode();
-		String file = "public class TestAdd {\n" + 
-				"	public static double runAddTest() {\n" + 
-				"		int numTests = 0;\n" + 
-				"		int numPassed = 0;\n" + 
-				"		for (int i = 0; i < 6; i++) {\n" + 
-				"			for (int j = 0; j < 6; j++) {numTests++;\n" + 
-				"				int expected = i + j;\n" + 
-				"				int result = add(i, j);\n" + 
-				"				if (result == expected) {\n" + 
-				"					numPassed++;\n" + 
-				"					System.out.print(\"Pass: \");\n" + 
-				"				}\n" + 
-				"				else {\n" + 
-				"					System.out.print(\"Fail: \");\n" + 
-				"				}\n" + 
-				"				System.out.println(\"add(\" + i + \", \"  + j + \") returned: \"  + result + \". Expected: \"  + expected);\n" + 
-				"			}\n" + 
-				"               System.out.flush();" +
-				"		}		return (double)numPassed/(numTests * 2);\n" + 
-				"	}\n" + 
-				"}";
-
-		test.setSourceContents(file);
-		test.setClassName("TestAdd");
-		test.setMethodBeingChecked("add");
-		test.setMethodToCall("runAddTest");
-		RubricEntry entry = new RubricEntry();
-		entry.setName("TestAdd");
-		entry.setValue(5);
-		entry.setAutomationType(RubricEntry.AutomationTypes.RUN_CODE);
-		entry.setAutomation(test);
-		return entry;
-		
-	} 
 	
-
 	
 	
-	
-	public String getClassName() {
-		return className;
-	}
-
-
-	public void setClassName(String className) {
-		this.className = className;
-	}
+//	public String getClassName() {
+//		return className;
+//	}
+//
+//
+//	public void setClassName(String className) {
+//		this.className = className;
+//	}
 
 
 	public String getMethodToCall() {
@@ -167,9 +168,9 @@ public class RubricEntryRunCode extends  RubricAutomation{
 	}
 
 
-	public String getSourceContents() {
-		return sourceContents;
-	}
+//	public String getSourceContents() {
+//		return sourceContents;
+//	}
 
 
 	public String getMethodBeingChecked() {
@@ -177,13 +178,13 @@ public class RubricEntryRunCode extends  RubricAutomation{
 	}
 
 
-	public static void main(String [] args ) {
-		RubricEntryRunCode code = new RubricEntryRunCode();
-		code.setSourceContents("            java.lang.run(test, test)\n\t\t\trun(test, test)");
-		code.setMethodBeingChecked("run");
-		System.out.println("\"" + code.replaceMethodName("test.run") + "\"");
-		
-	}
+//	public static void main(String [] args ) {
+//		RubricEntryRunCode code = new RubricEntryRunCode();
+//		code.setSourceContents("            java.lang.run(test, test)\n\t\t\trun(test, test)");
+//		code.setMethodBeingChecked("run");
+//		System.out.println("\"" + code.replaceMethodName("test.run") + "\"");
+//		
+//	}
 	
 
 	

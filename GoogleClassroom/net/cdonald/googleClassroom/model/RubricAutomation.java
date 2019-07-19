@@ -1,7 +1,6 @@
 package net.cdonald.googleClassroom.model;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
@@ -9,24 +8,13 @@ import net.cdonald.googleClassroom.inMemoryJavaCompiler.StudentWorkCompiler;
 import net.cdonald.googleClassroom.listenerCoordinator.AddRubricTabListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.SetRubricTextListener;
-import net.cdonald.googleClassroom.listenerCoordinator.StudentSelectedListener;
+
 
 public abstract class RubricAutomation {
 	private Map<String, String> perStudentOutput;
 	private String ownerName;
-	public RubricAutomation() {
-		
+	public RubricAutomation() {		
 		perStudentOutput = new HashMap<String, String>();
-		ListenerCoordinator.addListener(StudentSelectedListener.class, new StudentSelectedListener() {
-			@Override
-			public void fired(List<String> ids, String idToDisplay) {
-				String textToDisplay = perStudentOutput.get(idToDisplay);
-				if (textToDisplay == null) {
-					textToDisplay = "";
-				}
-				ListenerCoordinator.fire(SetRubricTextListener.class, ownerName, textToDisplay);				
-			}			
-		});
 	}
 	
 	public String getRubricOutput(String studentId) {

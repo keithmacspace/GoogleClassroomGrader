@@ -48,7 +48,7 @@ public abstract class ClassroomDataFetcher extends LongQueryResponder<ClassroomD
 	}
 
 	protected void readDataBase(String dataBaseName, String dataBaseTable, Class<? extends Enum<?>>  tableLabelEnum) {		
-		if (dataBaseName != null && false) {
+		if (dataBaseName != null) {
 			
 			
 			this.dataBaseTable = dataBaseTable;

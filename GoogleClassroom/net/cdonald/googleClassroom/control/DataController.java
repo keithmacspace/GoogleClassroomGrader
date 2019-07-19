@@ -31,6 +31,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.ClassSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.EnableRunRubricQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetCurrentClassQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetDBNameQuery;
+import net.cdonald.googleClassroom.listenerCoordinator.GetFileDirQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetRubricOutputQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetStudentFilesQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetWorkingDirQuery;
@@ -40,6 +41,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.LongQueryListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RecompileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricFileSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricSelected;
+import net.cdonald.googleClassroom.listenerCoordinator.SetFileDirListener;
 import net.cdonald.googleClassroom.listenerCoordinator.SetRunRubricEnableStateListener;
 import net.cdonald.googleClassroom.listenerCoordinator.SetWorkingDirListener;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentListInfo;
@@ -162,6 +164,13 @@ public class DataController implements StudentListInfo {
 			}
 		});	
 		
+		ListenerCoordinator.addQueryResponder(GetFileDirQuery.class, new GetFileDirQuery() {
+			@Override
+			public String fired() {
+				return prefs.getFileDir();
+			}
+		});	
+		
 		ListenerCoordinator.addQueryResponder(GetDBNameQuery.class, new GetDBNameQuery() {
 			@Override
 			public String fired(DBType type) {
@@ -220,10 +229,16 @@ public class DataController implements StudentListInfo {
 
 			@Override
 			public void fired(String workingDir) {
-				prefs.setWorkingDir(workingDir);
-				
-			}
-			
+				prefs.setWorkingDir(workingDir);				
+			}			
+		});
+		
+		ListenerCoordinator.addListener(SetFileDirListener.class, new SetFileDirListener() {
+			@Override
+			public void fired(String workingDir) {
+				prefs.setFileDir(workingDir);				
+			}			
+
 		});
 		
 		ListenerCoordinator.addListener(RubricFileSelectedListener.class, new RubricFileSelectedListener() {
@@ -284,8 +299,6 @@ public class DataController implements StudentListInfo {
 			}
 		}
 		this.rubric = rubric;
-		//rubric.addEntry(RubricEntryCallMethod.createTest());
-		rubric.addEntry(RubricEntryRunCode.createTest());
 		structureListener.dataStructureChanged();
 		return JOptionPane.NO_OPTION;
 	}

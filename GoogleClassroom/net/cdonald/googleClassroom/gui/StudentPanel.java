@@ -25,7 +25,9 @@ import javax.swing.table.TableColumnModel;
 import javax.swing.text.DefaultEditorKit;
 
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
+import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentListInfo;
+import net.cdonald.googleClassroom.listenerCoordinator.StudentSelectedListener;
 import net.cdonald.googleClassroom.model.FileData;
 import net.cdonald.googleClassroom.model.Rubric;
 import net.cdonald.googleClassroom.model.StudentData;
@@ -109,12 +111,12 @@ public class StudentPanel extends JPanel {
 				if (lsm.isSelectionEmpty() == false) {
 					int selectedRow = lsm.getMinSelectionIndex();
 					Object student = studentModel.getValueAt(selectedRow, StudentListInfo.LAST_NAME_COLUMN);
-					if (student != null && studentPanelListener != null) {
-						studentPanelListener.studentSelected(((StudentData)student).getId());
+					String studentId = null;
+					if (student != null) {
+						studentId = ((StudentData)student).getId();
 					}
-				}
-				
-				
+					ListenerCoordinator.fire(StudentSelectedListener.class, studentId);					
+				}							
 			}
 			
 		});

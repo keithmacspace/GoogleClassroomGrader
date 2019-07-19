@@ -120,6 +120,10 @@ public class ConsoleAndSourcePanel extends JPanel {
 						currentFile = fileData;
 						sourceIndex++;
 					}
+				} else {
+					for (int i = 0; i < sourceTabbedPane.getTabCount(); i++) {
+						sourceTabbedPane.getComponentAt(i).setVisible(false);
+					}
 				}
 				consoleOutput.setText(outputText);
 				consoleInputHistory.setText(inputHistory);
@@ -244,44 +248,44 @@ public class ConsoleAndSourcePanel extends JPanel {
 	private void registerListeners() {
 		ListenerCoordinator.addListener(SystemOutListener.class, new SystemOutListener() {
 			@Override
-			public void fired(String text, Boolean finished) {				
+			public void fired(String text, Boolean finished) {
 				consoleOutput.append(text);
-			}			
+			}
 		});
-		
+
 		ListenerCoordinator.addListener(AddRubricTabListener.class, new AddRubricTabListener() {
 			@Override
 			public void fired(String rubricName) {
 				if (rubricOutput.containsKey(rubricName) == false) {
 					JPanel rubricPanel = new JPanel();
-					rubricPanel.setBorder(BorderFactory.createEmptyBorder(5,  5,  5,  5));
+					rubricPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 					rubricPanel.setLayout(new BorderLayout());
 					JTextArea rubricArea = new JTextArea();
 					rubricOutput.put(rubricName, rubricArea);
-					rubricPanel.add( new JScrollPane(rubricArea));
-					rubricPanel.setVisible(true);				
+					rubricPanel.add(new JScrollPane(rubricArea));
+					rubricPanel.setVisible(true);
 					overallTabbedPane.addTab(rubricName, rubricPanel);
 				}
-			}			
+			}
 		});
-		
+
 		ListenerCoordinator.addListener(SetRubricTextListener.class, new SetRubricTextListener() {
 			@Override
 			public void fired(String rubricName, String rubricText) {
-				JTextArea area = rubricOutput.get(rubricName);				
+				JTextArea area = rubricOutput.get(rubricName);
 				if (area != null) {
 					area.setText(rubricText);
 				}
 			}
 		});
-		
+
 		ListenerCoordinator.addBlockingListener(PreRunBlockingListener.class, new PreRunBlockingListener() {
 			public void fired(ArrayList<FileData> sourceList) {
 				overallTabbedPane.setSelectedIndex(1);
 				try {
 					// Doing this prevents forward progress until the panes are ready
 					pauseSemaphore.release();
-					pauseSemaphore.acquire();			
+					pauseSemaphore.acquire();
 					setWindowData(sourceList, "", "");
 					// We will now hang here until the release in setWindowData
 					pauseSemaphore.acquire();
@@ -291,32 +295,42 @@ public class ConsoleAndSourcePanel extends JPanel {
 			}
 
 		});
-		
+
 		ListenerCoordinator.addListener(AssignmentSelected.class, new AssignmentSelected() {
 			@Override
 			public void fired(ClassroomData data) {
 				if (data == null || data.isEmpty()) {
 					return;
 				}
-				assignmentSelected();				
+				assignmentSelected();
 			}
 		});
-		
+
 		ListenerCoordinator.addListener(StudentSelectedListener.class, new StudentSelectedListener() {
 
 			@Override
-			public void fired(List<String> ids, String idToDisplay) {
-				List<FileData> studentFiles = (List<FileData>)ListenerCoordinator.runQuery(GetStudentFilesQuery.class, idToDisplay);
-				String consoleOutput = (String)ListenerCoordinator.runQuery(GetConsoleOutputQuery.class, idToDisplay);
-				String consoleInput = (String)ListenerCoordinator.runQuery(GetConsoleInputHistoryQuery.class, idToDisplay);
-				setWindowData(studentFiles, consoleInput, consoleOutput);
-				for (String rubricName : rubricOutput.keySet()) {
-					String rubricText = (String)ListenerCoordinator.runQuery(GetRubricOutputQuery.class, rubricName, idToDisplay);
-					rubricOutput.get(rubricName).setText(rubricText);
-				}				
-			}			
-		});		
-		
+			public void fired(String idToDisplay) {
+				if (idToDisplay != null) {
+					List<FileData> studentFiles = (List<FileData>) ListenerCoordinator.runQuery(GetStudentFilesQuery.class, idToDisplay);
+					String consoleOutput = (String) ListenerCoordinator.runQuery(GetConsoleOutputQuery.class,
+							idToDisplay);
+					String consoleInput = (String) ListenerCoordinator.runQuery(GetConsoleInputHistoryQuery.class,
+							idToDisplay);
+					setWindowData(studentFiles, consoleInput, consoleOutput);
+					for (String rubricName : rubricOutput.keySet()) {
+						String rubricText = (String) ListenerCoordinator.runQuery(GetRubricOutputQuery.class,
+								rubricName, idToDisplay);
+						rubricOutput.get(rubricName).setText(rubricText);
+					}
+				} else {
+					setWindowData(null, "", "");
+					for (String rubricName : rubricOutput.keySet()) {
+						rubricOutput.get(rubricName).setText("");
+					}
+				}
+			}
+		});
+
 	}
 
 }
