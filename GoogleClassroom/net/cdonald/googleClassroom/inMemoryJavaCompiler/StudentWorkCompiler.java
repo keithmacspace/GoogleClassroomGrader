@@ -1,7 +1,6 @@
 package net.cdonald.googleClassroom.inMemoryJavaCompiler;
 
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.List;
@@ -13,7 +12,9 @@ import javax.swing.SwingWorker;
 import org.mdkt.compiler.CompilationException;
 import org.mdkt.compiler.InMemoryJavaCompiler;
 
-import net.cdonald.googleClassroom.listenerCoordinator.RecompileListener;
+import net.cdonald.googleClassroom.listenerCoordinator.AddProgressBarListener;
+import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
+import net.cdonald.googleClassroom.listenerCoordinator.RemoveProgressBarListener;
 import net.cdonald.googleClassroom.model.FileData;
 
 public class StudentWorkCompiler {
@@ -116,6 +117,8 @@ public class StudentWorkCompiler {
 
 			@Override
 			protected Void doInBackground() {
+				final String PROGRESS_BAR_NAME = "Compiling";
+				ListenerCoordinator.fire(AddProgressBarListener.class, PROGRESS_BAR_NAME);
 				Set<String> keys = studentBuildInfoMap.keySet();
 				for (String key : keys) {
 					
@@ -136,6 +139,7 @@ public class StudentWorkCompiler {
 						publish(new CompilerMessage(key, false, e2.getMessage()));
 					}
 				}
+				ListenerCoordinator.fire(RemoveProgressBarListener.class, PROGRESS_BAR_NAME);
 				return null;
 			}
 

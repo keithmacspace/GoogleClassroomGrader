@@ -5,6 +5,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.swing.JOptionPane;
+
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.StudentWorkCompiler;
 
@@ -13,8 +15,10 @@ public class RubricEntryRunCode extends  RubricAutomation{
 	private List<FileData> sourceFiles;
 	private String methodBeingChecked;
 	boolean checkSystemOut;	
-	RubricEntrySystemListeners sysListeners;	
-	Map<String, String> perStudentResults;
+	private RubricEntrySystemListeners sysListeners;	
+	private Map<String, String> perStudentResults;
+	private enum MethodNames {METHOD_TO_CALL, METHOD_BEING_CHECKED, SOURCE_FILE};
+
 
 	
 	public RubricEntryRunCode() {
@@ -176,6 +180,134 @@ public class RubricEntryRunCode extends  RubricAutomation{
 	public String getMethodBeingChecked() {
 		return methodBeingChecked;
 	}
+
+
+	public List<FileData> getSourceFiles() {
+		return sourceFiles;
+	}
+
+
+	public void setSourceFiles(List<FileData> sourceFiles) {
+		this.sourceFiles = sourceFiles;
+	}
+
+
+	@Override
+	public int getNumAutomationColumns() {		
+		return 2;
+	}
+	
+	@Override
+	protected void saveAutomationColumns(String entryName, List<List<Object>> columnData, Map<String, List<Object>> fileData) {
+		List<Object> labels = new ArrayList<Object>();
+		List<Object> content = new ArrayList<Object>();
+		labels.add(entryName);
+		content.add(entryName);
+		labels.add(MethodNames.METHOD_BEING_CHECKED.toString());
+		content.add(methodBeingChecked);
+		labels.add(MethodNames.METHOD_TO_CALL.toString());
+		content.add(methodToCall);
+		columnData.add(labels);
+		columnData.add(content);
+		for (FileData file : sourceFiles) {
+			labels.add(MethodNames.SOURCE_FILE.toString());
+			content.add(file.getName());
+			if (fileData.containsKey(file.getName()) == false) {
+				List<Object> fileLineList = new ArrayList<Object>();
+				fileLineList.add(file.getName()); // Column header
+				String[] fileLineArray = file.getFileContents().split("\n");
+				int rowCount = 0;
+				int lineIndex = 0;
+				while(lineIndex < fileLineArray.length) {
+					// Start putting multiple lines on a single row.
+					if (rowCount > 200) {
+						String nextLine = "";
+						while(nextLine.length() < 200) {
+							nextLine += fileLineArray[lineIndex];
+							if (nextLine.length() < 199) {
+								nextLine += "\n";
+							}
+							lineIndex++;
+						}
+						fileLineList.add(nextLine);
+					}
+					else {
+						fileLineList.add(fileLineArray[lineIndex]);
+						lineIndex++;	
+					}
+					rowCount++;					
+				}
+				fileData.put(file.getName(), fileLineList);
+			}
+		}
+	}
+
+
+	@Override
+	protected void loadAutomationColumns(String entryName, Map<String, List<List<Object>>> columnData) {		
+		List<List<Object> > columns = columnData.get(entryName.toUpperCase());
+		
+		if (columns == null || columns.size() != getNumAutomationColumns()) {
+			JOptionPane.showMessageDialog(null, "Expected there two be " + getNumAutomationColumns() + " columns of automation data for " + entryName + " there are " + columns.size(), "Bad rubric automation data",
+					JOptionPane.ERROR_MESSAGE);
+			return;
+		}
+		else {
+			List<Object> files = new ArrayList<Object>();
+			List<Object> labelRow = columns.get(0);
+			methodBeingChecked = null;
+			methodToCall = null;
+			for (int row = 0; row < labelRow.size(); row++) {
+				String label = (String)labelRow.get(row);
+				if (label.equalsIgnoreCase(MethodNames.METHOD_BEING_CHECKED.toString())) {
+					methodBeingChecked = (String)columns.get(1).get(row);					
+				}
+				else if (label.equalsIgnoreCase(MethodNames.METHOD_TO_CALL.toString())) {
+					methodToCall = (String)columns.get(1).get(row);
+				}
+				else if (label.equalsIgnoreCase(MethodNames.SOURCE_FILE.toString())) {
+					files.add(columns.get(1).get(row));
+				}
+			}
+			if (files.size() == 0 || methodBeingChecked == null || methodToCall == null) {
+				String message = "Expected these automation labels for " + entryName + ":";
+				for (MethodNames methodName : MethodNames.values()) {
+					message += methodName;
+					message += " ";
+				}
+				JOptionPane.showMessageDialog(null, message, "Bad rubric automation data",
+						JOptionPane.ERROR_MESSAGE);
+				return;			
+			}
+			sourceFiles = new ArrayList<FileData>();
+			for (Object file : files) {
+				List<List<Object>> sourceInfo = columnData.get((String)file);
+				if (sourceInfo == null) {
+					JOptionPane.showMessageDialog(null, "Expected the text for " + file + " in the rubric info", "Bad rubric automation data",
+							JOptionPane.ERROR_MESSAGE);
+					
+				}
+				String text = "";
+				for (List<Object> lines : sourceInfo) {
+					for (Object line : lines) {
+						text += line + "\n";
+					}
+				}
+				sourceFiles.add(new FileData((String)file, text, "0", null));
+			}
+		}
+//			private String methodToCall;
+//			private List<FileData> sourceFiles;
+//			private String methodBeingChecked;
+//			boolean checkSystemOut;	
+//			RubricEntrySystemListeners sysListeners;	
+//			Map<String, String> perStudentResults;
+//		
+		
+	}
+		
+
+
 
 
 //	public static void main(String [] args ) {

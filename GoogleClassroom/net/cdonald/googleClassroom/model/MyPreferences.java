@@ -10,10 +10,18 @@ import java.util.prefs.Preferences;
  */
 public class MyPreferences {
 	private Preferences preferences;
-	private enum PrefNames {WORKING_DIR, CLASS_ID, CLASS_NAME, FILE_DIR};
+	private enum PrefNames {WORKING_DIR, CLASS_ID, CLASS_NAME, FILE_DIR, RUBRIC_FILE};
 	
 	public MyPreferences() {
 		preferences = Preferences.userNodeForPackage(net.cdonald.googleClassroom.gui.MainGoogleClassroomFrame.class);
+	}
+	
+	public String getRubricFile() {
+		return preferences.get(PrefNames.RUBRIC_FILE.toString(), null);
+	}
+	
+	public void setRubricFile(String rubricFile) {
+		preferences.put(PrefNames.RUBRIC_FILE.toString(), rubricFile);
 	}
 	
 	public String getWorkingDir() {

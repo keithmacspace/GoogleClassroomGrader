@@ -109,8 +109,8 @@ public class ListenerCoordinator {
 	}
 	
 	public static void runLongQuery(Class<?> classToFire, LongQueryListener<?> listener) {
-		if (longQueryResponders.containsKey(classToFire) == true) {
-			LongQueryResponder<?> responder = longQueryResponders.get(classToFire);
+		if (longQueryResponders.containsKey(classToFire) == true) {			
+			LongQueryResponder<?> responder = longQueryResponders.get(classToFire).newInstance();
 			responder.setListener(listener);
 			responder.execute();
 		}

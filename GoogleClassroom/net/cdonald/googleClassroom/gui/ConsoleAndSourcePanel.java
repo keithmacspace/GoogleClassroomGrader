@@ -24,8 +24,10 @@ import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.text.DefaultEditorKit;
 
+import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 import net.cdonald.googleClassroom.listenerCoordinator.AddRubricTabListener;
 import net.cdonald.googleClassroom.listenerCoordinator.AssignmentSelected;
+import net.cdonald.googleClassroom.listenerCoordinator.GetCompilerMessageQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetConsoleInputHistoryQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetConsoleOutputQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetRubricOutputQuery;
@@ -89,14 +91,14 @@ public class ConsoleAndSourcePanel extends JPanel {
 			public void run() {
 
 				if (fileDataList != null) {
-					for (int i = sourceTabbedPane.getTabCount(); i < fileDataList.size(); i++) {
+					// Use i <= the last pane will always be the compile message
+					for (int i = sourceTabbedPane.getTabCount(); i <= fileDataList.size(); i++) {
 						JPanel sourcePanel = new JPanel();
 						sourcePanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 						sourcePanel.setLayout(new BorderLayout());
 						JTextArea sourceArea = new JTextArea();
 						sourceCodeList.add(sourceArea);
 						sourcePanel.add(new JScrollPane(sourceArea));
-
 						sourceTabbedPane.addTab("", sourcePanel);
 					}
 					for (int i = fileDataList.size(); i < sourceTabbedPane.getTabCount(); i++) {
@@ -104,19 +106,7 @@ public class ConsoleAndSourcePanel extends JPanel {
 					}
 					int sourceIndex = 0;
 					for (FileData fileData : fileDataList) {
-						sourceTabbedPane.getComponentAt(sourceIndex).setVisible(true);
-						sourceTabbedPane.setTitleAt(sourceIndex, fileData.getName());
-						sourceTabbedPane.getComponentAt(sourceIndex).setVisible(true);
-						JTextArea sourceCode = sourceCodeList.get(sourceIndex);
-						double lineCount = sourceCode.getLineCount();
-						double oldCaretRatio = 0;
-						if (lineCount > 0) {
-							oldCaretRatio = sourceCode.getCaretPosition();
-							oldCaretRatio /= lineCount;
-						}
-						sourceCode.setText(fileData.getFileContents());
-						int newCaretPosition = (int) (sourceCode.getLineCount() * oldCaretRatio);
-						sourceCode.setCaretPosition(newCaretPosition);
+						setSourceContents(fileData.getName(), fileData.getFileContents(), sourceIndex);						
 						currentFile = fileData;
 						sourceIndex++;
 					}
@@ -125,14 +115,41 @@ public class ConsoleAndSourcePanel extends JPanel {
 						sourceTabbedPane.getComponentAt(i).setVisible(false);
 					}
 				}
-				consoleOutput.setText(outputText);
-				consoleInputHistory.setText(inputHistory);
+				if (outputText == null) {
+					consoleOutput.setText("");
+				}
+				else {
+					consoleOutput.setText(outputText);
+				}
+				if (inputHistory == null) {
+					consoleInputHistory.setText("");
+				}
+				else {
+					consoleInputHistory.setText(inputHistory);
+				}
 				consoleOutput.setCaretPosition(0);
 				consoleInputHistory.setCaretPosition(0);
 			}
 
 		});
 
+	}
+	
+	private void setSourceContents(String title, String text, int sourceIndex) {
+		if (sourceIndex >= 0 && sourceIndex < sourceCodeList.size()) {
+			sourceTabbedPane.getComponentAt(sourceIndex).setVisible(true);
+			sourceTabbedPane.setTitleAt(sourceIndex, title);						
+			JTextArea sourceCode = sourceCodeList.get(sourceIndex);
+			double lineCount = sourceCode.getLineCount();
+			double oldCaretRatio = 0;
+			if (lineCount > 0) {
+				oldCaretRatio = sourceCode.getCaretPosition();
+				oldCaretRatio /= lineCount;
+			}
+			sourceCode.setText(text);
+			int newCaretPosition = (int) (sourceCode.getLineCount() * oldCaretRatio);
+			sourceCode.setCaretPosition(newCaretPosition);
+		}
 	}
 
 	private void createPopupMenu() {
@@ -272,8 +289,11 @@ public class ConsoleAndSourcePanel extends JPanel {
 		ListenerCoordinator.addListener(SetRubricTextListener.class, new SetRubricTextListener() {
 			@Override
 			public void fired(String rubricName, String rubricText) {
+				if (rubricText == null) {
+					rubricText = "";
+				}
 				JTextArea area = rubricOutput.get(rubricName);
-				if (area != null) {
+				if (area != null) {					
 					area.setText(rubricText);
 				}
 			}
@@ -316,10 +336,20 @@ public class ConsoleAndSourcePanel extends JPanel {
 							idToDisplay);
 					String consoleInput = (String) ListenerCoordinator.runQuery(GetConsoleInputHistoryQuery.class,
 							idToDisplay);
-					setWindowData(studentFiles, consoleInput, consoleOutput);
+					CompilerMessage compilerMessage = (CompilerMessage)ListenerCoordinator.runQuery(GetCompilerMessageQuery.class, idToDisplay);
+					setWindowData(studentFiles, consoleOutput, consoleInput);
+					if (compilerMessage != null) {
+						setSourceContents("Compiler Message", compilerMessage.getCompilerMessage(), sourceCodeList.size() - 1);
+					}
+					else {
+						setSourceContents("Compiler Message", "", sourceCodeList.size() - 1);
+					}
 					for (String rubricName : rubricOutput.keySet()) {
 						String rubricText = (String) ListenerCoordinator.runQuery(GetRubricOutputQuery.class,
 								rubricName, idToDisplay);
+						if (rubricText == null) {
+							rubricText = "";
+						}
 						rubricOutput.get(rubricName).setText(rubricText);
 					}
 				} else {

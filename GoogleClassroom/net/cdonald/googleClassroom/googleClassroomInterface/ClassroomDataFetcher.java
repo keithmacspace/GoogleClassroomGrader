@@ -8,8 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import javax.swing.JProgressBar;
 import javax.swing.SwingUtilities;
-import javax.swing.SwingWorker;
 
 import net.cdonald.googleClassroom.listenerCoordinator.LongQueryResponder;
 import net.cdonald.googleClassroom.model.ClassroomData;
@@ -18,17 +18,16 @@ import net.cdonald.googleClassroom.model.SQLDataBase;
 public abstract class ClassroomDataFetcher extends LongQueryResponder<ClassroomData> implements DataFetchListener {
 
 	private List<ClassroomData> dbAdd;
-	private Set<String> readFromDB;		
+	private Set<String> readFromDB;
 	protected GoogleClassroomCommunicator authorize;
 	private String dataBaseTable;
-	private Class<? extends Enum<?>>  tableLabelEnum;
+	private Class<? extends Enum<?>> tableLabelEnum;
 	private SQLDataBase dataBase;
-	
-	
+
 	protected IOException communicationException;
 	private SQLException databaseException;
 	private Exception miscException;
-
+	private JProgressBar progressBar;
 
 	public ClassroomDataFetcher(GoogleClassroomCommunicator authorize) {
 		super();
@@ -39,7 +38,7 @@ public abstract class ClassroomDataFetcher extends LongQueryResponder<ClassroomD
 		dbAdd = new ArrayList<ClassroomData>();
 		readFromDB = new HashSet<String>();
 	}
-
+	
 	protected abstract ClassroomData newData(Map<String, String> initData);
 
 	@Override
@@ -47,10 +46,9 @@ public abstract class ClassroomDataFetcher extends LongQueryResponder<ClassroomD
 		publish(data);
 	}
 
-	protected void readDataBase(String dataBaseName, String dataBaseTable, Class<? extends Enum<?>>  tableLabelEnum) {		
+	protected void readDataBase(String dataBaseName, String dataBaseTable, Class<? extends Enum<?>> tableLabelEnum) {
 		if (dataBaseName != null) {
-			
-			
+
 			this.dataBaseTable = dataBaseTable;
 			this.tableLabelEnum = tableLabelEnum;
 			this.dataBase = new SQLDataBase();
@@ -58,52 +56,46 @@ public abstract class ClassroomDataFetcher extends LongQueryResponder<ClassroomD
 
 				dataBase.connect(dataBaseName);
 				List<Map<String, String>> data = null;
-				data = dataBase.load(dataBaseTable, tableLabelEnum);			
-			if (data != null) {
-				for (Map<String, String> dbInfo : data) {
-					ClassroomData temp = newData(dbInfo);
-					publish(temp);
+				data = dataBase.load(dataBaseTable, tableLabelEnum);
+				if (data != null) {
+					for (Map<String, String> dbInfo : data) {
+						ClassroomData temp = newData(dbInfo);
+						publish(temp);
+					}
 				}
-			}
 			} catch (SQLException e) {
 				System.err.println(e.getMessage());
 				databaseException = e;
-			}
-			catch (Exception x) {
+			} catch (Exception x) {
 				miscException = x;
-			}			
+			}
 		}
 	}
 
 	@Override
 	protected void process(List<ClassroomData> chunks) {
-		SwingUtilities.invokeLater(new Runnable() {
-			@Override
-			public void run() {
-				int currentSize = chunks.size();
-				if (currentSize != 0) {
-					List<ClassroomData> sendToListener = new ArrayList<ClassroomData>();
-					for (int i = 0; i < currentSize; i++) {
-						ClassroomData data = chunks.get(i);
-						// If it is in our readFromDB list, that means we got it from the database
-						// already & the listener added it
-						if (readFromDB == null || readFromDB.contains(data.getId()) == false) {
-							sendToListener.add(data);
-						}
-						if (data.isRetrievedFromGoogle() == true) {
-							dbAdd.add(data);							
-						}
-						else {
-							// Start out adding everything in the database to the remove list
-							// In done(), we'll go through and remove all the ones we're adding
-							// to the database leaving with only the last few to remove
-							readFromDB.add(data.getId());
-						}
-					}
-					getListener().process(sendToListener);
+
+		int currentSize = chunks.size();
+		if (currentSize != 0) {
+			List<ClassroomData> sendToListener = new ArrayList<ClassroomData>();
+			for (int i = 0; i < currentSize; i++) {
+				ClassroomData data = chunks.get(i);
+				// If it is in our readFromDB list, that means we got it from the database
+				// already & the listener added it
+				if (readFromDB == null || readFromDB.contains(data.getId()) == false) {
+					sendToListener.add(data);
+				}
+				if (data.isRetrievedFromGoogle() == true) {
+					dbAdd.add(data);
+				} else {
+					// Start out adding everything in the database to the remove list
+					// In done(), we'll go through and remove all the ones we're adding
+					// to the database leaving with only the last few to remove
+					readFromDB.add(data.getId());
 				}
 			}
-		});
+			getListener().process(sendToListener);
+		}
 	}
 
 	@Override
@@ -116,12 +108,11 @@ public abstract class ClassroomDataFetcher extends LongQueryResponder<ClassroomD
 			System.err.println("local database error " + databaseException.getMessage());
 		}
 		if (dataBase != null) {
-		SwingUtilities.invokeLater(new Runnable() {			
-			public void run() {
+			SwingUtilities.invokeLater(new Runnable() {
+				public void run() {
 
-				
 					if (databaseException == null && miscException == null) {
-						try {						
+						try {
 							dataBase.save(dataBaseTable, tableLabelEnum, dbAdd);
 							for (ClassroomData dataCheck : dbAdd) {
 								readFromDB.remove(dataCheck.getId());
@@ -129,7 +120,6 @@ public abstract class ClassroomDataFetcher extends LongQueryResponder<ClassroomD
 							if (readFromDB.size() != 0 && dbAdd.size() != 0) {
 								dataBase.delete(dataBaseTable, tableLabelEnum, readFromDB);
 							}
-
 
 						} catch (SQLException e) {
 							System.err.println(e.getMessage());
@@ -145,7 +135,7 @@ public abstract class ClassroomDataFetcher extends LongQueryResponder<ClassroomD
 		}
 		super.done();
 	}
-	
+
 	public IOException getCommunicationException() {
 		return communicationException;
 	}

@@ -7,7 +7,6 @@ import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
 import java.util.List;
 
-
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JSplitPane;
@@ -16,21 +15,27 @@ import javax.swing.UIManager;
 import javax.swing.UIManager.LookAndFeelInfo;
 import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.WindowConstants;
+
 import net.cdonald.googleClassroom.control.DataController;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ClassSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ExitFiredListener;
+import net.cdonald.googleClassroom.listenerCoordinator.LaunchNewRubricDialogListener;
+import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricEditorDialogListener;
+import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricFileDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
+import net.cdonald.googleClassroom.listenerCoordinator.RubricFileSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RunRubricSelected;
 import net.cdonald.googleClassroom.listenerCoordinator.RunSelected;
 import net.cdonald.googleClassroom.listenerCoordinator.SaveGradesListener;
 import net.cdonald.googleClassroom.model.ClassroomData;
 import net.cdonald.googleClassroom.model.FileData;
-
+import net.cdonald.googleClassroom.model.GoogleSheetData;
 import net.cdonald.googleClassroom.model.Rubric;
+import net.cdonald.googleClassroom.model.RubricEntry;
 
 public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
-		StudentPanelListener, GoogleSheetDialogListener, DataStructureChangedListener,
+		DataStructureChangedListener,
 		RubricModifiedListener {
 	private static final long serialVersionUID = 7452928818734325088L;
 	public static final String APP_NAME = "Google Classroom Grader";
@@ -43,18 +48,20 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 	private GoogleSheetDialog importExportDialog;
 	private DataController dataController;		
 	private RubricElementDialog rubricElementDialog;
+	private NewRubricDialog newRubricDialog;
+	private InfoPanel infoPanel;
 
 
 	public MainGoogleClassroomFrame() throws InterruptedException {
-		super(APP_NAME);
-
+		super(APP_NAME);		
 		dataController = new DataController(this);		
 		rubricElementDialog = new RubricElementDialog(this, this);
+		newRubricDialog = new NewRubricDialog(this);
 
 		setLayout();		
 
 		
-		importExportDialog = new GoogleSheetDialog(this, this, "Google Sheet URL");
+		importExportDialog = new GoogleSheetDialog(this);
 
 		registerListeners();
 		setVisible(true);
@@ -95,13 +102,14 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 		mainToolBar = new MainToolBar();
 		studentPanel = new StudentPanel(dataController);
 		mainMenu = new MainMenu(this);
+		infoPanel = new InfoPanel();
 		setJMenuBar(mainMenu);
 
 		add(mainToolBar, BorderLayout.PAGE_START);
 		add(studentPanel, BorderLayout.WEST);
-		studentPanel.setStudentPanelListener(this);
 		splitPanePrimary = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, studentPanel, consoleAndSourcePanel);
 		add(splitPanePrimary, BorderLayout.CENTER);
+		add(infoPanel, BorderLayout.SOUTH);
 
 
 		setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
@@ -161,8 +169,36 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 		ListenerCoordinator.addListener(SaveGradesListener.class, new SaveGradesListener() {
 			@Override
 			public void fired() {
-				importExportDialog.setVisible(true);
+				//importExportDialog.setVisible(SaveGradesListener.class)
 			}			
+		});
+		
+		ListenerCoordinator.addListener(LaunchRubricFileDialogListener.class, new LaunchRubricFileDialogListener() {
+			@Override
+			public void fired() {
+				importExportDialog.setVisible("Open Rubric File", RubricFileSelectedListener.class, dataController.getRubricURL());			}			
+		});
+		
+		ListenerCoordinator.addListener(LaunchRubricEditorDialogListener.class, new LaunchRubricEditorDialogListener() {
+			@Override
+			public void fired() {
+				rubricElementDialog.modifyRubric(dataController.getRubric());
+
+			}
+		});
+		
+		ListenerCoordinator.addListener(LaunchNewRubricDialogListener.class, new LaunchNewRubricDialogListener() {
+			@Override
+			public void fired() {
+				newRubricDialog.setVisible(true);
+				String rubricName = newRubricDialog.getRubricName();
+				if (rubricName != null) {
+					Rubric temp = dataController.newRubric(rubricName);
+					mainToolBar.addRubricInfo(temp.getSheetInfo(), true);
+					rubricElementDialog.modifyRubric(temp);
+					
+				}
+			}
 		});
 
 	}
@@ -239,12 +275,7 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 		mainToolBar.enableRunButton();
 		mainToolBar.enableRunRubricButton();
 	}
-
 	
-	@Override
-	public void openRubricEditorDialog() {
-		rubricElementDialog.modifyRubric(dataController.getRubric());
-	}
 	
 	@Override 
 	public void rubricModified(Rubric rubric) {
@@ -252,39 +283,6 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 		mainToolBar.enableRunRubricButton();
 	}
 
-	@Override
-	public boolean urlChanged(String url) {
-//		// Validate the url doesn't match the rubric db
-//		if (TEMP_URL.equals(url)) {
-//			JOptionPane.showMessageDialog(this, "Cannot use rubric db as grade sheet", "Don't do that!",
-//					JOptionPane.ERROR_MESSAGE);
-//			return false;
-//		}
-//		//System.err.println("Fetching from url:" + url);		
-//		SheetFetcher fetcher = new SheetFetcher(url, googleClassroom, importExportDialog, importExportDialog);
-//		fetcher.execute();
-		return true;
-	}
-
-	@Override
-	public boolean okSelected(String url, String sheetName) {
-//		loadSaveWorker = new SwingWorker<Void, Void>() {
-//			@Override
-//			protected Void doInBackground() throws Exception {
-//				List<List<Object>> currentStatus = dataController.getColumnValuesForSheet();
-//				try {
-//					googleClassroom.writeSheet(url, sheetName, currentStatus);
-//				} catch (Exception e) {
-//					JOptionPane.showMessageDialog(MainGoogleClassroomFrame.this, e.getMessage(), e.getMessage(),
-//							JOptionPane.ERROR_MESSAGE);
-//				}
-//				return null;
-//			}
-//
-//		};
-//		loadSaveWorker.execute();
-		return true;
-	}
 	
 	public void saveRubric() {
 		

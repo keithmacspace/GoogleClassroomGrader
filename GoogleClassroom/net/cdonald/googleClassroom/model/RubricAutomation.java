@@ -1,6 +1,7 @@
 package net.cdonald.googleClassroom.model;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
@@ -36,5 +37,10 @@ public abstract class RubricAutomation {
 		perStudentOutput.put(id, textToDisplay);
 		ListenerCoordinator.fire(SetRubricTextListener.class, ownerName, textToDisplay);
 	}
+
+	public abstract int getNumAutomationColumns();
+
+	protected abstract void loadAutomationColumns(String entryName, Map<String, List<List<Object>>> columnData);
+	protected abstract void saveAutomationColumns(String entryName, List<List<Object>> columnData, Map<String, List<Object>> fileData);
 
 }

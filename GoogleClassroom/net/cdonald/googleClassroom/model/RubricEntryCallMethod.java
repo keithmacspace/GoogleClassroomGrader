@@ -2,6 +2,8 @@ package net.cdonald.googleClassroom.model;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.StudentWorkCompiler;
 
@@ -158,5 +160,24 @@ public class RubricEntryCallMethod extends RubricAutomation {
 			e.printStackTrace();
 		}
 
+	}
+
+	@Override
+	public int getNumAutomationColumns() {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+
+	@Override
+	protected void loadAutomationColumns(String entryName, Map<String, List<List<Object>>> columnData) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	protected void saveAutomationColumns(String entryName, List<List<Object>> columnData,
+			Map<String, List<Object>> fileData) {
+		// TODO Auto-generated method stub
+		
 	}
 }

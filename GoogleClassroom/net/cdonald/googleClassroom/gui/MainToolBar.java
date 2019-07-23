@@ -3,34 +3,41 @@ package net.cdonald.googleClassroom.gui;
 import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.BorderFactory;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JLabel;
 import javax.swing.JToolBar;
 import javax.swing.SwingUtilities;
 import javax.swing.border.BevelBorder;
 
 import net.cdonald.googleClassroom.googleClassroomInterface.AssignmentFetcher;
 import net.cdonald.googleClassroom.googleClassroomInterface.SheetFetcher;
+import net.cdonald.googleClassroom.listenerCoordinator.AddProgressBarListener;
 import net.cdonald.googleClassroom.listenerCoordinator.AssignmentSelected;
-import net.cdonald.googleClassroom.listenerCoordinator.SetRunRubricEnableStateListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ClassSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.EnableRunRubricQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetCurrentAssignmentQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetCurrentRubricQuery;
+import net.cdonald.googleClassroom.listenerCoordinator.GetRubricNamesQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.LongQueryListener;
+import net.cdonald.googleClassroom.listenerCoordinator.RemoveProgressBarListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricFileSelectedListener;
+import net.cdonald.googleClassroom.listenerCoordinator.RubricFileValidListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricSelected;
 import net.cdonald.googleClassroom.listenerCoordinator.RunRubricSelected;
 import net.cdonald.googleClassroom.listenerCoordinator.RunSelected;
 import net.cdonald.googleClassroom.listenerCoordinator.SetRunEnableStateListener;
+import net.cdonald.googleClassroom.listenerCoordinator.SetRunRubricEnableStateListener;
 import net.cdonald.googleClassroom.listenerCoordinator.SheetFetcherListener;
 import net.cdonald.googleClassroom.model.ClassroomData;
 import net.cdonald.googleClassroom.model.GoogleSheetData;
+
 
 
 public class MainToolBar extends JToolBar {
@@ -44,13 +51,14 @@ public class MainToolBar extends JToolBar {
 	private ClassroomData empty;
 	private JButton runButton;
 	private JButton runRubricButton;
+	private List<String> rubricNames;
 
 
 	public MainToolBar() {
 		setBorder(BorderFactory.createBevelBorder(BevelBorder.RAISED));
 
 
-
+		rubricNames = new ArrayList<String>();
 		assignmentCombo = new JComboBox<ClassroomData>();
 		assignmentModel = new DefaultComboBoxModel<ClassroomData>();		
 		assignmentCombo.setModel(assignmentModel);
@@ -67,7 +75,9 @@ public class MainToolBar extends JToolBar {
 		assignmentModel.addElement(empty);
 		emptySheet = new GoogleSheetData();
 		rubricModel.addElement(emptySheet);
+		add(new JLabel("Assignment: "));
 		add(assignmentCombo);
+		add(new JLabel("Rubric: "));
 		add(rubricCombo);
 		add(runButton);
 		add(runRubricButton);
@@ -116,7 +126,16 @@ public class MainToolBar extends JToolBar {
 				}
 				return null;
 			}			
-		}); 
+		});
+		
+		ListenerCoordinator.addQueryResponder(GetRubricNamesQuery.class, new GetRubricNamesQuery() {
+			@Override
+			public List<String> fired() {
+//				for (String rubricName : rubricNames)
+//				System.err.println(rubricName);
+				return rubricNames;
+			}			
+		});
 		
 		// When we change the overall class, we have to change the possible assignments
 		ListenerCoordinator.addListener(ClassSelectedListener.class, new ClassSelectedListener() {
@@ -137,20 +156,32 @@ public class MainToolBar extends JToolBar {
 		ListenerCoordinator.addListener(RubricFileSelectedListener.class, new RubricFileSelectedListener() {
 			@Override
 			public void fired(String url) {
+				rubricNames.clear();
 				for (int i = 1; i < rubricCombo.getComponentCount(); i++) {
 					rubricCombo.remove(i);
 				}
+				ListenerCoordinator.fire(AddProgressBarListener.class,"Reading Rubric Names");
 				ListenerCoordinator.runLongQuery(SheetFetcher.class, new SheetFetcherListener(url) {
 					@Override
 					public void process(List<ClassroomData> list) {
 						for (ClassroomData data : list) {
-							rubricCombo.addItem((GoogleSheetData)data);
+							if (data.isEmpty() == false) {
+								addRubricInfo((GoogleSheetData) data, false);
+							}
 						}
-					}					
+					}
+					@Override
+					public void done() {
+						ListenerCoordinator.fire(RemoveProgressBarListener.class,"Reading Rubric Names");
+						if (rubricNames.size() != 0) {
+							ListenerCoordinator.fire(RubricFileValidListener.class);
+						}
+					}
 				});
-				
+
 			}			
 		});
+		
 		
 		ListenerCoordinator.addListener(SetRunEnableStateListener.class, new SetRunEnableStateListener() {
 			public void fired(Boolean setRunEnabled) {
@@ -225,17 +256,27 @@ public class MainToolBar extends JToolBar {
 
 
 	public void addAssignment(ClassroomData data) {
-		SwingUtilities.invokeLater(new Runnable() {
+		if (data.isEmpty() == false) {
+			SwingUtilities.invokeLater(new Runnable() {
 
-			@Override
-			public void run() {
-				assignmentModel.insertElementAt(data, 1);
-			}
-		});
+				@Override
+				public void run() {
+					assignmentModel.insertElementAt(data, 1);
+				}
+			});
+		}
 	}
-
-	public void addRubric(GoogleSheetData rubric) {
-		rubricModel.addElement(rubric);
+	
+	public void addRubricInfo(GoogleSheetData data, boolean select) {
+		rubricCombo.addItem(data);
+		rubricNames.add(data.getName());
+		if (select) {
+			SwingUtilities.invokeLater(new Runnable() {
+				@Override
+				public void run() {
+					rubricCombo.setSelectedItem(data);
+				}
+			});			
+		}
 	}
-
 }

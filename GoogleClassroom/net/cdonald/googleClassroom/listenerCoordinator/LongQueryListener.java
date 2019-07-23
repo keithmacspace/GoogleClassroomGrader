@@ -6,5 +6,4 @@ public abstract class LongQueryListener<V> {
 
 	public abstract void process(List<V> list);
 	public void done() {}
-
 }

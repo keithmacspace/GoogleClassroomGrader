@@ -17,13 +17,15 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.text.ParseException;
+import java.text.NumberFormat;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JFileChooser;
 import javax.swing.JFormattedTextField;
@@ -43,10 +45,11 @@ import javax.swing.event.ListSelectionListener;
 import javax.swing.event.TableModelEvent;
 import javax.swing.event.TableModelListener;
 import javax.swing.table.DefaultTableModel;
-import javax.swing.text.MaskFormatter;
 
+import be.pcl.swing.ImprovedFormattedTextField;
 import net.cdonald.googleClassroom.listenerCoordinator.GetFileDirQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
+import net.cdonald.googleClassroom.listenerCoordinator.SaveRubricListener;
 import net.cdonald.googleClassroom.listenerCoordinator.SetFileDirListener;
 import net.cdonald.googleClassroom.model.FileData;
 import net.cdonald.googleClassroom.model.Rubric;
@@ -55,10 +58,11 @@ import net.cdonald.googleClassroom.model.RubricEntryRunCode;
 
 public class RubricElementDialog extends JDialog implements ItemListener {
 	private static final long serialVersionUID = -5580080426150572162L;
-	private JButton okButton;
+	private JButton saveButton;
+	private JButton addAnotherButton;
 	private JButton cancelButton;
 	private JComboBox<RubricEntry.AutomationTypes> automationTypeCombo;	
-	private JTextField nameField;
+	private JComboBox<String> nameCombo;
 	private JTextField descriptionField;
 	private JFormattedTextField valueField;	
 	
@@ -66,6 +70,7 @@ public class RubricElementDialog extends JDialog implements ItemListener {
 	private Map<String, String> sourceMap;
 	private JPanel namePanel;
 	private JPanel buttonsPanel;
+	private GridLayout buttonLayout;
 	private Rubric rubricToModify;
 	private RubricModifiedListener listener;
 	
@@ -86,6 +91,134 @@ public class RubricElementDialog extends JDialog implements ItemListener {
 	private JPanel sourceCodePanel;
 	private JSplitPane sourceSplit;
 	private String DEFAULT_SOURCE_STRING = "";
+		
+	
+	public RubricElementDialog(Frame parent, RubricModifiedListener listener) {
+		super(parent, "Rubric Element", true);
+		currentAutomation = RubricEntry.AutomationTypes.NONE;
+		sourceMap = new HashMap<String, String>();
+		this.listener = listener;
+
+
+		saveButton = new JButton("Save");
+		addAnotherButton = new JButton("Add");
+		cancelButton = new JButton("Cancel");
+		cancelButton.setMnemonic(KeyEvent.VK_C);
+
+		JPanel comboPanel = new JPanel();
+		final int SPACE = 6;
+		final int COMBO_TOP_SPACE = 15;
+		final int NAME_TOP_SPACE = 5;
+		final int BUTTON_TOP_SPACE = 5;
+		comboPanel.setBorder(BorderFactory.createEmptyBorder(COMBO_TOP_SPACE, 0, 0, SPACE));
+		comboPanel.setLayout(new FlowLayout());
+		comboPanel.add(new JLabel("automation type: "));
+		automationTypeCombo = new JComboBox<RubricEntry.AutomationTypes>();
+		automationTypeCombo.addItemListener(this);
+		for (RubricEntry.AutomationTypes automationType : RubricEntry.AutomationTypes.values()) {
+			automationTypeCombo.addItem(automationType);
+		}
+		comboPanel.add(automationTypeCombo);
+		
+		automationTypeCombo.setSelectedItem(RubricEntry.AutomationTypes.NONE);
+
+		namePanel = new JPanel();
+
+		namePanel.setBorder(BorderFactory.createEmptyBorder(NAME_TOP_SPACE, 0, SPACE, SPACE));
+		namePanel.setLayout(new GridBagLayout());
+		nameCombo = new JComboBox<String>();
+		nameCombo.setEditable(true);
+		descriptionField = new JTextField("", 20);
+
+		
+		NumberFormat intFormat = NumberFormat.getIntegerInstance();
+		intFormat.setGroupingUsed(false);
+		intFormat.setMaximumFractionDigits(0);
+		valueField = new ImprovedFormattedTextField(intFormat);
+		namePanel.setMinimumSize(new Dimension(0, 80));
+
+		addLabelAndComponent(namePanel, "name: ", nameCombo, 0);
+		addLabelAndComponent(namePanel, "value: ", valueField, 1);
+		addLabelAndComponent(namePanel, "description: ", descriptionField, 2);
+
+		buttonsPanel = new JPanel();
+		// buttonsPanel.setLayout(new FlowLayout());
+		buttonLayout = new GridLayout(3, 0);
+		final int GAP_SIZE = 6;
+		buttonLayout.setVgap(GAP_SIZE);
+		buttonsPanel.setBorder(BorderFactory.createEmptyBorder(BUTTON_TOP_SPACE, SPACE, SPACE, SPACE));
+		buttonsPanel.setLayout(buttonLayout);
+		buttonsPanel.add(saveButton);
+		buttonsPanel.add(addAnotherButton);
+		buttonsPanel.add(cancelButton);
+
+		JPanel constantPanel = new JPanel();
+		constantPanel.setLayout(new BorderLayout());
+		constantPanel.add(comboPanel, BorderLayout.LINE_START);
+		constantPanel.add(namePanel, BorderLayout.CENTER);
+		constantPanel.add(buttonsPanel, BorderLayout.LINE_END);
+
+		// cards = new JPanel(new CardLayout());
+		setLayout(new BorderLayout());
+		add(constantPanel, BorderLayout.PAGE_START);
+
+		saveButton.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				ListenerCoordinator.fire(SaveRubricListener.class);
+				setVisible(false);				
+			}
+		});
+		
+		addAnotherButton.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				addRubricEntry();
+			}
+		});
+
+		cancelButton.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				setVisible(false);
+			}
+		});
+		
+		nameCombo.addItemListener(new ItemListener() {
+			@Override
+			public void itemStateChanged(ItemEvent e) {
+				if (e.getStateChange() == ItemEvent.SELECTED) {					
+					String text = (String)nameCombo.getSelectedItem();
+					fillSelectedState(text);
+				}				
+			}
+		});
+
+		
+		instantiateDynamics();
+		pack();
+	}
+	
+	private void fillSelectedState(String text) {
+		for (RubricEntry entry : rubricToModify.getEntries()) {
+			if (entry.getName().equals(text)) {
+				SwingUtilities.invokeLater(new Runnable() {
+					public void run() {
+						valueField.setText("" + entry.getValue());
+						descriptionField.setText(entry.getDescription());
+						RubricEntry.AutomationTypes automationType = entry.getAutomationType();
+						int selectionIndex = automationType.ordinal();
+						automationTypeCombo.setSelectedIndex(selectionIndex);
+						switch(automationType) {
+						case RUN_CODE:
+							fillRunCode(entry);
+						}
+					}
+				});
+			}
+		}
+	}
+	
 	
 	private void instantiateDynamics() {
 		addFilesButton = new JButton("Add Files");
@@ -129,12 +262,10 @@ public class RubricElementDialog extends JDialog implements ItemListener {
 						Path path = Paths.get(file.getAbsolutePath());
 						ListenerCoordinator.fire(SetFileDirListener.class, path.getParent().toString());
 						String fileName = path.getFileName().toString();
-						fileNamesModel.addRow(new String[] {fileName});
+						
 						try {
 							String text = new String(Files.readAllBytes(path));
-							sourceMap.put(fileName, text);
-							sourceCodeArea.setText(text);
-							sourceCodeArea.setCaretPosition(0);
+							addRunCodeFile(fileName, text);
 						} catch (IOException e1) {
 							// TODO Auto-generated catch block
 							e1.printStackTrace();
@@ -187,104 +318,16 @@ public class RubricElementDialog extends JDialog implements ItemListener {
 			}
 	
 		});	
-	}	
-	
-
-	public RubricElementDialog(Frame parent, RubricModifiedListener listener) {
-		super(parent, "Rubric Element", true);
-		currentAutomation = RubricEntry.AutomationTypes.NONE;
-		sourceMap = new HashMap<String, String>();
-		this.listener = listener;
-
-
-		okButton = new JButton("OK");
-		okButton.setMnemonic(KeyEvent.VK_O);
-		cancelButton = new JButton("Cancel");
-		cancelButton.setMnemonic(KeyEvent.VK_C);
-
-		JPanel comboPanel = new JPanel();
-		final int SPACE = 6;
-		final int COMBO_TOP_SPACE = 15;
-		final int NAME_TOP_SPACE = 5;
-		final int BUTTON_TOP_SPACE = 5;
-		comboPanel.setBorder(BorderFactory.createEmptyBorder(COMBO_TOP_SPACE, 0, 0, SPACE));
-		comboPanel.setLayout(new FlowLayout());
-		comboPanel.add(new JLabel("automation type: "));
-		automationTypeCombo = new JComboBox<RubricEntry.AutomationTypes>();
-		automationTypeCombo.addItemListener(this);
-		for (RubricEntry.AutomationTypes automationType : RubricEntry.AutomationTypes.values()) {
-			automationTypeCombo.addItem(automationType);
-		}
-		comboPanel.add(automationTypeCombo);
-		
-		automationTypeCombo.setSelectedItem(RubricEntry.AutomationTypes.NONE);
-
-		namePanel = new JPanel();
-
-		namePanel.setBorder(BorderFactory.createEmptyBorder(NAME_TOP_SPACE, 0, SPACE, SPACE));
-		namePanel.setLayout(new GridBagLayout());
-		nameField = new JTextField("", 20);
-		descriptionField = new JTextField("", 20);
-		try {
-			valueField = new JFormattedTextField(new MaskFormatter("########"));
-		} catch (ParseException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
-		namePanel.setMinimumSize(new Dimension(0, 80));
-
-		addLabelAndComponent(namePanel, "name: ", nameField, 0);
-		addLabelAndComponent(namePanel, "value: ", valueField, 1);
-		addLabelAndComponent(namePanel, "description: ", descriptionField, 2);
-
-		buttonsPanel = new JPanel();
-		// buttonsPanel.setLayout(new FlowLayout());
-		GridLayout buttonLayout = new GridLayout(4, 0);
-		final int GAP_SIZE = 6;
-		buttonLayout.setVgap(GAP_SIZE);
-		buttonsPanel.setBorder(BorderFactory.createEmptyBorder(BUTTON_TOP_SPACE, SPACE, SPACE, SPACE));
-		buttonsPanel.setLayout(buttonLayout);
-		buttonsPanel.add(okButton);
-		buttonsPanel.add(cancelButton);
-
-		JPanel constantPanel = new JPanel();
-		constantPanel.setLayout(new BorderLayout());
-		constantPanel.add(comboPanel, BorderLayout.LINE_START);
-		constantPanel.add(namePanel, BorderLayout.CENTER);
-		constantPanel.add(buttonsPanel, BorderLayout.LINE_END);
-
-		// cards = new JPanel(new CardLayout());
-		setLayout(new BorderLayout());
-		add(constantPanel, BorderLayout.PAGE_START);
-
-		okButton.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				if (addRubricEntry() == true) {
-					setVisible(false);
-				}
-			}
-		});
-
-		cancelButton.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				setVisible(false);
-			}
-		});
-		instantiateDynamics();
-		pack();
 	}
 	
-
 
 	public boolean addRubricEntry() {
 		if (rubricToModify == null) {
 			rubricToModify = new Rubric();
 		}
 		RubricEntry entry = new RubricEntry();
-		if (validateTextField("Name", nameField) ) {
-			entry.setValue(RubricEntry.HeadingNames.NAME, nameField.getText());
+		if (validateComboField("Name", nameCombo) ) {
+			entry.setValue(RubricEntry.HeadingNames.NAME, (String)nameCombo.getSelectedItem());
 			if (validateTextField("Value", valueField)) {				
 				entry.setValue(RubricEntry.HeadingNames.VALUE, valueField.getText());
 				if (validateTextField("Description", descriptionField)) {
@@ -304,12 +347,20 @@ public class RubricElementDialog extends JDialog implements ItemListener {
 	
 	public boolean validateTextField(String name, JTextField field) {
 		String text = field.getText();
+		return validateText(name, text);
+	}
+	public boolean validateComboField(String name, JComboBox<String> combo) {
+		String text = (String)combo.getSelectedItem();
+		return validateText(name, text);
+	}
+	public boolean validateText(String name, String text) {
+		
 		text = text.replaceAll("\\s+", "");
 		if (text.length() == 0) {			
 			JOptionPane.showMessageDialog(null,  name + " field must have a value", "Field Is Empty", JOptionPane.ERROR_MESSAGE);
 			return false;
 		}
-		System.err.println(name + " = \"" + text + "\"");
+		//System.err.println(name + " = \"" + text + "\"");
 		return true;
 	}
 	
@@ -318,6 +369,12 @@ public class RubricElementDialog extends JDialog implements ItemListener {
 
 	public void modifyRubric(Rubric rubricToModify) {
 		this.rubricToModify = rubricToModify;
+		nameCombo.removeAllItems();
+		setTitle("Edit Rubric: " + rubricToModify.getName());
+		nameCombo.addItem("");
+		for (RubricEntry element : rubricToModify.getEntries()) {
+			nameCombo.addItem(element.getName());
+		}
 		setVisible(true);
 	}
 
@@ -393,12 +450,36 @@ public class RubricElementDialog extends JDialog implements ItemListener {
 
 		addLabelAndComponent(namePanel, methodToCallLabel, methodNameField, 3);
 		addLabelAndComponent(namePanel, methodBeingCalledLabel, methodBeingCalledField, 4);
+		buttonLayout.setRows(5);
 		buttonsPanel.add(addFilesButton);
 		buttonsPanel.add(removeFilesButton);
 		namePanel.revalidate();
 		buttonsPanel.revalidate();
 		
 		pack();
+	}
+
+	private void fillRunCode(RubricEntry entry) {
+		RubricEntryRunCode runCode = (RubricEntryRunCode)entry.getAutomation();
+		if (runCode != null) {
+			methodNameField.setText(runCode.getMethodToCall());
+			methodBeingCalledField.setText(runCode.getMethodBeingChecked());
+			sourceMap.clear();
+			while (fileNamesModel.getRowCount() != 0) {
+				fileNamesModel.removeRow(0);
+			}
+			List<FileData> sourceFiles = runCode.getSourceFiles();
+			for (FileData sourceFile : sourceFiles) {
+				addRunCodeFile(sourceFile.getName(), sourceFile.getFileContents());
+			}
+		}		
+	}
+	
+	private void addRunCodeFile(String fileName, String fileText) {
+		fileNamesModel.addRow(new String[] {fileName});
+		sourceMap.put(fileName, fileText);
+		sourceCodeArea.setText(fileText);
+		sourceCodeArea.setCaretPosition(0);
 	}
 	
 	private void removeRunCodeItems() {
@@ -410,9 +491,11 @@ public class RubricElementDialog extends JDialog implements ItemListener {
 		
 		buttonsPanel.remove(addFilesButton);
 		buttonsPanel.remove(removeFilesButton);
+		buttonLayout.setRows(3);
 		
 		namePanel.revalidate();
 		buttonsPanel.revalidate();
+
 		
 	}
 	
@@ -440,10 +523,10 @@ public class RubricElementDialog extends JDialog implements ItemListener {
 	}
 
 
-	private void addLabelAndComponent(JPanel parent, String label, JTextField component, int y) {
+	private void addLabelAndComponent(JPanel parent, String label, JComponent component, int y) {
 		addLabelAndComponent(parent, new JLabel(label), component, y);
 	}
-	private void addLabelAndComponent(JPanel parent, JLabel label, JTextField component, int y) {
+	private void addLabelAndComponent(JPanel parent, JLabel label, JComponent component, int y) {
 		
 		GridBagConstraints l = new GridBagConstraints();
 		l.weightx = 0;

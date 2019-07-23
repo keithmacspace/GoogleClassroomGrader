@@ -18,20 +18,28 @@ import net.cdonald.googleClassroom.googleClassroomInterface.CourseFetcher;
 import net.cdonald.googleClassroom.listenerCoordinator.ClassSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ExitFiredListener;
 import net.cdonald.googleClassroom.listenerCoordinator.GetWorkingDirQuery;
+import net.cdonald.googleClassroom.listenerCoordinator.LaunchNewRubricDialogListener;
+import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricFileDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.LoadTestFileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LongQueryListener;
+import net.cdonald.googleClassroom.listenerCoordinator.RubricFileValidListener;
+import net.cdonald.googleClassroom.listenerCoordinator.RubricSelected;
 import net.cdonald.googleClassroom.listenerCoordinator.SaveGradesListener;
 import net.cdonald.googleClassroom.listenerCoordinator.SetWorkingDirListener;
 import net.cdonald.googleClassroom.model.ClassroomData;
+import net.cdonald.googleClassroom.model.GoogleSheetData;
 
 public class MainMenu extends JMenuBar {
 	private static final long serialVersionUID = 5459790818047149118L;
 	private JMenu file;
+	private JMenu rubric;
 	private JMenu help;
 	private JMenu edit;
 	private JMenu run;
 	private JMenu openClassroom;
+	private JMenuItem newRubric;
+	private JMenuItem editRubric;
 	private JFrame owner;
 
 
@@ -42,11 +50,13 @@ public class MainMenu extends JMenuBar {
 	public MainMenu(JFrame owner) {
 		this.owner = owner;
 		file = new JMenu("File");
+		rubric = new JMenu("Rubrics");
 		edit = new JMenu("Edit");
 		run = new JMenu("Run");
 		help = new JMenu("Help");
 		
 		fillFileMenu();
+		fillRubricMenu();
 		fillEditMenu();
 		fillRunMenu();
 		fillHelpMenu();		
@@ -55,10 +65,10 @@ public class MainMenu extends JMenuBar {
 	private void fillFileMenu() {
 
 		openClassroom = new JMenu("Open Classroom");
-		JMenuItem exportToSheet = new JMenuItem("Export...");
-		JMenuItem importFromSheet = new JMenuItem("Import...");
+		JMenuItem exportToSheet = new JMenuItem("Save Grades...");
+		JMenuItem importFromSheet = new JMenuItem("Load Grades...");
 		JMenuItem setWorkingDirectory = new JMenuItem("Working Dir...");
-		JMenuItem loadTemporaryFile = new JMenuItem("Load Test File...");
+		
 		JMenuItem exit = new JMenuItem("Exit");
 		
 		file.add(openClassroom);
@@ -68,14 +78,14 @@ public class MainMenu extends JMenuBar {
 		file.addSeparator();
 		file.add(setWorkingDirectory);
 		file.addSeparator();
-		file.add(loadTemporaryFile);
-		file.addSeparator();
 		file.add(exit);
 		file.setMnemonic(KeyEvent.VK_F);
 		exit.setMnemonic(KeyEvent.VK_X);
 		importFromSheet.setMnemonic(KeyEvent.VK_I);
 		exportToSheet.setMnemonic(KeyEvent.VK_E);
 		exit.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_X, ActionEvent.CTRL_MASK));
+		add(file);
+		
 		exit.addActionListener(new ActionListener() {
 
 			@Override
@@ -112,6 +122,52 @@ public class MainMenu extends JMenuBar {
 			}
 		});
 		
+
+
+		ListenerCoordinator.runLongQuery(CourseFetcher.class, new LongQueryListener<ClassroomData>() {
+			@Override
+			public void process(List<ClassroomData> list) {
+				for (ClassroomData classroom : list) {
+					addClass(classroom);
+				}
+			}			
+		});
+		
+	}
+	
+	private void fillRubricMenu() {
+
+		
+		JMenuItem loadTemporaryFile = new JMenuItem("Load File To Test Rubric...");
+		newRubric = new JMenuItem("New Rubric...");
+		editRubric = new JMenuItem("Edit Rubric...");
+		newRubric.setEnabled(false);
+		editRubric.setEnabled(false);
+		JMenuItem setRubricFile = new JMenuItem("Rubric File...");
+		JMenuItem saveRubric = new JMenuItem("Save Rubric");
+		
+		rubric.add(setRubricFile);
+		rubric.addSeparator();
+		rubric.add(newRubric);
+		rubric.add(editRubric);
+		rubric.add(saveRubric);
+		rubric.addSeparator();
+		rubric.add(loadTemporaryFile);
+		add(rubric);
+		setRubricFile.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				ListenerCoordinator.fire(LaunchRubricFileDialogListener.class);
+			}
+		});
+		
+		newRubric.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				ListenerCoordinator.fire(LaunchNewRubricDialogListener.class);
+			}
+		});
+
 		loadTemporaryFile.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -123,18 +179,25 @@ public class MainMenu extends JMenuBar {
 					ListenerCoordinator.fire(LoadTestFileListener.class, directoryPath);
 				}	
 			}
-		});	
-		add(file);
-		ListenerCoordinator.runLongQuery(CourseFetcher.class, new LongQueryListener<ClassroomData>() {
-
+		});			
+		ListenerCoordinator.addListener(RubricFileValidListener.class, new RubricFileValidListener() {
 			@Override
-			public void process(List<ClassroomData> list) {
-				for (ClassroomData classroom : list) {
-					addClass(classroom);
+			public void fired() {
+				newRubric.setEnabled(true);				
+			}
+		});
+		
+		ListenerCoordinator.addListener(RubricSelected.class, new RubricSelected() {
+			@Override
+			public void fired(GoogleSheetData googleSheet) {
+				if (googleSheet.isEmpty() == false) {
+					editRubric.setEnabled(true);
 				}
 			}
 			
 		});
+
+	
 	}
 	
 	public void addClass(ClassroomData classroom) {

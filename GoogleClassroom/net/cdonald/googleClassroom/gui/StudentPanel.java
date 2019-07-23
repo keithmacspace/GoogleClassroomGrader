@@ -25,6 +25,7 @@ import javax.swing.table.TableColumnModel;
 import javax.swing.text.DefaultEditorKit;
 
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
+import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricEditorDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentListInfo;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentSelectedListener;
@@ -36,8 +37,7 @@ public class StudentPanel extends JPanel {
 	private static final long serialVersionUID = 3480731067309159048L;
 	private StudentListModel studentModel;
 	private JTable studentTable;
-	private StudentListRenderer studentListRenderer;
-	private StudentPanelListener studentPanelListener;	
+	private StudentListRenderer studentListRenderer;	
 	private VerticalTableHeaderCellRenderer verticalHeaderRenderer;
 	private boolean resizing;
 	private JPopupMenu rightClickPopup;
@@ -137,11 +137,9 @@ public class StudentPanel extends JPanel {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				if (studentPanelListener != null) {
-					studentPanelListener.openRubricEditorDialog();					
-				}
-			}
-			
+				
+				ListenerCoordinator.fire(LaunchRubricEditorDialogListener.class);
+			}			
 		});
 		
 		studentTable.setComponentPopupMenu(rightClickPopup);
@@ -191,10 +189,6 @@ public class StudentPanel extends JPanel {
 		resizeColumns();
 	}
 
-	public void setStudentPanelListener(StudentPanelListener studentPanelListener) {
-		this.studentPanelListener = studentPanelListener;
-	}
-	
 	public List<String> getSelectedIds() {
 		int [] selectedRows = studentTable.getSelectedRows();
 		List<String> ids = new ArrayList<String>();		

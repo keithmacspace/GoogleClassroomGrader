@@ -14,3 +14,8 @@
 /FullRubricFetcher.class
 /FullRubricFetcher$1.class
 /ReadSheetNamesQueryResponder.class
+/SheetReaderInterface.class
+/GoogleClassroomCommunicator$TestReader.class
+/SheetWriterInterface.class
+/SheetAccessorInterface.class
+/SaveStateData.class

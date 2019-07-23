@@ -3,10 +3,10 @@ package net.cdonald.googleClassroom.googleClassroomInterface;
 import java.io.IOException;
 import java.util.Map;
 
+import net.cdonald.googleClassroom.listenerCoordinator.LongQueryResponder;
 import net.cdonald.googleClassroom.listenerCoordinator.SheetFetcherListener;
 import net.cdonald.googleClassroom.model.ClassroomData;
 import net.cdonald.googleClassroom.model.GoogleSheetData;
-import net.cdonald.googleClassroom.model.SQLDataBase;
 
 public class SheetFetcher extends ClassroomDataFetcher {
 
@@ -37,6 +37,11 @@ public class SheetFetcher extends ClassroomDataFetcher {
 	@Override
 	protected ClassroomData newData(Map<String, String> initData) {
 		return new GoogleSheetData(initData);
+	}
+	
+	@Override
+	public LongQueryResponder<ClassroomData> newInstance() {
+		return new SheetFetcher(authorize);
 	}
 
 }

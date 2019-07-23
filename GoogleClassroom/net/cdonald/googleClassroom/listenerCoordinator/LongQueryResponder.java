@@ -32,6 +32,8 @@ public abstract class LongQueryResponder<V> extends SwingWorker<Void, V> {
 		listener.done();
 	}
 	
+	public abstract LongQueryResponder<V> newInstance();
+	
 
 
 }

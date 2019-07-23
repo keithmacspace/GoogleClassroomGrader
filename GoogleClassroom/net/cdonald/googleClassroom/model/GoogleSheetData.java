@@ -9,6 +9,7 @@ public class GoogleSheetData extends ClassroomData {
 	public static final String DB_NAME = "Rubric_Names";
 	public GoogleSheetData(String name, String urlID, String sheetID) {
 		super(name, urlID + sheetID);
+		System.err.println(name + " " + urlID + " " + sheetID);
 		this.sheetId = sheetID;
 	}
 	

@@ -12,5 +12,9 @@ public class LongQueryResponderTest extends LongQueryResponder<Integer> {
 		// TODO Auto-generated method stub
 		return null;
 	}
+	@Override
+	public LongQueryResponder<Integer> newInstance() {
+		return new LongQueryResponderTest();
+	}	
 
 }
