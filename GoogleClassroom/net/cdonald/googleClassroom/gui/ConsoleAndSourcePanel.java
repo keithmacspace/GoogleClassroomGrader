@@ -30,7 +30,6 @@ import net.cdonald.googleClassroom.listenerCoordinator.AssignmentSelected;
 import net.cdonald.googleClassroom.listenerCoordinator.GetCompilerMessageQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetConsoleInputHistoryQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetConsoleOutputQuery;
-import net.cdonald.googleClassroom.listenerCoordinator.GetRubricOutputQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetStudentFilesQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.PreRunBlockingListener;
@@ -265,7 +264,7 @@ public class ConsoleAndSourcePanel extends JPanel {
 	private void registerListeners() {
 		ListenerCoordinator.addListener(SystemOutListener.class, new SystemOutListener() {
 			@Override
-			public void fired(String text, Boolean finished) {
+			public void fired(String studentId, String rubricName, String text, Boolean finished) {
 				consoleOutput.append(text);
 			}
 		});
@@ -333,7 +332,7 @@ public class ConsoleAndSourcePanel extends JPanel {
 				if (idToDisplay != null) {
 					List<FileData> studentFiles = (List<FileData>) ListenerCoordinator.runQuery(GetStudentFilesQuery.class, idToDisplay);
 					String consoleOutput = (String) ListenerCoordinator.runQuery(GetConsoleOutputQuery.class,
-							idToDisplay);
+							idToDisplay, null);
 					String consoleInput = (String) ListenerCoordinator.runQuery(GetConsoleInputHistoryQuery.class,
 							idToDisplay);
 					CompilerMessage compilerMessage = (CompilerMessage)ListenerCoordinator.runQuery(GetCompilerMessageQuery.class, idToDisplay);
@@ -345,8 +344,8 @@ public class ConsoleAndSourcePanel extends JPanel {
 						setSourceContents("Compiler Message", "", sourceCodeList.size() - 1);
 					}
 					for (String rubricName : rubricOutput.keySet()) {
-						String rubricText = (String) ListenerCoordinator.runQuery(GetRubricOutputQuery.class,
-								rubricName, idToDisplay);
+						String rubricText = (String)ListenerCoordinator.runQuery(GetConsoleOutputQuery.class,
+								idToDisplay, rubricName);
 						if (rubricText == null) {
 							rubricText = "";
 						}

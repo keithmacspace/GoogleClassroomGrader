@@ -57,7 +57,7 @@ public class StudentBuildInfo {
 			for (Method method : aClass.getMethods()) {
 				String currentMethodName = method.getName();
 
-				if (methodName.compareTo(currentMethodName) == 0) {
+				if (methodName.compareTo(currentMethodName) == 0) {					
 					return key + "." + currentMethodName;
 				}
 			}

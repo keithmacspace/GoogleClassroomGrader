@@ -19,6 +19,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.ClassSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ExitFiredListener;
 import net.cdonald.googleClassroom.listenerCoordinator.GetWorkingDirQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.LaunchNewRubricDialogListener;
+import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricEditorDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricFileDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.LoadTestFileListener;
@@ -165,6 +166,13 @@ public class MainMenu extends JMenuBar {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				ListenerCoordinator.fire(LaunchNewRubricDialogListener.class);
+			}
+		});
+		
+		editRubric.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				ListenerCoordinator.fire(LaunchRubricEditorDialogListener.class);
 			}
 		});
 

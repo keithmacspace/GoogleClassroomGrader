@@ -124,7 +124,12 @@ public class ListenerCoordinator {
 	private static Class<?>[] createParamTypes(Object[] params) {
 		Class<?>[] paramTypes = new Class<?>[params.length];
 		for (int i = 0; i < params.length; i++) {
-			paramTypes[i] = params[i].getClass();
+			if (params[i] == null) {
+				paramTypes[i] = String.class;
+			}
+			else {
+				paramTypes[i] = params[i].getClass();
+			}
 		}
 		return paramTypes;
 	}
@@ -138,7 +143,10 @@ public class ListenerCoordinator {
 			}
 		}				
 	}
-	
+	public static void fire(Class<?> classToFire, Object param1, Object param2,
+			Object param3, Object param4) {
+		fire_(classToFire, new Object[] { param1, param2, param3, param4 });
+	}
 	
 	public static void fire(Class<?> classToFire, Object param1, Object param2,
 			Object param3) {

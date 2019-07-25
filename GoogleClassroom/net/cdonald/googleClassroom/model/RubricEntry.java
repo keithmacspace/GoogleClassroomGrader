@@ -50,6 +50,21 @@ public class RubricEntry {
 	public RubricEntry() {
 		studentScores = new HashMap<String, Double>();
 	}
+	
+	public RubricEntry(RubricEntry other) {
+		id = other.id;
+		name = other.name;
+		description = other.description;
+		value = other.value;
+		automationType = other.automationType;
+		studentScores = new HashMap<String, Double>();
+		for (String key : other.studentScores.keySet()) {
+			studentScores.put(key, other.studentScores.get(key));
+		}
+		if (other.automation != null) {
+			automation = other.automation.newCopy();
+		}
+	}
 
 	public String setStudentValue(String studentID, String stringValue) {
 		double newValue = 0.0;
@@ -95,13 +110,6 @@ public class RubricEntry {
 		}
 		return displayValue;
 	}
-	
-	public String getRubricOutput(String studentID) {
-		if (automation != null) {
-			automation.getRubricOutput(studentID);
-		}
-		return "";
-	}
 
 	public void setValue(HeadingNames headingName, String param) {
 
@@ -110,16 +118,21 @@ public class RubricEntry {
 			name = param;
 			break;
 		case VALUE:
-			System.err.println(getName()  +" Param = " + param);
 			value = Integer.parseInt(param);
 			break;
 		case DESCRIPTION:
 			description = param;
 			break;
 		case AUTOMATION_TYPE:
-			for (AutomationTypes automation : AutomationTypes.values()) {
-				if (automation.name().compareToIgnoreCase(param) == 0) {
-					automationType = automation;
+			for (AutomationTypes automationValue : AutomationTypes.values()) {
+				if (automationValue.name().compareToIgnoreCase(param) == 0) {
+					automationType = automationValue;
+					switch(automationValue) {
+					case RUN_CODE:
+						setAutomation(new RubricEntryRunCode());
+						break;
+						
+					}
 					break;
 				}
 			}
@@ -153,12 +166,10 @@ public class RubricEntry {
 				+ "]";
 	}
 
-	void runAutomation(CompilerMessage message, StudentWorkCompiler compiler) {
-
-
+	void runAutomation(CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData) {
 		if (automation != null) {
 			double score = 0.0;
-			score = automation.runAutomation(message, compiler);
+			score = automation.runAutomation(message, compiler, consoleData);
 			score *= value;
 			// Just truncate below two digits of precision
 			score *= 100.0;
@@ -255,6 +266,7 @@ public class RubricEntry {
 
 	
 	public void loadAutomationColumns(Map<String, List<List<Object>>> columnData) {
+	
 		if (automation != null) {
 			automation.loadAutomationColumns(name, columnData);
 		}

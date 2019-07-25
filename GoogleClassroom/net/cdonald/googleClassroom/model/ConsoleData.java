@@ -13,6 +13,7 @@ import java.util.concurrent.Semaphore;
 
 import javax.swing.SwingWorker;
 
+import net.cdonald.googleClassroom.listenerCoordinator.AppendOutputTextListener;
 import net.cdonald.googleClassroom.listenerCoordinator.GetConsoleInputHistoryQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetConsoleOutputQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
@@ -31,6 +32,8 @@ public class ConsoleData {
 	private Map<String, String> outputMap;
 	private Map<String, String> inputMap;
 	private String currentStudentID;
+	private String currentRubricName;
+	private String currentMapKey;
 	private PrintStream oldOut;
 	private InputStream oldIn;
 	private static Semaphore runSemaphore = new Semaphore(1);	
@@ -46,6 +49,23 @@ public class ConsoleData {
 		redirectConsole();
 		
 	}
+	private String generateKey(String studentID, String rubricName) {
+		String key = studentID;
+		if (rubricName != null) {
+			key += rubricName;
+		}
+		return key;
+	}
+	private String appendText(String key, Map<String, String> map, String text) {
+		String temp = map.get(key);
+		if (temp != null) {
+			temp += text;
+		}
+		else {
+			temp = text;
+		}
+		return temp;
+	}
 	
 	private void registerListeners() {
 		ListenerCoordinator.addListener(SystemInListener.class, new SystemInListener() {
@@ -55,19 +75,26 @@ public class ConsoleData {
 				if (runSemaphore.availablePermits() == 0) {
 					inWriter.println(text);
 					System.out.println();
-					String temp = outputMap.get(currentStudentID) + text;
-					outputMap.put(currentStudentID, temp);
-					temp = inputMap.get(currentStudentID) + text;
+					String temp = appendText(currentMapKey, outputMap, text);
+					outputMap.put(currentMapKey, temp);
+					temp = appendText(currentMapKey, inputMap, text);
 					inputMap.put(currentStudentID, temp);
 				}		
 			}
 		});
 		
+		ListenerCoordinator.addListener(AppendOutputTextListener.class, new AppendOutputTextListener() {
+			public void fired(String studentID, String rubricName, String text) {
+				appendText(generateKey(studentID, rubricName), outputMap, text);
+			}
+		});
+		
+		
 		ListenerCoordinator.addQueryResponder(GetConsoleOutputQuery.class, new GetConsoleOutputQuery() {
 			@Override
-			public String fired(String studentID) {
-				// TODO Auto-generated method stub
-				return outputMap.get(studentID);
+			public String fired(String studentID, String rubricName) {
+				
+				return outputMap.get(generateKey(studentID, rubricName));
 			}			
 		});
 		ListenerCoordinator.addQueryResponder(GetConsoleInputHistoryQuery.class, new GetConsoleInputHistoryQuery() {
@@ -77,6 +104,8 @@ public class ConsoleData {
 				return inputMap.get(studentID);
 			}			
 		});
+		
+		
 
 		
 	}
@@ -90,7 +119,7 @@ public class ConsoleData {
 		currentStudentID = id;
 	}
 
-	public void runStarted(String id, List<FileData> fileDataList) {
+	public void runStarted(String id, String rubricName, List<FileData> fileDataList) {
 		// This will force us to wait until the last run stops
 		try {
 			runSemaphore.acquire();
@@ -100,8 +129,10 @@ public class ConsoleData {
 		ListenerCoordinator.fire(PreRunBlockingListener.class, fileDataList);
 
 		currentStudentID = id;
-		outputMap.put(id, "");
-		inputMap.put(id, "");
+		currentRubricName = rubricName;
+		currentMapKey = generateKey(id, rubricName);
+		outputMap.put(currentMapKey, "");
+		inputMap.put(currentMapKey, "");
 
 	}
 	private void runStopped() {		
@@ -113,7 +144,7 @@ public class ConsoleData {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
-		System.setIn(inPipe);		
+		System.setIn(inPipe);			
 		runSemaphore.release();
 
 	}
@@ -156,7 +187,10 @@ public class ConsoleData {
 			@Override
 			protected void process(List<Character> chunks) {
 				boolean done = false;
-				String temp = outputMap.get(currentStudentID);
+				String temp = outputMap.get(currentMapKey);
+				if (temp == null) {
+					temp = "";
+				}
 				for (Character str : chunks) {					
 					// Special flag sent by StudentWorkCompiler to tell us when we are done running
 					// a
@@ -169,8 +203,8 @@ public class ConsoleData {
 						temp += str.toString();
 					}
 				}
-				ListenerCoordinator.fire(SystemOutListener.class, temp, (Boolean)done);
-				outputMap.put(currentStudentID, temp);
+				ListenerCoordinator.fire(SystemOutListener.class, currentStudentID, currentRubricName, temp, (Boolean)done);
+				outputMap.put(currentMapKey, temp);
 				if (done == true) {
 					runStopped();
 				}
@@ -194,10 +228,12 @@ public class ConsoleData {
 		};
 		consoleWorker.execute();
 	}
+		
 
-	public String getConsoleOutput(String studentID) {
-		if (outputMap.containsKey(studentID)) {
-			return outputMap.get(studentID);
+	public String getConsoleOutput(String studentID, String rubricName) {
+		String key = generateKey(studentID, rubricName);
+		if (outputMap.containsKey(key)) {
+			return outputMap.get(key);
 		}
 		return "";
 	}

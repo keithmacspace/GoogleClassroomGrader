@@ -35,6 +35,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.RunSelected;
 import net.cdonald.googleClassroom.listenerCoordinator.SetRunEnableStateListener;
 import net.cdonald.googleClassroom.listenerCoordinator.SetRunRubricEnableStateListener;
 import net.cdonald.googleClassroom.listenerCoordinator.SheetFetcherListener;
+import net.cdonald.googleClassroom.listenerCoordinator.StopRunListener;
 import net.cdonald.googleClassroom.model.ClassroomData;
 import net.cdonald.googleClassroom.model.GoogleSheetData;
 
@@ -51,6 +52,7 @@ public class MainToolBar extends JToolBar {
 	private ClassroomData empty;
 	private JButton runButton;
 	private JButton runRubricButton;
+	private JButton stopButton;
 	private List<String> rubricNames;
 
 
@@ -67,7 +69,9 @@ public class MainToolBar extends JToolBar {
 		rubricCombo.setModel(rubricModel);		
 		runButton = new JButton("Run");
 		runRubricButton = new JButton("Run Rubrics");
+		stopButton = new JButton("Stop");
 
+		stopButton.setEnabled(false);
 		disableButtons();
 
 		setLayout(new FlowLayout(FlowLayout.LEFT));
@@ -81,6 +85,7 @@ public class MainToolBar extends JToolBar {
 		add(rubricCombo);
 		add(runButton);
 		add(runRubricButton);
+		add(stopButton);
 		registerListeners();
 		addSelectionListeners();
 	}
@@ -100,6 +105,10 @@ public class MainToolBar extends JToolBar {
 	public void disableButtons() {
 		runButton.setEnabled(false);
 		runRubricButton.setEnabled(false);		
+	}
+	
+	public void setStopEnabled(boolean enabled) {
+		stopButton.setEnabled(enabled);
 	}
 
 	private void registerListeners() {
@@ -131,8 +140,6 @@ public class MainToolBar extends JToolBar {
 		ListenerCoordinator.addQueryResponder(GetRubricNamesQuery.class, new GetRubricNamesQuery() {
 			@Override
 			public List<String> fired() {
-//				for (String rubricName : rubricNames)
-//				System.err.println(rubricName);
 				return rubricNames;
 			}			
 		});
@@ -239,7 +246,14 @@ public class MainToolBar extends JToolBar {
 			public void actionPerformed(ActionEvent e) {
 				ListenerCoordinator.fire(RunRubricSelected.class);
 			}			
-		});	
+		});
+		
+		stopButton.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				ListenerCoordinator.fire(StopRunListener.class);
+			}
+		});
 
 	}
 

@@ -15,18 +15,29 @@ import org.mdkt.compiler.InMemoryJavaCompiler;
 import net.cdonald.googleClassroom.listenerCoordinator.AddProgressBarListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.RemoveProgressBarListener;
+import net.cdonald.googleClassroom.listenerCoordinator.StopRunListener;
 import net.cdonald.googleClassroom.model.FileData;
 
 public class StudentWorkCompiler {
 
 	private Map<String, StudentBuildInfo> studentBuildInfoMap;
-	private SwingWorker<Void, CompilerMessage> compilerWorker;	
-
+	private SwingWorker<Void, CompilerMessage> compilerWorker;
 	private CompileListener listener;
+	private RunCore runCore;
+	
+	
 
 	public StudentWorkCompiler(CompileListener listener) {
 		this.listener = listener;
 		studentBuildInfoMap = new HashMap<String, StudentBuildInfo>();
+		ListenerCoordinator.addListener(StopRunListener.class, new StopRunListener() {
+			@Override
+			public void fired() {
+				if (runCore != null) {
+					runCore.interrupt();
+				}
+			}
+		});
 	}
 
 	public void clearData() {
@@ -59,7 +70,7 @@ public class StudentWorkCompiler {
 		this.listener = listener;
 	}
 	
-	public String runSpecificMethod(boolean expectingReturn, String methodName, CompilerMessage message, Class<?> []params, Object[] args) {
+	public Object runSpecificMethod(boolean expectingReturn, String methodName, CompilerMessage message, Class<?> []params, Object[] args) {
 		String id = message.getStudentId();
 		if (studentBuildInfoMap.containsKey(id)) {
 			StudentBuildInfo studentBuildInfo = studentBuildInfoMap.get(id);
@@ -72,13 +83,11 @@ public class StudentWorkCompiler {
 		throw new IllegalArgumentException();
 	}
 
-	private String runSpecificMethod(boolean expectingReturn, String methodName, List<FileData> files, Map<String, Class<?>> compiled, Class<?>[] params, Object[] args) {
+	private Object runSpecificMethod(boolean expectingReturn, String methodName, List<FileData> files, Map<String, Class<?>> compiled, Class<?>[] params, Object[] args) {
 		for (FileData fileData : files) {
 			Class<?> aClass = compiled.get(fileData.getClassName());
 			Method method = getMethod(aClass, methodName, params);
 			if (method != null) {
-				//System.err.println("Running " + fileData.getClassName());
-				//System.out.println("Running " + fileData.getClassName());
 				return runCore(expectingReturn, method, args);
 			}		
 		}
@@ -86,7 +95,7 @@ public class StudentWorkCompiler {
 		
 	}
 	
-	public String compileAndRun(boolean expectingReturn, List<FileData> fileDataList, String methodName, Class<?> []params, Object[] args) {
+	public Object compileAndRun(boolean expectingReturn, List<FileData> fileDataList, String methodName, Class<?> []params, Object[] args) {
 		InMemoryJavaCompiler compiler = InMemoryJavaCompiler.newInstance();
 		Map<String, Class<?>> compiled = null;
 		try {
@@ -204,29 +213,53 @@ public class StudentWorkCompiler {
 		}
 		return method;
 	}
-	private String runCore(boolean expectReturn, Method method, Object[] args) {
-		String result = "";
-		try {		
-				if (expectReturn) {
-					result = "" + method.invoke(null, args);
-				}
-				else {
-					method.invoke(null, args);
-				}
+	private class RunCore extends Thread {
+		private Object result;
+		Method method;
+		Object [] args;
+		public RunCore(Method method, Object[] args) {
+			result = null;
+			this.method = method;
+			this.args = args;
+		}
+			
+		public Object getResult() {
+			return result;
+		}
+		@Override
+		public void run() {
+
+			try {		
+
+				result = method.invoke(null, args);
 				System.out.println("Ran Successfully");
 				// This is how I send the message that execution has completed
 				// Hopefully none of the students will print a zero.
 				// I hate doing this, but I needed some sort of semaphore
 				System.out.println("\0");
-			
-		} 
-		catch (Exception e) {
-			System.err.println("Exception Caught");
+				
+			} 
+			catch (Exception e) {				
+				System.out.println("Exception Caught\n" + e.getClass() + e.getMessage() + "\n");
+				System.out.println("\0");
+			}
+		}
+		
+	}
+	private Object runCore(boolean expectReturn, Method method, Object[] args) {
+		runCore = new RunCore(method, args);
+		try {
+			runCore.start();
+			runCore.join();
+		}
+		catch (Exception e) {			
 			System.out.println("Exception Caught\n" + e.getClass() + e.getMessage() + "\n");
 			System.out.println("\0");
 		}
-		return result;
+		return runCore.getResult();
 	}
+	
+	
 		
 
 	private void runCore(Method method) {

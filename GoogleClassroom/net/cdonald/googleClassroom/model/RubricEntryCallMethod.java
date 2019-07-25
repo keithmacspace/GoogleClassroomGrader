@@ -16,7 +16,7 @@ public class RubricEntryCallMethod extends RubricAutomation {
 	boolean checkSystemOut;
 	List<List<String>> inputs;
 	List<String> outputs;
-	RubricEntrySystemListeners sysListeners;
+	
 
 	public RubricEntryCallMethod(List<String> paramTypes, String methodToCall, String returnType) {
 		super();
@@ -28,10 +28,36 @@ public class RubricEntryCallMethod extends RubricAutomation {
 		if (returnType == "System.out") {
 			checkSystemOut = true;
 		}
-		this.methodToCall = methodToCall;
 		inputs = new ArrayList<List<String>>();
 		outputs = new ArrayList<String>();
-		sysListeners = new RubricEntrySystemListeners("Call Method");
+		
+	}
+	
+	public RubricEntryCallMethod(RubricEntryCallMethod other) {
+		this.paramTypes = new Class<?>[other.paramTypes.length];
+		
+		for (int i = 0; i < other.paramTypes.length; i++) {
+			this.paramTypes[i] = other.paramTypes[i];
+		}
+		this.methodToCall = other.methodToCall;
+		this.checkSystemOut = other.checkSystemOut;				
+		inputs = new ArrayList<List<String>>();
+		outputs = new ArrayList<String>();
+		for (List<String> inputList : other.inputs) {
+			List<String> temp = new ArrayList<String>();
+
+			for (String inputStr : inputList) {
+				temp.add(inputStr);
+			}
+			inputs.add(temp);
+		}
+		for (String outputStr : other.outputs) {
+			outputs.add(outputStr);
+		}
+		
+	}
+	public RubricAutomation newCopy() {
+		return new RubricEntryCallMethod(this);
 	}
 
 	public void addParameterPair(List<String> inputs, String output) {
@@ -39,15 +65,15 @@ public class RubricEntryCallMethod extends RubricAutomation {
 		this.outputs.add(output);
 	}
 
-	protected double runAutomation_(CompilerMessage message, StudentWorkCompiler compiler) {
+	protected double runAutomation_(CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData) {
 		int runCount = 0;
 		int passCount = 0;
 		if (message.isSuccessful()) {
-
+			consoleData.runStarted(message.getStudentId(), getOwnerName(), compiler.getSourceCode(message.getStudentId())  );
 			Object[] args = new Object[paramTypes.length];
 			for (int i = 0; i < inputs.size(); i++) {
 				if (checkSystemOut) {
-					sysListeners.prepareForNextTest();
+					prepareForNextTest();
 				}
 				List<String> inputList = inputs.get(i);
 				int argCount = 0;
@@ -65,9 +91,9 @@ public class RubricEntryCallMethod extends RubricAutomation {
 				runCount++;
 
 				// here is where we translate the individual param types into that actual type
-				String results = compiler.runSpecificMethod(!checkSystemOut, methodToCall, message, paramTypes, args);
+				Object results = compiler.runSpecificMethod(!checkSystemOut, methodToCall, message, paramTypes, args);
 				if (checkSystemOut) {
-					results = sysListeners.getSysOutText();
+					results = getSysOutText(message.getStudentId());
 				}
 				String expected = outputs.get(i);
 				resultsMessage += " = " + results;

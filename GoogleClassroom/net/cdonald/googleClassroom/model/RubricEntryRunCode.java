@@ -14,17 +14,27 @@ public class RubricEntryRunCode extends  RubricAutomation{
 	private String methodToCall;
 	private List<FileData> sourceFiles;
 	private String methodBeingChecked;
-	boolean checkSystemOut;	
-	private RubricEntrySystemListeners sysListeners;	
-	private Map<String, String> perStudentResults;
+	boolean checkSystemOut;		
 	private enum MethodNames {METHOD_TO_CALL, METHOD_BEING_CHECKED, SOURCE_FILE};
 
 
 	
-	public RubricEntryRunCode() {
-		sysListeners = new RubricEntrySystemListeners("Run Code");
-		perStudentResults = new HashMap<String, String>();
+	public RubricEntryRunCode() {		
 		sourceFiles = new ArrayList<FileData>();
+	}
+	
+	public RubricEntryRunCode(RubricEntryRunCode other) {
+		methodToCall = other.methodToCall;
+		sourceFiles = new ArrayList<FileData>();
+		for (FileData fileData : other.sourceFiles) {
+			sourceFiles.add(fileData);
+		}
+		methodBeingChecked = other.methodBeingChecked;
+		checkSystemOut = other.checkSystemOut;
+	}
+	
+	public RubricAutomation newCopy() {
+		return new RubricEntryRunCode(this);
 	}
 
 
@@ -35,41 +45,44 @@ public class RubricEntryRunCode extends  RubricAutomation{
 
 	public void addSourceContents(FileData file) {
 		file.setRubricCode(true);
-		this.sourceFiles.add(file);
-		
+		this.sourceFiles.add(file);		
 	}
 	
 	
-	protected double runAutomation_(CompilerMessage message, StudentWorkCompiler compiler) {
+	protected double runAutomation_(CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData) {
 		if (message.isSuccessful()) {			
-			String studentId = message.getStudentId();
+			String studentId = message.getStudentId();			
 			String completeMethodName = compiler.getCompleteMethodName(studentId, methodBeingChecked);
 			if (completeMethodName == null) {
 				String error =  "no method named " + methodBeingChecked + " in source";
-				System.err.println(error);
-				perStudentResults.put(studentId, error);
+				addOutput(studentId, error);
 			}			
 			else {
 				List<FileData> studentFiles = compiler.getSourceCode(studentId);
 				List<FileData> rubricFiles = new ArrayList<FileData>(studentFiles);
-				sysListeners.prepareForNextTest();				
+				consoleData.runStarted(studentId, getOwnerName(), studentFiles);
+				prepareForNextTest();				
 				for (FileData sourceFile : sourceFiles) {
 					String modifiedSource = replaceMethodName(completeMethodName, sourceFile.getFileContents());
 					FileData temp = new FileData(sourceFile.getName(), modifiedSource, studentId, null);
+					//System.err.println(modifiedSource);
 					rubricFiles.add(temp);				
 				}
 				Class<?> []params = {};
 				Object []args = {};
-				String returnValue = compiler.compileAndRun(true,  rubricFiles, methodToCall, params, args);
-				addOutput(studentId, sysListeners.getSysOutText());
-				double value = Double.parseDouble(returnValue);				
+				Object returnValue = compiler.compileAndRun(true,  rubricFiles, methodToCall, params, args);
+				addOutput(studentId, getSysOutText(studentId));
+				double value = 0.0;
+				if (returnValue != null) {
+					value = Double.parseDouble(returnValue.toString());
+				}
 				return value;
 			}
 		}
 		return 0.0;
 	}
 	
-	String replaceMethodName(String completeMethodName, String sourceContents) {
+	String replaceMethodName(String completeMethodName, String sourceContents) {		
 		String search = methodBeingChecked + "(";
 		int methodIndex = 0;
 		int priorIndex = 0;
@@ -244,7 +257,7 @@ public class RubricEntryRunCode extends  RubricAutomation{
 
 
 	@Override
-	protected void loadAutomationColumns(String entryName, Map<String, List<List<Object>>> columnData) {		
+	protected void loadAutomationColumns(String entryName, Map<String, List<List<Object>>> columnData) {
 		List<List<Object> > columns = columnData.get(entryName.toUpperCase());
 		
 		if (columns == null || columns.size() != getNumAutomationColumns()) {
@@ -281,16 +294,21 @@ public class RubricEntryRunCode extends  RubricAutomation{
 			}
 			sourceFiles = new ArrayList<FileData>();
 			for (Object file : files) {
-				List<List<Object>> sourceInfo = columnData.get((String)file);
+				List<List<Object>> sourceInfo = columnData.get(((String)file).toUpperCase());
 				if (sourceInfo == null) {
 					JOptionPane.showMessageDialog(null, "Expected the text for " + file + " in the rubric info", "Bad rubric automation data",
 							JOptionPane.ERROR_MESSAGE);
+					return;
 					
 				}
 				String text = "";
+				boolean firstLine = true;
 				for (List<Object> lines : sourceInfo) {
 					for (Object line : lines) {
-						text += line + "\n";
+						if (firstLine == false) {
+							text += line + "\n";
+						}
+						firstLine = false;
 					}
 				}
 				sourceFiles.add(new FileData((String)file, text, "0", null));

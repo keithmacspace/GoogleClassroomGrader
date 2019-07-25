@@ -62,3 +62,5 @@
 /RubricFileValidListener.class
 /LaunchNewRubricDialogListener.class
 /SaveRubricListener.class
+/AppendOutputTextListener.class
+/StopRunListener.class

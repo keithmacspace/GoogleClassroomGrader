@@ -37,7 +37,6 @@ import net.cdonald.googleClassroom.listenerCoordinator.GetCurrentClassQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetCurrentRubricURL;
 import net.cdonald.googleClassroom.listenerCoordinator.GetDBNameQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetFileDirQuery;
-import net.cdonald.googleClassroom.listenerCoordinator.GetRubricOutputQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetStudentFilesQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetWorkingDirQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
@@ -159,7 +158,7 @@ public class DataController implements StudentListInfo {
 					fileData.setFileContents(text);
 					List<FileData> temp = new ArrayList<FileData>();
 					temp.add(fileData);
-					consoleData.runStarted(fileData.getId(), temp);
+					consoleData.runStarted(fileData.getId(), null, temp);
 					//studentWorkCompiler.compileAndRun(this, fileData, text);
 				}
 			}			
@@ -234,16 +233,6 @@ public class DataController implements StudentListInfo {
 				// TODO Auto-generated method stub
 				return studentWorkCompiler.getSourceCode(studentID);
 			}			
-		});
-		
-		ListenerCoordinator.addQueryResponder(GetRubricOutputQuery.class, new GetRubricOutputQuery() {
-			@Override
-			public String fired(String rubricName, String studentID) {
-				if (rubric != null) {
-					return rubric.getRubricOutput(rubricName, studentID);
-				}
-				return null;
-			}		
 		});
 		
 		ListenerCoordinator.addQueryResponder(GetCurrentRubricURL.class, new GetCurrentRubricURL() {
@@ -322,18 +311,8 @@ public class DataController implements StudentListInfo {
 		ListenerCoordinator.addListener(SaveRubricListener.class, new SaveRubricListener() {
 			@Override
 			public void fired() {
-				if (rubric != null) {
-					try {
-						ListenerCoordinator.fire(AddProgressBarListener.class, "Saving Rubric");
-						googleClassroom.writeSheet(rubric);
-						ListenerCoordinator.fire(RemoveProgressBarListener.class, "Saving Rubric");
-					}
-					catch(IOException e) {
-						JOptionPane.showMessageDialog(null, e.getMessage(), "Error saving to rubric db sheet",
-								JOptionPane.ERROR_MESSAGE);
-						
-					}
-				}
+				saveRubric();
+
 			}			
 		});
 		
@@ -346,9 +325,9 @@ public class DataController implements StudentListInfo {
 		return rubric;
 	}
 
-
 	public int setRubric(Rubric rubric) {
-		if (this.rubric != null && this.rubric.isInModifiedState() && rubric != this.rubric) {
+		// The name check is for when we do a restore after cancel
+		if (this.rubric != null && this.rubric.isInModifiedState() && rubric != this.rubric && rubric.getName() != this.rubric.getName()) {
 			int dialogResult = JOptionPane.showConfirmDialog(null, "Do you want to save the current rubric before changing this one (cancel means do not change rubric)?", "Current Rubric Modified", JOptionPane.YES_NO_CANCEL_OPTION);
 			if (dialogResult != JOptionPane.NO_OPTION) {
 				return dialogResult;
@@ -387,7 +366,7 @@ public class DataController implements StudentListInfo {
 	}
 	
 	public String getConsoleOutput(String id) {
-		return consoleData.getConsoleOutput(id);
+		return consoleData.getConsoleOutput(id, null);
 	}
 	public String getConsoleInputHistory(String id) {
 		return consoleData.getConsoleInputHistory(id);
@@ -398,9 +377,11 @@ public class DataController implements StudentListInfo {
 
 		if (studentWorkCompiler.isRunnable(id)) {
 			List<FileData> fileDataList = getSourceCode(id);
-			consoleData.runStarted(id, fileDataList);
+			consoleData.runStarted(id, null, fileDataList);
 			StudentData student = studentMap.get(id);
-			ListenerCoordinator.fire(SetRunningLabelListener.class, "Running: " + student.getFirstName() + " " + student.getName());
+			if (student != null) {
+				ListenerCoordinator.fire(SetRunningLabelListener.class, "Running: " + student.getFirstName() + " " + student.getName());
+			}
 			studentWorkCompiler.run(id);
 			ListenerCoordinator.fire(SetRunningLabelListener.class, "");
 		}
@@ -415,15 +396,8 @@ public class DataController implements StudentListInfo {
 		if (rubric != null) {
 			CompilerMessage message = studentWorkCompiler.getCompilerMessage(studentId);
 			if (message != null) {
-				SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
-					@Override
-					protected Void doInBackground() throws Exception {
-						rubric.runAutomation(message, studentWorkCompiler);
-						updateListener.dataUpdated();
-						return null;
-					}					
-				};
-				worker.execute();
+				rubric.runAutomation(message, studentWorkCompiler, consoleData);
+				updateListener.dataUpdated();
 			}			
 		}
 	}
@@ -640,8 +614,19 @@ public class DataController implements StudentListInfo {
 		return true;		
 	}
 	
-	private void saveRubric() {
-		
+	public void saveRubric() {
+		if (rubric != null) {
+			try {
+				ListenerCoordinator.fire(AddProgressBarListener.class, "Saving Rubric");
+				googleClassroom.writeSheet(rubric);				
+			}
+			catch(IOException e) {
+				JOptionPane.showMessageDialog(null, e.getMessage(), "Error saving to rubric db sheet",
+						JOptionPane.ERROR_MESSAGE);
+				
+			}
+			ListenerCoordinator.fire(RemoveProgressBarListener.class, "Saving Rubric");
+		}
 	}
 	
 	public Rubric newRubric(String name) {

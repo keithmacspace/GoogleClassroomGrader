@@ -182,8 +182,7 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 		ListenerCoordinator.addListener(LaunchRubricEditorDialogListener.class, new LaunchRubricEditorDialogListener() {
 			@Override
 			public void fired() {
-				rubricElementDialog.modifyRubric(dataController.getRubric());
-
+				editRubric(dataController.getRubric());
 			}
 		});
 		
@@ -195,12 +194,21 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 				if (rubricName != null) {
 					Rubric temp = dataController.newRubric(rubricName);
 					mainToolBar.addRubricInfo(temp.getSheetInfo(), true);
-					rubricElementDialog.modifyRubric(temp);
+					editRubric(temp);
 					
 				}
 			}
 		});
-
+	}
+	
+	private void editRubric(Rubric rubricToModify) {
+		Rubric copy = new Rubric(rubricToModify);
+		if (rubricElementDialog.modifyRubric(dataController.getRubric()) == true) {
+			dataController.saveRubric();
+		}
+		else {
+			dataController.setRubric(copy);
+		}
 	}
 	
 	private void runRubricOrCode(boolean runSource) {
@@ -215,6 +223,7 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 					ids = dataController.getAllIDs();
 				}
 				try {
+					mainToolBar.setStopEnabled(true);
 					for (String id : ids) {
 						if (runSource == true) {
 							dataController.run(id);												
@@ -229,14 +238,14 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 					}
 				} catch (Exception e) {
 					JOptionPane.showMessageDialog(MainGoogleClassroomFrame.this, e.getMessage(), "Error while running",
-							JOptionPane.ERROR_MESSAGE);
-					e.printStackTrace(System.err);
+							JOptionPane.ERROR_MESSAGE);					
 				}
 				return null;
 			}
 			@Override
 			protected void done() {
 				enableRuns();
+				mainToolBar.setStopEnabled(false);
 
 			}
 		};

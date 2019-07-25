@@ -410,7 +410,6 @@ public class GoogleClassroomCommunicator {
 		initServices();
 		String id = sheetWriter.getSheetInfo().getSpreadsheetId();
 		String sheetName = sheetWriter.getSheetInfo().getName();
-		System.err.println(id + " " + sheetName);
 		boolean newSheet = true;
 		List<Sheet> existing = getSheetNames(sheetWriter.getSheetInfo(), null);
 		for (Sheet sheet : existing) {
@@ -494,7 +493,6 @@ public class GoogleClassroomCommunicator {
 		initServices();
 		String id = sheetReader.getSheetInfo().getSpreadsheetId();
 		String sheetName = sheetReader.getSheetInfo().getName();
-		System.err.println("ID = " + id);
 		int rangeCount = 0;
 		while (sheetReader.getNextRange(rangeCount) != null) {
 			String range = sheetName + "!" + sheetReader.getNextRange(rangeCount);			
@@ -525,11 +523,10 @@ public class GoogleClassroomCommunicator {
 
 		@Override
 		public void setResponseData(List<List<Object>> columnData, int count) {
-			System.err.println(columnData);
 			if (columnData != null) {
 				for (List<Object> values : columnData) {
 					for (Object value : values) {
-						System.err.println(value);						
+						//System.err.println(value);						
 					}
 				}
 			}
@@ -580,7 +577,7 @@ public class GoogleClassroomCommunicator {
 	public static void main(String[] args) throws IOException, GeneralSecurityException {
 		GoogleClassroomCommunicator communicator = new GoogleClassroomCommunicator("Google Classroom Grader", "C:\\Users\\kdmacdon\\Documents\\Teals\\GoogleClassroomData\\tokens", "C:\\Users\\kdmacdon\\Documents\\Teals\\GoogleClassroomData\\credentials.json");
 		communicator.writeSheet(communicator.new TestReader());
-		System.err.println("done");
+		//System.err.println("done");
 		
 		
 		//GoogleClassroomCommunicator communicator = new GoogleClassroomCommunicator("Google Classroom Grader", "C:\\Users\\kdmacdon\\Documents\\Teals\\GoogleClassroomData\\tokens", "C:\\Users\\kdmacdon\\Documents\\Teals\\GoogleClassroomData\\credentials.json");

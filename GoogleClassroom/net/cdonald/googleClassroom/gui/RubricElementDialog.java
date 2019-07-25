@@ -59,12 +59,13 @@ import net.cdonald.googleClassroom.model.RubricEntryRunCode;
 public class RubricElementDialog extends JDialog implements ItemListener {
 	private static final long serialVersionUID = -5580080426150572162L;
 	private JButton saveButton;
-	private JButton addAnotherButton;
+	private JButton modifyButton;
 	private JButton cancelButton;
 	private JComboBox<RubricEntry.AutomationTypes> automationTypeCombo;	
 	private JComboBox<String> nameCombo;
 	private JTextField descriptionField;
-	private JFormattedTextField valueField;	
+	private JFormattedTextField valueField;
+	private JTable entriesTable;
 	
 	private RubricEntry.AutomationTypes currentAutomation;
 	private Map<String, String> sourceMap;
@@ -77,6 +78,7 @@ public class RubricElementDialog extends JDialog implements ItemListener {
 	
 	private JButton addFilesButton;
 	private JButton removeFilesButton;
+	private JButton deleteButton;
 	private JTextField methodNameField;
 	private JLabel methodToCallLabel;
 	
@@ -91,6 +93,7 @@ public class RubricElementDialog extends JDialog implements ItemListener {
 	private JPanel sourceCodePanel;
 	private JSplitPane sourceSplit;
 	private String DEFAULT_SOURCE_STRING = "";
+	private boolean saveRubric;
 		
 	
 	public RubricElementDialog(Frame parent, RubricModifiedListener listener) {
@@ -101,7 +104,8 @@ public class RubricElementDialog extends JDialog implements ItemListener {
 
 
 		saveButton = new JButton("Save");
-		addAnotherButton = new JButton("Add");
+		modifyButton = new JButton("Modify");
+		deleteButton = new JButton("Delete");
 		cancelButton = new JButton("Cancel");
 		cancelButton.setMnemonic(KeyEvent.VK_C);
 
@@ -143,14 +147,16 @@ public class RubricElementDialog extends JDialog implements ItemListener {
 
 		buttonsPanel = new JPanel();
 		// buttonsPanel.setLayout(new FlowLayout());
-		buttonLayout = new GridLayout(3, 0);
+		buttonLayout = new GridLayout(4, 0);
 		final int GAP_SIZE = 6;
 		buttonLayout.setVgap(GAP_SIZE);
 		buttonsPanel.setBorder(BorderFactory.createEmptyBorder(BUTTON_TOP_SPACE, SPACE, SPACE, SPACE));
 		buttonsPanel.setLayout(buttonLayout);
 		buttonsPanel.add(saveButton);
-		buttonsPanel.add(addAnotherButton);
+		buttonsPanel.add(modifyButton);
+		buttonsPanel.add(deleteButton);
 		buttonsPanel.add(cancelButton);
+		deleteButton.setEnabled(false);
 
 		JPanel constantPanel = new JPanel();
 		constantPanel.setLayout(new BorderLayout());
@@ -165,22 +171,44 @@ public class RubricElementDialog extends JDialog implements ItemListener {
 		saveButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				ListenerCoordinator.fire(SaveRubricListener.class);
+				saveRubric = true;				
 				setVisible(false);				
 			}
 		});
 		
-		addAnotherButton.addActionListener(new ActionListener() {
+		modifyButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				addRubricEntry();
+				modifyRubric();
 			}
 		});
 
 		cancelButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
+				saveRubric = false;
 				setVisible(false);
+			}
+		});
+		
+		deleteButton.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				String name = (String)nameCombo.getSelectedItem();
+				if (rubricToModify.isInRubric(name)) {
+					SwingUtilities.invokeLater(new Runnable() {
+						@Override
+						public void run() {
+							rubricToModify.deleteEntry(name);
+							nameCombo.remove(nameCombo.getSelectedIndex());							
+							nameCombo.setSelectedIndex(0);
+							nameCombo.revalidate();
+							nameCombo.repaint();
+							listener.rubricModified(rubricToModify);							
+						}
+					});
+				}
+			
 			}
 		});
 		
@@ -190,6 +218,7 @@ public class RubricElementDialog extends JDialog implements ItemListener {
 				if (e.getStateChange() == ItemEvent.SELECTED) {					
 					String text = (String)nameCombo.getSelectedItem();
 					fillSelectedState(text);
+					deleteButton.setEnabled(rubricToModify.isInRubric(text));
 				}				
 			}
 		});
@@ -321,10 +350,7 @@ public class RubricElementDialog extends JDialog implements ItemListener {
 	}
 	
 
-	public boolean addRubricEntry() {
-		if (rubricToModify == null) {
-			rubricToModify = new Rubric();
-		}
+	public boolean modifyRubric() {
 		RubricEntry entry = new RubricEntry();
 		if (validateComboField("Name", nameCombo) ) {
 			entry.setValue(RubricEntry.HeadingNames.NAME, (String)nameCombo.getSelectedItem());
@@ -335,7 +361,7 @@ public class RubricElementDialog extends JDialog implements ItemListener {
 
 					entry.setValue(RubricEntry.HeadingNames.AUTOMATION_TYPE, automationTypeCombo.getSelectedItem().toString());
 					if (createRubricAutomation(entry) == true) {
-						rubricToModify.addEntry(entry);
+						rubricToModify.modifyEntry(entry);
 						listener.rubricModified(rubricToModify);
 						return true;
 					}
@@ -359,15 +385,14 @@ public class RubricElementDialog extends JDialog implements ItemListener {
 		if (text.length() == 0) {			
 			JOptionPane.showMessageDialog(null,  name + " field must have a value", "Field Is Empty", JOptionPane.ERROR_MESSAGE);
 			return false;
-		}
-		//System.err.println(name + " = \"" + text + "\"");
+		}		
 		return true;
 	}
 	
 
 	
 
-	public void modifyRubric(Rubric rubricToModify) {
+	public boolean modifyRubric(Rubric rubricToModify) {
 		this.rubricToModify = rubricToModify;
 		nameCombo.removeAllItems();
 		setTitle("Edit Rubric: " + rubricToModify.getName());
@@ -375,7 +400,10 @@ public class RubricElementDialog extends JDialog implements ItemListener {
 		for (RubricEntry element : rubricToModify.getEntries()) {
 			nameCombo.addItem(element.getName());
 		}
+		saveRubric = false;
 		setVisible(true);
+		return saveRubric;
+		
 	}
 
 	@Override
@@ -427,8 +455,7 @@ public class RubricElementDialog extends JDialog implements ItemListener {
 			@Override
 			public void tableChanged(TableModelEvent e) {
 				int lastRow = e.getLastRow();
-				int rowCount = tableModel.getRowCount();
-				// System.err.println("Last row = " + lastRow + " Row count = " + rowCount);
+				int rowCount = tableModel.getRowCount();				
 				if (lastRow + 1 == rowCount) {
 					String entry = (String) tableModel.getValueAt(lastRow, 0);
 					if (entry.length() != 0) {
@@ -450,7 +477,7 @@ public class RubricElementDialog extends JDialog implements ItemListener {
 
 		addLabelAndComponent(namePanel, methodToCallLabel, methodNameField, 3);
 		addLabelAndComponent(namePanel, methodBeingCalledLabel, methodBeingCalledField, 4);
-		buttonLayout.setRows(5);
+		buttonLayout.setRows(buttonLayout.getRows() + 2);
 		buttonsPanel.add(addFilesButton);
 		buttonsPanel.add(removeFilesButton);
 		namePanel.revalidate();
@@ -461,7 +488,9 @@ public class RubricElementDialog extends JDialog implements ItemListener {
 
 	private void fillRunCode(RubricEntry entry) {
 		RubricEntryRunCode runCode = (RubricEntryRunCode)entry.getAutomation();
+
 		if (runCode != null) {
+			
 			methodNameField.setText(runCode.getMethodToCall());
 			methodBeingCalledField.setText(runCode.getMethodBeingChecked());
 			sourceMap.clear();
