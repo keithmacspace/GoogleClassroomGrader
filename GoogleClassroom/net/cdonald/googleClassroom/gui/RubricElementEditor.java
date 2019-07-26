@@ -14,12 +14,12 @@ import net.cdonald.googleClassroom.model.RubricEntry;
 
 
 
-public class RubricCategoryEditor extends AbstractCellEditor implements TableCellEditor {
+public class RubricElementEditor extends AbstractCellEditor implements TableCellEditor {
 	
-	private JComboBox<RubricEntry.HeadingNames> combo;
+	private JComboBox<RubricEntry.AutomationTypes> combo;
 	
-	public RubricCategoryEditor() {
-		combo = new JComboBox<RubricEntry.HeadingNames>(RubricEntry.HeadingNames.values());
+	public RubricElementEditor() {
+		combo = new JComboBox<RubricEntry.AutomationTypes>(RubricEntry.AutomationTypes.values());
 	}
 
 	@Override

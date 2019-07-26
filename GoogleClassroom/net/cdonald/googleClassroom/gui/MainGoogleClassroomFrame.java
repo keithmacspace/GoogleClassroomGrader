@@ -66,6 +66,8 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 		registerListeners();
 		setVisible(true);
 		dataController.performFirstInit();
+
+		rubricElementDialog.modifyRubric(new Rubric(new GoogleSheetData("Test", "Test", "Test")));
 	}
 	
 
