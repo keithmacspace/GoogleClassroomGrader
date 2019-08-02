@@ -15,3 +15,6 @@
 /StudentBuildInfo.class
 /StudentWorkCompiler$RunCore.class
 /StudentWorkCompiler$1$1.class
+/InfiniteLoopException.class
+/StopExitSecurityManager.class
+/ExitTrappedException.class

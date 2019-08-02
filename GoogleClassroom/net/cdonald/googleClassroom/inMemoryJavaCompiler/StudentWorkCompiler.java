@@ -15,6 +15,7 @@ import javax.swing.SwingWorker;
 import org.mdkt.compiler.CompilationException;
 import org.mdkt.compiler.InMemoryJavaCompiler;
 
+import net.cdonald.googleClassroom.gui.DebugLogDialog;
 import net.cdonald.googleClassroom.listenerCoordinator.AddProgressBarListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.RemoveProgressBarListener;
@@ -27,7 +28,8 @@ public class StudentWorkCompiler {
 	private SwingWorker<Void, CompilerMessage> compilerWorker;
 	private CompileListener listener;
 	private RunCore runCore;
-
+	private static Semaphore stopSemaphore = new Semaphore(1);
+	
 	
 	
 
@@ -39,25 +41,39 @@ public class StudentWorkCompiler {
 			public void fired() {
 				SwingUtilities.invokeLater(new Runnable() {
 					public void run() {						
-						if (runCore != null) {
-							runCore.setStop();
+						if (runCore != null) {							
+							runCore.setStop();							
 						}
 					}
 				});
 			}
 		});
 	}
+	
+	
+	public static boolean stopInstrumentation() {		
+		if (stopSemaphore.availablePermits() == 0) {
+			DebugLogDialog.appendln("throwing stop");
+			throw new InfiniteLoopException();
+		}
+		return false;
+	}
 
 	public void clearData() {
 		studentBuildInfoMap.clear();
 	}
+	
+	public String getInstrumentationLine() {
+		return this.getClass().getCanonicalName() + ".stopInstrumentation();";
+	}
+
 
 	public void addFile(FileData fileData) {
-		String key = fileData.getId();
-		
+		String key = fileData.getId();		
 		if (studentBuildInfoMap.containsKey(key) == false) {
 			studentBuildInfoMap.put(key, new StudentBuildInfo());
 		}
+		fileData.instrumentFile(getInstrumentationLine());
 		studentBuildInfoMap.get(key).addFileData(fileData);
 		if (listener != null) {
 			listener.dataUpdated();
@@ -219,26 +235,34 @@ public class StudentWorkCompiler {
 	private class RunCore extends Thread {
 		private Semaphore runSemaphore = new Semaphore(0);
 		private Object result;
-		Method method;
-		Object [] args;
-
-		boolean stop;
+		private Method method;
+		private Object [] args;
+		private StopExitSecurityManager preventExit;		
 		public RunCore(Method method, Object[] args) {
 			result = null;
 			this.method = method;
 			this.args = args;
-			stop = false;
+			if (stopSemaphore.availablePermits() == 0) {
+				stopSemaphore.release();
+			}
+		
+			preventExit = new StopExitSecurityManager();
 		}
 			
 		public boolean isStop() {
-			return stop;
+			return (stopSemaphore.availablePermits() == 0);
 		}
 
 		public void setStop() {
-			stop = true;
+			try {
+				if (isStop() == false) {
+					stopSemaphore.acquire();
+				}
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}			
 			this.interrupt();
-			runSemaphore.release();
-
 		}
 		
 		public void waitForFinish() {
@@ -258,9 +282,9 @@ public class StudentWorkCompiler {
 		}
 		@Override
 		public void run() {
-				try {
-					result = method.invoke(null, args);
-					runSemaphore.release();
+				try {					
+					preventExit.install();
+					result = method.invoke(null, args);					
 				} catch (IllegalAccessException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -271,6 +295,14 @@ public class StudentWorkCompiler {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
+				catch (Exception e) {
+					DebugLogDialog.appendln("Caught Exception " + e.toString());
+					preventExit.uninstall();
+					runSemaphore.release();
+					throw e;
+				}
+				preventExit.uninstall();
+				runSemaphore.release();
 
 		}
 		
@@ -291,6 +323,14 @@ public class StudentWorkCompiler {
 				// I hate doing this, but I needed some sort of semaphore
 				System.out.println("\0");
 			}
+		}
+		catch (InfiniteLoopException ie) {
+			System.out.println("Terminated\n");
+			System.out.println("\0");							
+		}
+		catch (ExitTrappedException et) {
+			System.out.println("exit(0) called");
+			System.out.println("\0");
 		}
 		catch (Exception e) {
 			System.out.println("Exception Caught\n" + e.getClass() + e.getMessage() + "\n");

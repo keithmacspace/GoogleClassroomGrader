@@ -8,6 +8,7 @@ import java.util.Map;
 import net.cdonald.googleClassroom.googleClassroomInterface.LoadSheetData;
 import net.cdonald.googleClassroom.googleClassroomInterface.SaveSheetData;
 import net.cdonald.googleClassroom.googleClassroomInterface.SheetAccessorInterface;
+import net.cdonald.googleClassroom.gui.DataUpdateListener;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.StudentWorkCompiler;
 
@@ -131,9 +132,10 @@ public class Rubric implements SheetAccessorInterface {
 		return null;
 	}
 	
-	public void runAutomation(String studentName, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData ) {				
+	public void runAutomation(DataUpdateListener updateListener, String studentName, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData ) {				
 		for (RubricEntry entry : entries) {
 			entry.runAutomation(studentName, message, compiler, consoleData);
+			updateListener.dataUpdated();
 		}
 
 	}

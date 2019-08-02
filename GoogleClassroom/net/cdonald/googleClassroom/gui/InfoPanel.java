@@ -54,7 +54,7 @@ public class InfoPanel extends JPanel {
 			}
 		});
 		
-		ListenerCoordinator.addListener(SetRunningLabelListener.class, new SetRunningLabelListener() {
+		ListenerCoordinator.addBlockingListener(SetRunningLabelListener.class, new SetRunningLabelListener() {
 			@Override
 			public void fired(String label) {				
 				String text = label;
@@ -65,7 +65,7 @@ public class InfoPanel extends JPanel {
 			}
 			
 		});
-		ListenerCoordinator.addListener(SetInfoLabelListener.class, new SetInfoLabelListener() {
+		ListenerCoordinator.addBlockingListener(SetInfoLabelListener.class, new SetInfoLabelListener() {
 			@Override
 			public void fired(String label) {				
 				String text = label;

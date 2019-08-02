@@ -383,7 +383,7 @@ public class DataController implements StudentListInfo {
 				if (student != null) {
 					studentName = student.getFirstName() + " " + student.getName();
 				}
-				rubric.runAutomation(studentName, message, studentWorkCompiler, consoleData);
+				rubric.runAutomation(updateListener, studentName, message, studentWorkCompiler, consoleData);
 				updateListener.dataUpdated();
 			}			
 		}
