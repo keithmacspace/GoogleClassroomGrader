@@ -18,8 +18,7 @@ public class GoogleSheetData extends ClassroomData {
 	}
 	
 	public GoogleSheetData(GoogleSheetData other) {
-		super(other.getName(), other.getId());
-		this.sheetId = sheetId;
+		this(other.getName(), other.getSpreadsheetId(), other.getSheetId());
 	}
 	
 	public GoogleSheetData(Map<String, String> dbInfo) {
@@ -48,7 +47,7 @@ public class GoogleSheetData extends ClassroomData {
 		}
 	}
 	
-	public String getSpreadsheetId() {
+	public String getSpreadsheetId() {		
 		// The url id of the spreadsheet is our id after removing the sheetID
 		String spreadsheetId = getId();
 		spreadsheetId = spreadsheetId.substring(0, spreadsheetId.length() - sheetId.length());

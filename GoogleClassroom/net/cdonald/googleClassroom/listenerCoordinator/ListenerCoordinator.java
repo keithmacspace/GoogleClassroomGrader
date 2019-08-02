@@ -137,11 +137,13 @@ public class ListenerCoordinator {
 	private static void runAll(Class<?> classToFire, Object[] params, boolean blockingValueToRun) {
 		List<ListenerContainer> list = listeners.get(classToFire);
 		Class<?>[] paramTypes = createParamTypes(params);
-		for (ListenerContainer listenerContainer : list) {
-			if (listenerContainer.isEnabled() && listenerContainer.isBlocking() == blockingValueToRun) {		
-				runOne(classToFire, "fired", listenerContainer.getListener(), params, paramTypes);
+		if (list != null) {
+			for (ListenerContainer listenerContainer : list) {
+				if (listenerContainer.isEnabled() && listenerContainer.isBlocking() == blockingValueToRun) {		
+					runOne(classToFire, "fired", listenerContainer.getListener(), params, paramTypes);
+				}
 			}
-		}				
+		}
 	}
 	public static void fire(Class<?> classToFire, Object param1, Object param2,
 			Object param3, Object param4) {

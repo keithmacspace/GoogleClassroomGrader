@@ -63,8 +63,7 @@ public abstract class ClassroomDataFetcher extends LongQueryResponder<ClassroomD
 						publish(temp);
 					}
 				}
-			} catch (SQLException e) {
-				System.err.println(e.getMessage());
+			} catch (SQLException e) {				
 				databaseException = e;
 			} catch (Exception x) {
 				miscException = x;

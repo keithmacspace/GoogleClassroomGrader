@@ -19,3 +19,6 @@
 /SheetWriterInterface.class
 /SheetAccessorInterface.class
 /SaveStateData.class
+/SaveSheetData.class
+/LoadSheetData.class
+/SaveSheetData$ColumnEntries.class

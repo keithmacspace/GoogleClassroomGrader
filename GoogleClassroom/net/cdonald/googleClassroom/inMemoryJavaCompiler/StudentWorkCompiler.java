@@ -1,12 +1,15 @@
 package net.cdonald.googleClassroom.inMemoryJavaCompiler;
 
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Semaphore;
 
+import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 
 import org.mdkt.compiler.CompilationException;
@@ -24,6 +27,7 @@ public class StudentWorkCompiler {
 	private SwingWorker<Void, CompilerMessage> compilerWorker;
 	private CompileListener listener;
 	private RunCore runCore;
+
 	
 	
 
@@ -33,9 +37,13 @@ public class StudentWorkCompiler {
 		ListenerCoordinator.addListener(StopRunListener.class, new StopRunListener() {
 			@Override
 			public void fired() {
-				if (runCore != null) {
-					runCore.interrupt();
-				}
+				SwingUtilities.invokeLater(new Runnable() {
+					public void run() {						
+						if (runCore != null) {
+							runCore.setStop();
+						}
+					}
+				});
 			}
 		});
 	}
@@ -95,19 +103,14 @@ public class StudentWorkCompiler {
 		
 	}
 	
-	public Object compileAndRun(boolean expectingReturn, List<FileData> fileDataList, String methodName, Class<?> []params, Object[] args) {
+	public Object compileAndRun(boolean expectingReturn, List<FileData> fileDataList, String methodName, Class<?> []params, Object[] args) throws Exception {
 		InMemoryJavaCompiler compiler = InMemoryJavaCompiler.newInstance();
 		Map<String, Class<?>> compiled = null;
-		try {
-			for (FileData fileData : fileDataList) {				
-				compiler.addSource(fileData.getClassName(), fileData.getFileContents());
-			}
-			compiled = compiler.compileAll();
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			return null;
+
+		for (FileData fileData : fileDataList) {				
+			compiler.addSource(fileData.getClassName(), fileData.getFileContents());
 		}
+		compiled = compiler.compileAll();		
 		return runSpecificMethod(expectingReturn, methodName, fileDataList, compiled, params, args);
 	}
 	
@@ -214,35 +217,61 @@ public class StudentWorkCompiler {
 		return method;
 	}
 	private class RunCore extends Thread {
+		private Semaphore runSemaphore = new Semaphore(0);
 		private Object result;
 		Method method;
 		Object [] args;
+
+		boolean stop;
 		public RunCore(Method method, Object[] args) {
 			result = null;
 			this.method = method;
 			this.args = args;
+			stop = false;
 		}
 			
+		public boolean isStop() {
+			return stop;
+		}
+
+		public void setStop() {
+			stop = true;
+			this.interrupt();
+			runSemaphore.release();
+
+		}
+		
+		public void waitForFinish() {
+			try {
+				runSemaphore.acquire();
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
 		public Object getResult() {
+			if (result == null) {
+				return (Double)(0.0);
+			}
 			return result;
 		}
 		@Override
 		public void run() {
+				try {
+					result = method.invoke(null, args);
+					runSemaphore.release();
+				} catch (IllegalAccessException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (IllegalArgumentException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (InvocationTargetException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 
-			try {		
-
-				result = method.invoke(null, args);
-				System.out.println("Ran Successfully");
-				// This is how I send the message that execution has completed
-				// Hopefully none of the students will print a zero.
-				// I hate doing this, but I needed some sort of semaphore
-				System.out.println("\0");
-				
-			} 
-			catch (Exception e) {				
-				System.out.println("Exception Caught\n" + e.getClass() + e.getMessage() + "\n");
-				System.out.println("\0");
-			}
 		}
 		
 	}
@@ -250,13 +279,26 @@ public class StudentWorkCompiler {
 		runCore = new RunCore(method, args);
 		try {
 			runCore.start();
-			runCore.join();
+			runCore.waitForFinish();
+			if (runCore.isStop()) {
+				System.out.println("Terminated\n");
+				System.out.println("\0");				
+			}
+			else {
+				System.out.println("Ran Successfully");
+				// This is how I send the message that execution has completed
+				// Hopefully none of the students will print a zero.
+				// I hate doing this, but I needed some sort of semaphore
+				System.out.println("\0");
+			}
 		}
-		catch (Exception e) {			
+		catch (Exception e) {
 			System.out.println("Exception Caught\n" + e.getClass() + e.getMessage() + "\n");
 			System.out.println("\0");
 		}
-		return runCore.getResult();
+		Object result = runCore.getResult();
+		runCore = null;
+		return result;
 	}
 	
 	

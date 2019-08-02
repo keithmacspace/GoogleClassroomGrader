@@ -4,10 +4,12 @@ import java.util.Arrays;
 
 import javax.swing.table.DefaultTableModel;
 
+import net.cdonald.googleClassroom.model.Rubric;
 import net.cdonald.googleClassroom.model.RubricEntry;
 
 public class RubricElementTableModel extends DefaultTableModel {
 	private static final long serialVersionUID = 338186915498223268L;
+	private Rubric rubricToModify;
 
 	public RubricElementTableModel() {
 		super(Arrays.copyOfRange(RubricEntry.HeadingNames.values(), 1, RubricEntry.HeadingNames.values().length), 0);
@@ -16,31 +18,39 @@ public class RubricElementTableModel extends DefaultTableModel {
 		for (int i = 1; i < RubricEntry.HeadingNames.values().length; i++, headerIndex++) {
 			headers[headerIndex] = RubricEntry.HeadingNames.values()[i].toString();
 		}
-		System.out.println(Arrays.toString(headers));
 		setColumnIdentifiers(headers);
 		
 	}
 	
-	@Override
-	public void addRow(Object[] rowData) {
-		// TODO Auto-generated method stub
-		super.addRow(rowData);
+	public void setRubricToModify(Rubric rubricToModify) {
+		this.rubricToModify = rubricToModify;
 	}
 
 	@Override
 	public int getRowCount() {
-		
-		int count = super.getRowCount();
-		if (count < 30) {
-			return 30;
+		if (rubricToModify == null) {
+			return 0;
 		}
-		return count;
+		else {
+			return rubricToModify.getEntries().size();
+		}
+	}
+	RubricEntry.HeadingNames getColumnHeading(int column) {
+		String columnName = getColumnName(column);
+		return RubricEntry.HeadingNames.valueOf(columnName);	
+	}
+
+	@Override
+	public Object getValueAt(int row, int column) {
+		RubricEntry entry = rubricToModify.getEntry(row);
+		return entry.getTableValue(getColumnHeading(column));
+
 	}
 
 	@Override
 	public void setValueAt(Object aValue, int row, int column) {
-		// TODO Auto-generated method stub
-		super.setValueAt(aValue, row, column);
+		RubricEntry entry = rubricToModify.getEntry(row);
+		entry.setTableValue(getColumnHeading(column), aValue);
 	}
 
 	@Override
@@ -56,10 +66,5 @@ public class RubricElementTableModel extends DefaultTableModel {
 		}
 	}
 
-//	@Override
-//	public int getColumnCount() {
-//		// TODO Auto-generated method stub
-//		return RubricEntry.HeadingNames.values().length - 1;
-//	}
 
 }

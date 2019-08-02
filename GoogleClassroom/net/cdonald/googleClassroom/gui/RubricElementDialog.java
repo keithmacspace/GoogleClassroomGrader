@@ -15,10 +15,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
+import javax.swing.Action;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -26,8 +25,10 @@ import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
+import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
@@ -37,13 +38,17 @@ import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.border.BevelBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.event.TableModelEvent;
 import javax.swing.event.TableModelListener;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.text.DefaultEditorKit;
 
 import net.cdonald.googleClassroom.listenerCoordinator.GetFileDirQuery;
+import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricEditorDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.SetFileDirListener;
 import net.cdonald.googleClassroom.model.FileData;
@@ -54,53 +59,37 @@ import net.cdonald.googleClassroom.model.RubricEntryRunCode;
 public class RubricElementDialog extends JDialog implements RubricElementListener {
 	private static final long serialVersionUID = -5580080426150572162L;
 	private JButton saveButton;
-	private JButton modifyButton;
+	private JButton addRubricEntry;
 	private JButton cancelButton;
 	private JTable entriesTable;
-	
-	private RubricEntry.AutomationTypes currentAutomation;
-	private Map<String, String> sourceMap;	
+	private RubricElementTableModel entriesModel;	
 	private Rubric rubricToModify;
 	private RubricModifiedListener listener;
-	
-	
-	private JButton addFilesButton;
-	private JButton removeFilesButton;
 	private JButton deleteButton;
-	private JTextField methodNameField;
-	private JLabel methodToCallLabel;
+	private RunCode runCode;
 	private JPanel defaultPanel;
-	
-	private JLabel methodBeingCalledLabel;
-	private JTextField methodBeingCalledField;
-	
-	private JTextArea sourceCodeArea;	
-	private JSplitPane runSplit;
-	private JPanel runPanel;
-	private JTabbedPane sourceTabs; 
 	private JTable mainRunnerTable;
-	private JPanel sourceCodePanel;
 	private String DEFAULT_SOURCE_STRING = "";
 	private boolean saveRubric;
-	private Dimension runCodeDimension;
+	private int priorSelectedIndex;
+
 		
 	
 	public RubricElementDialog(Frame parent, RubricModifiedListener listener) {
 		super(parent, "Rubric Element", true);
-		currentAutomation = RubricEntry.AutomationTypes.NONE;
-		sourceMap = new HashMap<String, String>();
-		this.listener = listener;		
-		entriesTable = new JTable(new RubricElementTableModel());
-		Object[] headers = Arrays.copyOfRange(RubricEntry.HeadingNames.values(), 1, RubricEntry.HeadingNames.values().length);
-		System.out.println(Arrays.toString(headers));
+		priorSelectedIndex = -1;		
+		this.listener = listener;
+		entriesModel = new RubricElementTableModel();
+		entriesTable = new JTable(entriesModel);		
 		entriesTable.setDefaultRenderer(RubricEntry.AutomationTypes.class, new RubricElementRenderer(this));
 		entriesTable.setDefaultEditor(RubricEntry.AutomationTypes.class, new RubricElementEditor());
 		entriesTable.setRowHeight(20);
+		entriesTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
 
 
 		saveButton = new JButton("Save");
-		modifyButton = new JButton("Modify");
+		addRubricEntry = new JButton("Add");
 		deleteButton = new JButton("Delete");
 		cancelButton = new JButton("Cancel");
 		cancelButton.setMnemonic(KeyEvent.VK_C);
@@ -112,10 +101,10 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 		
 		JPanel buttonsPanel = createButtonPanel(4);
 		buttonsPanel.add(saveButton);
-		buttonsPanel.add(modifyButton);
+		buttonsPanel.add(addRubricEntry);
 		buttonsPanel.add(deleteButton);
 		buttonsPanel.add(cancelButton);			
-		deleteButton.setEnabled(false);
+
 
 		//constantPanel.add(entriesTable, BorderLayout.LINE_START);
 		//constantPanel.add(new JScrollPane(entriesTable), BorderLayout.CENTER);
@@ -128,7 +117,7 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 		defaultPanel.add(constantPanel, BorderLayout.EAST);
 
 		add(defaultPanel, BorderLayout.CENTER);
-
+		ListSelectionModel selectionModel = entriesTable.getSelectionModel();
 
 		saveButton.addActionListener(new ActionListener() {
 			@Override
@@ -138,10 +127,25 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 			}
 		});
 		
-		modifyButton.addActionListener(new ActionListener() {
+		addRubricEntry.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				modifyRubric();
+				rubricToModify.addNewEntry();
+				entriesModel.fireTableStructureChanged();
+				int selectionIndex = rubricToModify.getEntries().size() - 1;
+				selectionModel.setSelectionInterval(selectionIndex, selectionIndex);
+
+			}
+		});
+		
+		deleteButton.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				int selectedIndex = selectionModel.getMinSelectionIndex();
+				if (selectedIndex != -1) {
+					rubricToModify.removeEntry(selectedIndex);
+					entriesModel.fireTableStructureChanged();
+				}
 			}
 		});
 
@@ -152,8 +156,77 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 				setVisible(false);
 			}
 		});
-		instantiateDynamics();
+		
+
+		selectionModel.addListSelectionListener(new ListSelectionListener() {
+			@Override
+			public void valueChanged(ListSelectionEvent e) {
+				int selectedIndex = selectionModel.getMinSelectionIndex();
+				if (selectedIndex != -1 && priorSelectedIndex != selectedIndex) {
+					for (int i = 0; i < entriesModel.getColumnCount(); i++) {
+						if (entriesModel.getColumnClass(i) == RubricEntry.AutomationTypes.class) {
+							typeSelected((RubricEntry.AutomationTypes)entriesModel.getValueAt(selectedIndex, i), true);
+							break;
+						}
+					}
+				}
+			}
+		});
+
+		createPopupMenu(selectionModel);
+
+		runCode = new RunCode();
 		pack();
+	}
+	
+	private void createPopupMenu(ListSelectionModel selectionModel) {
+		JPopupMenu rightClickPopup = new JPopupMenu();
+		JMenuItem moveUpItem = new JMenuItem("Move Up");
+		JMenuItem moveDownItem = new JMenuItem("Move Down");
+		JMenuItem insertAbove = new JMenuItem("Add Entry Above");
+		JMenuItem insertBelow = new JMenuItem("Add Entry Below");
+		rightClickPopup.add(moveUpItem);		
+		rightClickPopup.add(moveDownItem);
+		rightClickPopup.add(insertAbove);
+		rightClickPopup.add(insertBelow);
+		
+		moveUpItem.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				int selectedIndex = selectionModel.getMinSelectionIndex();
+				rubricToModify.swapEntries(selectedIndex, selectedIndex -1);
+				entriesModel.fireTableDataChanged();
+			}			
+		});
+		moveDownItem.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				int selectedIndex = selectionModel.getMinSelectionIndex();
+				rubricToModify.swapEntries(selectedIndex, selectedIndex + 1);
+				entriesModel.fireTableDataChanged();
+			}			
+		});
+		insertAbove.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				int selectedIndex = selectionModel.getMinSelectionIndex();
+				rubricToModify.addNewEntry(selectedIndex);
+				entriesModel.fireTableDataChanged();
+			}			
+		});
+		insertBelow.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				int selectedIndex = selectionModel.getMinSelectionIndex();
+				rubricToModify.addNewEntry(selectedIndex + 1);
+				entriesModel.fireTableDataChanged();
+			}			
+		});
+
+		entriesTable.setComponentPopupMenu(rightClickPopup);
+		
+
 	}
 	
 	private JPanel createButtonPanel(int numButtons) {
@@ -172,174 +245,41 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 	}
 
 	@Override
-	public void typeSelected(RubricEntry.AutomationTypes automationType) {
-		
-		if (automationType != null && automationType != currentAutomation) {
-			switch(currentAutomation) {
-			case RUN_CODE:
-				removeRunCodeItems();
+	public void typeSelected(RubricEntry.AutomationTypes automationType, boolean isSelected) {
+		if (isSelected) {
+			boolean stateChanged = false;
+			RubricEntry entry = getCurrentEntry();
+			if (priorSelectedIndex != entriesTable.getSelectedRow()) {
+				if (runCode.isActive()) {
+					runCode.removeRunCodeItems();
+					stateChanged = true;
+				}
+				priorSelectedIndex = entriesTable.getSelectedRow();
 			}
-			currentAutomation = automationType;
-
-			switch(currentAutomation) {
-			case RUN_CODE:
-				addRunCodeItems();
-				break;
-			default:
+			if (entry.getAutomationType() == RubricEntry.AutomationTypes.RUN_CODE) {
+				if (runCode.isActive() == false) {
+					runCode.addRunCodeItems();
+					stateChanged = true;
+				}
+			}
+			else {
+				if (runCode.isActive()) {
+					runCode.removeRunCodeItems();
+					stateChanged = true;
+				}
+			}
+			if (stateChanged) {
+				revalidate();			
+				repaint();
 				pack();
 			}
-
-			revalidate();
-			//pack();
-			repaint();
-
+			
 		}
 	}
 	
-	private void fillSelectedState(String text) {
-//		for (RubricEntry entry : rubricToModify.getEntries()) {
-//			if (entry.getName().equals(text)) {
-//				SwingUtilities.invokeLater(new Runnable() {
-//					public void run() {
-//						valueField.setText("" + entry.getValue());
-//						descriptionField.setText(entry.getDescription());
-//						RubricEntry.AutomationTypes automationType = entry.getAutomationType();
-//						int selectionIndex = automationType.ordinal();
-//						automationTypeCombo.setSelectedIndex(selectionIndex);
-//						switch(automationType) {
-//						case RUN_CODE:
-//							fillRunCode(entry);
-//						}
-//					}
-//				});
-//			}
-//		}
-	}
-	
-	
-	private void instantiateDynamics() {
-		JPanel namePanel = new JPanel();
-		namePanel.setLayout(new GridBagLayout());
-		methodNameField = new JTextField("", 20);
-		sourceCodeArea = new JTextArea(DEFAULT_SOURCE_STRING);
-		sourceCodeArea.setEditable(false);
-
-		methodToCallLabel = new JLabel("Method to call: ");
-		
-		methodBeingCalledLabel = new JLabel("Testing Student Method: ");
-		methodBeingCalledField = new JTextField("", 20);
-		addLabelAndComponent(namePanel, methodToCallLabel, methodNameField, 0);
-		addLabelAndComponent(namePanel, methodBeingCalledLabel, methodBeingCalledField, 1);
-		
-		
-		addFilesButton = new JButton("Add Files");
-		removeFilesButton = new JButton("Remove File");
-		JPanel buttonsPanel = createButtonPanel(2);
-		buttonsPanel.add(addFilesButton);
-		buttonsPanel.add(removeFilesButton);
-		
-		JPanel nameAndButtons = new JPanel();
-		nameAndButtons.setLayout(new BorderLayout());
-		nameAndButtons.add(namePanel, BorderLayout.CENTER);
-		nameAndButtons.add(buttonsPanel, BorderLayout.EAST);
-
-		sourceCodePanel = new JPanel();
-		sourceCodePanel.setBorder(BorderFactory.createBevelBorder(BevelBorder.LOWERED));
-		sourceCodePanel.setLayout(new BorderLayout());
-
-		JPanel sourcePanel = new JPanel();
-		sourcePanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-		sourcePanel.setLayout(new BorderLayout());
-		JTextArea sourceArea = new JTextArea();
-		for (int i = 0; i < 20; i++) {
-			sourceArea.append("\n");
-		}
-		sourcePanel.add(new JScrollPane(sourceArea));
-		
-		
-		sourceTabs = new JTabbedPane();
-		sourceTabs.addTab("",  sourcePanel);
-		JPanel sourcePanelX = new JPanel();
-		sourcePanelX.setLayout(new BorderLayout());
-		sourcePanelX.add(sourceTabs, BorderLayout.CENTER);
-		sourcePanelX.setPreferredSize(new Dimension(0, 200));
-
-		sourceCodePanel.add(sourcePanelX, BorderLayout.CENTER);
-
-		
-		
-		
-		runPanel = new JPanel();
-		runPanel.setLayout(new BorderLayout());
-		runPanel.add(nameAndButtons, BorderLayout.NORTH);
-		runPanel.add(sourceCodePanel, BorderLayout.CENTER);
-		
-		addFilesButton.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				JFileChooser fileChooser = null;
-				String currentWorkingDir = (String)ListenerCoordinator.runQuery(GetFileDirQuery.class);
-				if (currentWorkingDir != null) {
-					fileChooser = new JFileChooser(currentWorkingDir);
-				} else {
-					fileChooser = new JFileChooser();
-				}
-				fileChooser.setMultiSelectionEnabled(true);
-
-				if (fileChooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-					for (File file : fileChooser.getSelectedFiles()) { 
-						Path path = Paths.get(file.getAbsolutePath());
-						ListenerCoordinator.fire(SetFileDirListener.class, path.getParent().toString());
-						String fileName = path.getFileName().toString();
-						
-						try {
-							String text = new String(Files.readAllBytes(path));							
-							addRunCodeFile(fileName, text);
-						} catch (IOException e1) {
-							// TODO Auto-generated catch block
-							e1.printStackTrace();
-						}						
-					}
-				}
-			}
-		});
-		
-		removeFilesButton.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				SwingUtilities.invokeLater(new Runnable() {
-
-					@Override
-					public void run() {
-						if (sourceTabs.getTabCount() > 0) {
-							sourceTabs.removeTabAt(sourceTabs.getSelectedIndex());
-						}
-					}
-				});
-			}
-		});
-	}
-	
-
-	public boolean modifyRubric() {
-//		RubricEntry entry = new RubricEntry();
-//		if (validateComboField("Name", nameCombo) ) {
-//			entry.setValue(RubricEntry.HeadingNames.NAME, (String)nameCombo.getSelectedItem());
-//			if (validateTextField("Value", valueField)) {				
-//				entry.setValue(RubricEntry.HeadingNames.VALUE, valueField.getText());
-//				if (validateTextField("Description", descriptionField)) {
-//					entry.setValue(RubricEntry.HeadingNames.DESCRIPTION, descriptionField.getText());
-//
-//					entry.setValue(RubricEntry.HeadingNames.AUTOMATION_TYPE, automationTypeCombo.getSelectedItem().toString());
-//					if (createRubricAutomation(entry) == true) {
-//						rubricToModify.modifyEntry(entry);
-//						listener.rubricModified(rubricToModify);
-//						return true;
-//					}
-//				}
-//			}		
-//		}
-		return false;
+	public RubricEntry getCurrentEntry() {
+		int entryNum = entriesTable.getSelectedRow();
+		return rubricToModify.getEntry(entryNum);
 	}
 	
 	public boolean validateTextField(String name, JTextField field) {
@@ -365,27 +305,13 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 
 	public boolean modifyRubric(Rubric rubricToModify) {
 		this.rubricToModify = rubricToModify;
-//		nameCombo.removeAllItems();
-//		setTitle("Edit Rubric: " + rubricToModify.getName());
-//		nameCombo.addItem("");
-//		for (RubricEntry element : rubricToModify.getEntries()) {
-//			nameCombo.addItem(element.getName());
-//		}
+		entriesModel.setRubricToModify(rubricToModify);
 		saveRubric = false;
 		setVisible(true);
 		return saveRubric;
 		
 	}
 
-	
-	private boolean createRubricAutomation(RubricEntry entry) {
-//		RubricEntry.AutomationTypes automationType = (RubricEntry.AutomationTypes)automationTypeCombo.getSelectedItem();
-//		switch (automationType) {
-//		case RUN_CODE:
-//			return createRunCodeAutomation(entry);
-//		}
-		return true;
-	}
 
 
 
@@ -417,101 +343,11 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 
 	}
 
-	private void addRunCodeItems() {
-		remove(defaultPanel);
-		if (runCodeDimension != null) {
-			runPanel.setPreferredSize(runCodeDimension);
-		}
-		runSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, defaultPanel, runPanel);
-		add(runSplit, BorderLayout.CENTER);		
-		pack();
-	}
-	private void removeRunCodeItems() {
-		Dimension current = runSplit.getTopComponent().getSize();
-		runCodeDimension = new Dimension(runPanel.getSize());
-		remove(runSplit);
-		defaultPanel.setPreferredSize(current);
-		add(defaultPanel);
-	}
-	
-	private void fillRunCode(RubricEntry entry) {
-		RubricEntryRunCode runCode = (RubricEntryRunCode)entry.getAutomation();
 
-		if (runCode != null) {			
-			methodNameField.setText(runCode.getMethodToCall());
-			methodBeingCalledField.setText(runCode.getMethodBeingChecked());
-			sourceMap.clear();
-
-			while(sourceTabs.getTabCount() != 0) {
-				sourceTabs.removeTabAt(0);				
-			}
-			List<FileData> sourceFiles = runCode.getSourceFiles();
-			for (FileData sourceFile : sourceFiles) {
-				addRunCodeFile(sourceFile.getName(), sourceFile.getFileContents());
-			}
-		}		
-	}
-	
-	private void addRunCodeFile(String fileName, String fileText) {
-		//fileNamesModel.addRow(new String[] {fileName});
-		sourceMap.put(fileName, fileText);
-		JPanel sourcePanel = new JPanel();
-		sourcePanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-		sourcePanel.setLayout(new BorderLayout());
-		JTextArea sourceArea = new JTextArea();		
-		sourcePanel.add(new JScrollPane(sourceArea));
-		sourceArea.setText(fileText);
-		if (firstTabIsEmpty()) {
-			sourceTabs.setTitleAt(0, fileName);
-			sourceTabs.setComponentAt(0, sourcePanel);
-		}
-		else {
-
-			sourceTabs.addTab(fileName, sourcePanel);
-		}
-		runPanel.revalidate();
-
-
-		//sourceCodeArea.setText(fileText);
-		//sourceCodeArea.setCaretPosition(0);
-	}
-	
-	private boolean firstTabIsEmpty() {
-		return (sourceTabs.getTabCount() == 1 && sourceTabs.getTitleAt(0).length() == 0);
-	}
-	
-	private boolean sourceTabsAreEmpty() {
-		if (sourceTabs.getTabCount() == 0 || firstTabIsEmpty()) {
-			return true;
-		}
-		return false;
-	}
 	
 
 	
-	private boolean createRunCodeAutomation(RubricEntry entry) {
-		if (validateTextField(methodBeingCalledLabel.getText(), methodBeingCalledField)) {
-			if (validateTextField(methodToCallLabel.getText(), methodNameField)) {
-				
-				if (sourceTabsAreEmpty()) {
-					JOptionPane.showMessageDialog(null,  "There have been no files added", "Need source file", JOptionPane.ERROR_MESSAGE);										
-				}
-				else {
-					RubricEntryRunCode runCode = new RubricEntryRunCode();
-					for (int i = 0; i < sourceTabs.getTabCount(); i++) {
-						String fileName = sourceTabs.getTitleAt(i);
-						FileData sourceFile = new FileData(fileName, sourceMap.get(fileName), "", null);
-						runCode.addSourceContents(sourceFile);
-					}
-					runCode.setMethodBeingChecked(methodBeingCalledField.getText());
-					runCode.setMethodToCall(methodNameField.getText());
-					entry.setAutomation(runCode);
-					return true;					
-				}
-			}
-		}
-		return false;
-	}
+
 
 
 	private void addLabelAndComponent(JPanel parent, String label, JComponent component, int y) {
@@ -537,5 +373,232 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 		c.gridx = 1;
 		c.gridy = y;
 		parent.add(component, c);
+	}
+	
+	private class RunCode {
+		private Dimension runCodeDimension;
+		private JButton addFilesButton;
+		private JButton removeFilesButton;
+		private JTextField methodToCallField;
+		private JLabel methodToCallLabel;
+		private JLabel methodBeingCalledLabel;
+		private JTextField methodBeingCalledField;
+		private JTextArea sourceCodeArea;	
+		private JSplitPane runSplit;
+		private JPanel runPanel;
+		private JTabbedPane sourceTabs;
+		private JPanel sourceCodePanel;
+		private RubricEntryRunCode associatedAutomation;
+		private boolean isActive;
+		public RunCode() {
+			isActive = false;
+			JPanel namePanel = new JPanel();
+			namePanel.setLayout(new GridBagLayout());
+			methodToCallField = new JTextField("", 20);
+			sourceCodeArea = new JTextArea(DEFAULT_SOURCE_STRING);
+			sourceCodeArea.setEditable(false);
+
+			methodToCallLabel = new JLabel("Method to call: ");
+			
+			methodBeingCalledLabel = new JLabel("Testing Student Method: ");
+			methodBeingCalledField = new JTextField("", 20);
+			addLabelAndComponent(namePanel, methodToCallLabel, methodToCallField, 0);
+			addLabelAndComponent(namePanel, methodBeingCalledLabel, methodBeingCalledField, 1);
+			
+			
+			addFilesButton = new JButton("Add Files");
+			removeFilesButton = new JButton("Remove File");
+			JPanel buttonsPanel = createButtonPanel(2);
+			buttonsPanel.add(addFilesButton);
+			buttonsPanel.add(removeFilesButton);
+			
+			JPanel nameAndButtons = new JPanel();
+			nameAndButtons.setLayout(new BorderLayout());
+			nameAndButtons.add(namePanel, BorderLayout.CENTER);
+			nameAndButtons.add(buttonsPanel, BorderLayout.EAST);
+
+			sourceCodePanel = new JPanel();
+			sourceCodePanel.setBorder(BorderFactory.createBevelBorder(BevelBorder.LOWERED));
+			sourceCodePanel.setLayout(new BorderLayout());
+
+			JPanel sourcePanel = new JPanel();
+			sourcePanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+			sourcePanel.setLayout(new BorderLayout());
+			JTextArea sourceArea = new JTextArea();
+			for (int i = 0; i < 20; i++) {
+				sourceArea.append("\n");
+			}
+			sourcePanel.add(new JScrollPane(sourceArea));
+			
+			
+			sourceTabs = new JTabbedPane();
+			sourceTabs.addTab("",  sourcePanel);
+			JPanel sourcePanelX = new JPanel();
+			sourcePanelX.setLayout(new BorderLayout());
+			sourcePanelX.add(sourceTabs, BorderLayout.CENTER);
+			sourcePanelX.setPreferredSize(new Dimension(0, 200));
+
+			sourceCodePanel.add(sourcePanelX, BorderLayout.CENTER);
+
+			
+			
+			
+			runPanel = new JPanel();
+			runPanel.setLayout(new BorderLayout());
+			runPanel.add(nameAndButtons, BorderLayout.NORTH);
+			runPanel.add(sourceCodePanel, BorderLayout.CENTER);
+			
+			addFilesButton.addActionListener(new ActionListener() {
+				@Override
+				public void actionPerformed(ActionEvent e) {
+					JFileChooser fileChooser = null;
+					String currentWorkingDir = (String)ListenerCoordinator.runQuery(GetFileDirQuery.class);
+					if (currentWorkingDir != null) {
+						fileChooser = new JFileChooser(currentWorkingDir);
+					} else {
+						fileChooser = new JFileChooser();
+					}
+					fileChooser.setMultiSelectionEnabled(true);
+
+					if (fileChooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+						for (File file : fileChooser.getSelectedFiles()) { 
+							Path path = Paths.get(file.getAbsolutePath());
+							ListenerCoordinator.fire(SetFileDirListener.class, path.getParent().toString());
+							String fileName = path.getFileName().toString();
+							
+							try {
+								String text = new String(Files.readAllBytes(path));							
+								addRunCodeFile(fileName, text, true);
+							} catch (IOException e1) {
+								// TODO Auto-generated catch block
+								e1.printStackTrace();
+							}						
+						}
+					}
+				}
+			});
+			
+			removeFilesButton.addActionListener(new ActionListener() {
+				@Override
+				public void actionPerformed(ActionEvent e) {
+					SwingUtilities.invokeLater(new Runnable() {
+
+						@Override
+						public void run() {
+							if (sourceTabs.getTabCount() > 0) {
+								int selectedIndex = sourceTabs.getSelectedIndex();
+								String fileName = sourceTabs.getTitleAt(selectedIndex);
+								associatedAutomation.removeSourceContents(fileName);
+								sourceTabs.removeTabAt(selectedIndex);
+							}
+						}
+					});
+				}
+			});
+			
+			methodToCallField.getDocument().addDocumentListener(new DocumentListener() {
+				@Override
+				public void insertUpdate(DocumentEvent e) {					
+					associatedAutomation.setMethodToCall(methodToCallField.getText());
+					
+				}
+				@Override
+				public void removeUpdate(DocumentEvent e) {
+					associatedAutomation.setMethodToCall(methodToCallField.getText());
+					
+				}
+				@Override
+				public void changedUpdate(DocumentEvent e) {
+				}				
+			});
+			
+			methodBeingCalledField.getDocument().addDocumentListener(new DocumentListener() {
+				@Override
+				public void insertUpdate(DocumentEvent e) {					
+					associatedAutomation.setMethodBeingChecked(methodBeingCalledField.getText());
+					
+				}
+				@Override
+				public void removeUpdate(DocumentEvent e) {
+					associatedAutomation.setMethodBeingChecked(methodBeingCalledField.getText());					
+				}
+				@Override
+				public void changedUpdate(DocumentEvent e) {
+				}				
+				
+			});
+		
+		}
+		public boolean isActive() {
+			return isActive;
+		}
+		
+		private void addRunCodeItems() {
+			isActive = true;
+			RubricEntry associatedEntry = getCurrentEntry();
+			if (associatedEntry.getAutomation() == null || !(associatedEntry.getAutomation() instanceof RubricEntryRunCode)) {
+				associatedEntry.setAutomation(new RubricEntryRunCode());
+			}
+			associatedAutomation = (RubricEntryRunCode)associatedEntry.getAutomation();
+			fillRunCode();
+			remove(defaultPanel);
+			if (runCodeDimension != null) {
+				runPanel.setPreferredSize(runCodeDimension);
+			}
+			runSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, defaultPanel, runPanel);
+			add(runSplit, BorderLayout.CENTER);		
+			pack();
+		}
+		private void removeRunCodeItems() {
+			isActive = false;
+			Dimension current = runSplit.getTopComponent().getSize();
+			runCodeDimension = new Dimension(runPanel.getSize());
+			remove(runSplit);
+			defaultPanel.setPreferredSize(current);
+			add(defaultPanel);
+		}
+		private void fillRunCode() {				
+			methodToCallField.setText(associatedAutomation.getMethodToCall());
+			methodBeingCalledField.setText(associatedAutomation.getMethodBeingChecked());
+			while(sourceTabs.getTabCount() != 0) {
+				sourceTabs.removeTabAt(0);				
+			}
+			List<FileData> sourceFiles = associatedAutomation.getSourceFiles();
+			for (FileData sourceFile : sourceFiles) {
+				addRunCodeFile(sourceFile.getName(), sourceFile.getFileContents(), false);
+			}		
+		}
+		private void addRunCodeFile(String fileName, String fileText, boolean addToAutomation) {
+			JPanel sourcePanel = new JPanel();
+			sourcePanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+			sourcePanel.setLayout(new BorderLayout());
+			JTextArea sourceArea = new JTextArea();		
+			sourcePanel.add(new JScrollPane(sourceArea));
+			sourceArea.setText(fileText);
+			sourceArea.getDocument().addDocumentListener(new SourceDocumentListener(associatedAutomation, fileName, sourceArea));
+			if (firstTabIsEmpty()) {
+				sourceTabs.setTitleAt(0, fileName);
+				sourceTabs.setComponentAt(0, sourcePanel);
+			}
+			else {
+
+				sourceTabs.addTab(fileName, sourcePanel);
+			}
+			if (addToAutomation) {
+				associatedAutomation.addSourceContents(new FileData(fileName, fileText, "0", null));
+			}
+			runPanel.revalidate();
+		}
+		
+		private boolean firstTabIsEmpty() {
+			return (sourceTabs.getTabCount() == 1 && sourceTabs.getTitleAt(0).length() == 0);
+		}
+		
+		private boolean sourceTabsAreEmpty() {
+			if (sourceTabs.getTabCount() == 0 || firstTabIsEmpty()) {
+				return true;
+			}
+			return false;
+		}
 	}
 }

@@ -25,7 +25,7 @@
 	<classpathentry kind="lib" path="C:/java_jars/classroom_maven/servlet-api-2.5-20081211.jar"/>
 	<classpathentry kind="lib" path="C:/java_jars/google_drive/google-api-services-drive-v3-rev165-1.25.0.jar"/>
 	<classpathentry kind="lib" path="C:/java_jars/sqlite-jdbc-3.27.2.1.jar"/>
-	<classpathentry kind="lib" path="C:/java_jars/classroom_maven/google-api-services-sheets-v4-rev516-1.23.0.jar"/>
+	<classpathentry kind="lib" path="C:/java_jars/classroom_maven/google-api-services-sheets-v4-rev516-1.23.0.jar" sourcepath="C:/Users/kdmacdon/.m2/repository/com/google/apis/google-api-services-sheets/v4-rev516-1.23.0/google-api-services-sheets-v4-rev516-1.23.0-sources.jar"/>
 	<classpathentry kind="lib" path="FracCalcTestHelper.jar"/>
 	<classpathentry kind="output" path=""/>
 </classpath>

@@ -72,8 +72,6 @@ public class StudentPanel extends JPanel {
 		studentTable.setDefaultRenderer(CompilerMessage.class, studentListRenderer);
 		studentTable.setDefaultRenderer(StudentData.class, studentListRenderer);
 		
-		createPopupMenu();
-
 		setHeaderRenderer();
 	    addComponentListener( new ComponentListener() {
 	        @Override
@@ -124,27 +122,7 @@ public class StudentPanel extends JPanel {
 		add(new JScrollPane(studentTable), BorderLayout.CENTER);
 	}
 	
-	private void createPopupMenu() {
-		rightClickPopup = new JPopupMenu();
-		Action copy = new DefaultEditorKit.CopyAction();
-		rightClickPopup.add(copy);
-		Action paste = new DefaultEditorKit.PasteAction();
-		rightClickPopup.add(paste);
-		
-		JMenuItem addRubricColumn = new JMenuItem("Add Rubric Column...");
-		rightClickPopup.add(addRubricColumn);
-		addRubricColumn.addActionListener(new ActionListener() {
 
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				
-				ListenerCoordinator.fire(LaunchRubricEditorDialogListener.class);
-			}			
-		});
-		
-		studentTable.setComponentPopupMenu(rightClickPopup);
-	}
-	
 
 
 	private void resizeColumns() {

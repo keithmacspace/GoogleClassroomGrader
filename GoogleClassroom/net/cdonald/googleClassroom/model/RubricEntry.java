@@ -27,12 +27,12 @@ public class RubricEntry {
 
 
 
-	public RubricEntry(List<Object> headings, List<Object> entries) {
+	public RubricEntry(List<String> headings, List<Object> entries) {
 		value = 0;
 		automationType = AutomationTypes.NONE;
 		for (int i = 0; i < headings.size(); i++) {
 			if (i < entries.size()) {
-				String headingName = headings.get(i).toString();
+				String headingName = headings.get(i);
 
 				for (HeadingNames heading : HeadingNames.values()) {
 
@@ -48,6 +48,7 @@ public class RubricEntry {
 	
 	// This is the form used when we create it via the dialog box in addRubricEntry
 	public RubricEntry() {
+		automationType = AutomationTypes.NONE;
 		studentScores = new HashMap<String, Double>();
 	}
 	
@@ -62,7 +63,7 @@ public class RubricEntry {
 			studentScores.put(key, other.studentScores.get(key));
 		}
 		if (other.automation != null) {
-			automation = other.automation.newCopy();
+			setAutomation(other.automation.newCopy());
 		}
 	}
 
@@ -109,6 +110,48 @@ public class RubricEntry {
 			}
 		}
 		return displayValue;
+	}
+	
+	public void setTableValue(HeadingNames headingName, Object param) {
+		switch (headingName) {
+		case NAME:
+			name = (String)param;
+			break;
+		case VALUE:
+			value = (Integer)param;
+			break;
+		case DESCRIPTION:
+			description = (String)param;
+			break;
+		case AUTOMATION_TYPE:
+			automationType = (AutomationTypes)param;
+			switch(automationType) {
+			case RUN_CODE:
+				setAutomation(new RubricEntryRunCode());
+				break;
+			}
+			break;
+		default:
+			break;
+		}		
+	}
+	
+	public Object getTableValue(HeadingNames headingName) {
+		switch (headingName) {
+		case NAME:
+			return name;
+		case VALUE:
+			return (Integer)value;
+		case DESCRIPTION:
+			return description;
+		case AUTOMATION_TYPE:
+
+			return automationType;
+		default:
+			break;
+		}
+		return null;
+		
 	}
 
 	public void setValue(HeadingNames headingName, String param) {
@@ -166,10 +209,10 @@ public class RubricEntry {
 				+ "]";
 	}
 
-	void runAutomation(CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData) {
+	void runAutomation(String studentName, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData) {
 		if (automation != null) {
 			double score = 0.0;
-			score = automation.runAutomation(message, compiler, consoleData);
+			score = automation.runAutomation(studentName, message, compiler, consoleData);
 			score *= value;
 			// Just truncate below two digits of precision
 			score *= 100.0;
@@ -276,5 +319,12 @@ public class RubricEntry {
 		if (automation != null) {
 			automation.saveAutomationColumns(name, columnData, fileData);
 		}
+	}
+
+
+	public void addRubricTab(List<String> rubricTabs) {
+		if (automation != null) {
+			rubricTabs.add(name);
+		}		
 	}
 }

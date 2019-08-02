@@ -282,6 +282,11 @@ public class MainToolBar extends JToolBar {
 	}
 	
 	public void addRubricInfo(GoogleSheetData data, boolean select) {
+		for (String name : rubricNames) {
+			if (name.contentEquals(data.getName())) {
+				return;
+			}
+		}
 		rubricCombo.addItem(data);
 		rubricNames.add(data.getName());
 		if (select) {

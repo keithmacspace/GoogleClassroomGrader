@@ -1,16 +1,18 @@
 package net.cdonald.googleClassroom.model;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import javax.swing.JOptionPane;
 
+import net.cdonald.googleClassroom.gui.UpdateSourceInterface;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.StudentWorkCompiler;
+import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
+import net.cdonald.googleClassroom.listenerCoordinator.SetRunningLabelListener;
 
-public class RubricEntryRunCode extends  RubricAutomation{
+public class RubricEntryRunCode extends  RubricAutomation implements UpdateSourceInterface{
 	private String methodToCall;
 	private List<FileData> sourceFiles;
 	private String methodBeingChecked;
@@ -48,34 +50,67 @@ public class RubricEntryRunCode extends  RubricAutomation{
 		this.sourceFiles.add(file);		
 	}
 	
+	public void removeSourceContents(String fileName) {
+		for (int i = 0; i < sourceFiles.size(); i++) {
+			if (sourceFiles.get(i).getName().equals(fileName)) {
+				sourceFiles.remove(i);
+				break;
+			}
+		}		
+	}
 	
-	protected double runAutomation_(CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData) {
-		if (message.isSuccessful()) {			
+	@Override
+	public void updateSource(String fileName, String fileText) {
+
+		for (FileData sourceFile : sourceFiles) {
+			if (sourceFile.getName().equals(fileName)){
+				sourceFile.setFileContents(fileText);
+				break;
+			}
+		}
+	}
+	
+	protected double runAutomation_(String studentName, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData) {
+		if (message.isSuccessful()) {	
+			ListenerCoordinator.fire(SetRunningLabelListener.class, "Running " + this.getOwnerName() + " for " + studentName);
 			String studentId = message.getStudentId();			
 			String completeMethodName = compiler.getCompleteMethodName(studentId, methodBeingChecked);
 			if (completeMethodName == null) {
 				String error =  "no method named " + methodBeingChecked + " in source";
 				addOutput(studentId, error);
+				ListenerCoordinator.fire(SetRunningLabelListener.class, "");
+				System.out.println("\0");
 			}			
 			else {
+				
 				List<FileData> studentFiles = compiler.getSourceCode(studentId);
 				List<FileData> rubricFiles = new ArrayList<FileData>(studentFiles);
-				consoleData.runStarted(studentId, getOwnerName(), studentFiles);
+				consoleData.runStarted(studentId, getOwnerName());				
 				prepareForNextTest();				
 				for (FileData sourceFile : sourceFiles) {
 					String modifiedSource = replaceMethodName(completeMethodName, sourceFile.getFileContents());
 					FileData temp = new FileData(sourceFile.getName(), modifiedSource, studentId, null);
-					//System.err.println(modifiedSource);
 					rubricFiles.add(temp);				
 				}
 				Class<?> []params = {};
 				Object []args = {};
-				Object returnValue = compiler.compileAndRun(true,  rubricFiles, methodToCall, params, args);
-				addOutput(studentId, getSysOutText(studentId));
+				Object returnValue = null;
+				try {					
+					returnValue = compiler.compileAndRun(true,  rubricFiles, methodToCall, params, args);				
+				}
+				catch (Exception e) {
+					ListenerCoordinator.fire(SetRunningLabelListener.class, "");
+					addOutput(studentId, e.getMessage());					
+					System.out.println("\0");					
+					return 0.0;
+				}
 				double value = 0.0;
 				if (returnValue != null) {
 					value = Double.parseDouble(returnValue.toString());
-				}
+				}				
+				waitForTestFinish();
+				
+				ListenerCoordinator.fire(SetRunningLabelListener.class, "");
 				return value;
 			}
 		}
@@ -235,7 +270,7 @@ public class RubricEntryRunCode extends  RubricAutomation{
 					// Start putting multiple lines on a single row.
 					if (rowCount > 200) {
 						String nextLine = "";
-						while(nextLine.length() < 200) {
+						while(nextLine.length() < 200 && lineIndex < fileLineArray.length) {
 							nextLine += fileLineArray[lineIndex];
 							if (nextLine.length() < 199) {
 								nextLine += "\n";
@@ -295,7 +330,7 @@ public class RubricEntryRunCode extends  RubricAutomation{
 			sourceFiles = new ArrayList<FileData>();
 			for (Object file : files) {
 				List<List<Object>> sourceInfo = columnData.get(((String)file).toUpperCase());
-				if (sourceInfo == null) {
+				if (sourceInfo == null || sourceInfo.size() == 0) {
 					JOptionPane.showMessageDialog(null, "Expected the text for " + file + " in the rubric info", "Bad rubric automation data",
 							JOptionPane.ERROR_MESSAGE);
 					return;
@@ -303,40 +338,17 @@ public class RubricEntryRunCode extends  RubricAutomation{
 				}
 				String text = "";
 				boolean firstLine = true;
-				for (List<Object> lines : sourceInfo) {
-					for (Object line : lines) {
+				List<Object> lines = sourceInfo.get(0);
+				for (Object line : lines) {
+					if (line != null) {
 						if (firstLine == false) {
 							text += line + "\n";
-						}
+						}							
 						firstLine = false;
-					}
+					}					
 				}
 				sourceFiles.add(new FileData((String)file, text, "0", null));
 			}
 		}
-//			private String methodToCall;
-//			private List<FileData> sourceFiles;
-//			private String methodBeingChecked;
-//			boolean checkSystemOut;	
-//			RubricEntrySystemListeners sysListeners;	
-//			Map<String, String> perStudentResults;
-//		
-		
 	}
-		
-
-
-
-
-//	public static void main(String [] args ) {
-//		RubricEntryRunCode code = new RubricEntryRunCode();
-//		code.setSourceContents("            java.lang.run(test, test)\n\t\t\trun(test, test)");
-//		code.setMethodBeingChecked("run");
-//		System.out.println("\"" + code.replaceMethodName("test.run") + "\"");
-//		
-//	}
-	
-
-	
-
 }

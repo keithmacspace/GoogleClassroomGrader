@@ -17,6 +17,7 @@ import javax.swing.KeyStroke;
 import net.cdonald.googleClassroom.googleClassroomInterface.CourseFetcher;
 import net.cdonald.googleClassroom.listenerCoordinator.ClassSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ExitFiredListener;
+import net.cdonald.googleClassroom.listenerCoordinator.GetFileDirQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetWorkingDirQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.LaunchNewRubricDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricEditorDialogListener;
@@ -179,7 +180,14 @@ public class MainMenu extends JMenuBar {
 		loadTemporaryFile.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				JFileChooser tempFileChooser = new JFileChooser();
+				JFileChooser tempFileChooser = null;
+				String currentWorkingDir = (String)ListenerCoordinator.runQuery(GetFileDirQuery.class);
+				if (currentWorkingDir != null) {
+					tempFileChooser = new JFileChooser(currentWorkingDir);
+				} else {
+					tempFileChooser = new JFileChooser();
+				}
+
 
 				if (tempFileChooser.showOpenDialog(owner) == JFileChooser.APPROVE_OPTION) {
 					File file = tempFileChooser.getSelectedFile();

@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import net.cdonald.googleClassroom.model.FileData;
 
 public interface PreRunBlockingListener {
-	public void fired(ArrayList<FileData> fileDataList);
+	public void fired(String idToDisplay);
 	
 
 }

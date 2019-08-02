@@ -97,7 +97,8 @@ public class InMemoryJavaCompiler {
 					hasErrors = true;
 					break;
 				}
-				exceptionMsg.append("\n").append("[kind=").append(d.getKind());
+				exceptionMsg.append("\n").append("[file=").append(d.getSource());
+				exceptionMsg.append("\n").append("kind=").append(d.getKind());
 				exceptionMsg.append(", ").append("line=").append(d.getLineNumber());
 				exceptionMsg.append(", ").append("message=").append(d.getMessage(Locale.US)).append("]");
 			}

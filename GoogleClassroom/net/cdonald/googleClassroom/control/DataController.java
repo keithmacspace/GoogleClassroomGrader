@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.Map;
 
 import javax.swing.JOptionPane;
-import javax.swing.SwingWorker;
 
 import net.cdonald.googleClassroom.googleClassroomInterface.AssignmentFetcher;
 import net.cdonald.googleClassroom.googleClassroomInterface.CourseFetcher;
@@ -29,6 +28,7 @@ import net.cdonald.googleClassroom.gui.StudentListModel;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.StudentWorkCompiler;
 import net.cdonald.googleClassroom.listenerCoordinator.AddProgressBarListener;
+import net.cdonald.googleClassroom.listenerCoordinator.AddRubricTabsListener;
 import net.cdonald.googleClassroom.listenerCoordinator.AssignmentSelected;
 import net.cdonald.googleClassroom.listenerCoordinator.ClassSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.EnableRunRubricQuery;
@@ -42,7 +42,6 @@ import net.cdonald.googleClassroom.listenerCoordinator.GetWorkingDirQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.LoadTestFileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LongQueryListener;
-import net.cdonald.googleClassroom.listenerCoordinator.RecompileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RemoveProgressBarListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricFileSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricSelected;
@@ -151,18 +150,7 @@ public class DataController implements StudentListInfo {
 			}			
 		});
 		
-		ListenerCoordinator.addListener(RecompileListener.class, new RecompileListener() {
-			@Override
-			public void fired(FileData fileData, String text) {
-				if (fileData != null) {
-					fileData.setFileContents(text);
-					List<FileData> temp = new ArrayList<FileData>();
-					temp.add(fileData);
-					consoleData.runStarted(fileData.getId(), null, temp);
-					//studentWorkCompiler.compileAndRun(this, fileData, text);
-				}
-			}			
-		});
+
 		ListenerCoordinator.addListener(CompileErrorListener.class, new CompileErrorListener() {
 			@Override
 			public void fired(String text) {
@@ -335,6 +323,7 @@ public class DataController implements StudentListInfo {
 		}
 		this.rubric = rubric;
 		structureListener.dataStructureChanged();
+		ListenerCoordinator.fire(AddRubricTabsListener.class, rubric);
 		return JOptionPane.NO_OPTION;
 	}
 	
@@ -365,19 +354,12 @@ public class DataController implements StudentListInfo {
 		return studentWorkCompiler.getSourceCode(id);
 	}
 	
-	public String getConsoleOutput(String id) {
-		return consoleData.getConsoleOutput(id, null);
-	}
-	public String getConsoleInputHistory(String id) {
-		return consoleData.getConsoleInputHistory(id);
-	}
 	
 	
 	public void run(String id) {
 
 		if (studentWorkCompiler.isRunnable(id)) {
-			List<FileData> fileDataList = getSourceCode(id);
-			consoleData.runStarted(id, null, fileDataList);
+			consoleData.runStarted(id, "");
 			StudentData student = studentMap.get(id);
 			if (student != null) {
 				ListenerCoordinator.fire(SetRunningLabelListener.class, "Running: " + student.getFirstName() + " " + student.getName());
@@ -396,10 +378,16 @@ public class DataController implements StudentListInfo {
 		if (rubric != null) {
 			CompilerMessage message = studentWorkCompiler.getCompilerMessage(studentId);
 			if (message != null) {
-				rubric.runAutomation(message, studentWorkCompiler, consoleData);
+				StudentData student = studentMap.get(studentId);
+				String studentName = "";
+				if (student != null) {
+					studentName = student.getFirstName() + " " + student.getName();
+				}
+				rubric.runAutomation(studentName, message, studentWorkCompiler, consoleData);
 				updateListener.dataUpdated();
 			}			
 		}
+		ListenerCoordinator.fire(SetRunningLabelListener.class, "");
 	}
 	
 	

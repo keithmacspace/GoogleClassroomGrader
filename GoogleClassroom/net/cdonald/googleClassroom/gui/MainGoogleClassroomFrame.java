@@ -20,6 +20,7 @@ import net.cdonald.googleClassroom.control.DataController;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ClassSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ExitFiredListener;
+import net.cdonald.googleClassroom.listenerCoordinator.GetDebugDialogQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.LaunchNewRubricDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricEditorDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricFileDialogListener;
@@ -29,10 +30,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.RunRubricSelected;
 import net.cdonald.googleClassroom.listenerCoordinator.RunSelected;
 import net.cdonald.googleClassroom.listenerCoordinator.SaveGradesListener;
 import net.cdonald.googleClassroom.model.ClassroomData;
-import net.cdonald.googleClassroom.model.FileData;
-import net.cdonald.googleClassroom.model.GoogleSheetData;
 import net.cdonald.googleClassroom.model.Rubric;
-import net.cdonald.googleClassroom.model.RubricEntry;
 
 public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 		DataStructureChangedListener,
@@ -50,6 +48,7 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 	private RubricElementDialog rubricElementDialog;
 	private NewRubricDialog newRubricDialog;
 	private InfoPanel infoPanel;
+	private DebugLogDialog dbg;
 
 
 	public MainGoogleClassroomFrame() throws InterruptedException {
@@ -60,14 +59,14 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 
 		setLayout();		
 
+		dbg = new DebugLogDialog(this);
 		
 		importExportDialog = new GoogleSheetDialog(this);
 
 		registerListeners();
 		setVisible(true);
 		dataController.performFirstInit();
-
-		rubricElementDialog.modifyRubric(new Rubric(new GoogleSheetData("Test", "Test", "Test")));
+		dbg.setVisible(true);
 	}
 	
 
@@ -194,22 +193,26 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 				newRubricDialog.setVisible(true);
 				String rubricName = newRubricDialog.getRubricName();
 				if (rubricName != null) {
-					Rubric temp = dataController.newRubric(rubricName);
-					mainToolBar.addRubricInfo(temp.getSheetInfo(), true);
+					Rubric temp = dataController.newRubric(rubricName);					
 					editRubric(temp);
 					
 				}
+			}
+		});
+		
+		ListenerCoordinator.addQueryResponder(GetDebugDialogQuery.class, new GetDebugDialogQuery() {
+			public DebugLogDialog fired() {
+				return dbg;
 			}
 		});
 	}
 	
 	private void editRubric(Rubric rubricToModify) {
 		Rubric copy = new Rubric(rubricToModify);
-		if (rubricElementDialog.modifyRubric(dataController.getRubric()) == true) {
-			dataController.saveRubric();
-		}
-		else {
+		if (rubricElementDialog.modifyRubric(copy) == true) {
+			mainToolBar.addRubricInfo(copy.getSheetInfo(), true);
 			dataController.setRubric(copy);
+			dataController.saveRubric();
 		}
 	}
 	
@@ -231,16 +234,18 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 							dataController.run(id);												
 						}
 						else {
-							List<FileData> fileDataList = dataController.getSourceCode(id);
-							consoleAndSourcePanel.setWindowData(fileDataList, dataController.getConsoleOutput(id),
-									dataController.getConsoleInputHistory(id));
+//							List<FileData> fileDataList = dataController.getSourceCode(id);
+//							consoleAndSourcePanel.setWindowData(fileDataList, dataController.getConsoleOutput(id),
+//									dataController.getConsoleInputHistory(id));
 							dataController.runRubric(id);
 						}
 						publish(id);
 					}
 				} catch (Exception e) {
 					JOptionPane.showMessageDialog(MainGoogleClassroomFrame.this, e.getMessage(), "Error while running",
-							JOptionPane.ERROR_MESSAGE);					
+							JOptionPane.ERROR_MESSAGE);
+					e.printStackTrace();					
+					System.out.println("\0");
 				}
 				return null;
 			}
