@@ -14,10 +14,12 @@ public class SaveSheetData {
 	private class ColumnEntries {
 		private List<Object> columnValues;
 		private int columnNumber;
-		public ColumnEntries(List<Object> columnValues, int columnNumber) {
+		private int startRow;
+		public ColumnEntries(List<Object> columnValues, int columnNumber, int startRow) {
 			super();
 			this.columnValues = new ArrayList<Object>(columnValues);
 			this.columnNumber = columnNumber;
+			this.startRow = startRow;
 		}
 		public ValueRange prepColumn(int maxRow) {
 			List<List<Object> > data = new ArrayList<List<Object>>();
@@ -33,7 +35,7 @@ public class SaveSheetData {
 			}
 			String columnName = GoogleClassroomCommunicator.getColumnName(columnNumber);
 			ValueRange range = new ValueRange();
-			range.setRange(sheetName + "!" + columnName + ":" + columnName);
+			range.setRange(sheetName + "!" + columnName + startRow + ":" + columnName + (startRow + data.size()));
 			range.setValues(data);
 			return range;
 		}
@@ -61,11 +63,16 @@ public class SaveSheetData {
 	// This method will overwrite the data in a single column, it doesn't matter if only one
 	// value is written, everything below that value will be overwritten with empty data
 	public void writeOneColumn(List<Object> column, int currentColumn) {
-		maxRow = Math.max(column.size(), maxRow);
-		maxColumn = Math.max(maxColumn, currentColumn);
-		columns.add(new ColumnEntries(column, currentColumn));
+		writeOneColumn(column, currentColumn, 1);
 	}
 	
+	public void writeOneColumn(List<Object> column, int currentColumn, int startRow) {
+		maxRow = Math.max(column.size(), maxRow);
+		maxColumn = Math.max(maxColumn, currentColumn);
+		columns.add(new ColumnEntries(column, currentColumn, startRow));
+		
+	}
+	 
 	private void addOneRow(List<Object> row, int currentRow, int currentColumn) {
 		maxRow = Math.max(currentRow, maxRow);
 		List<List<Object> > tempSave = new ArrayList<List<Object>>();

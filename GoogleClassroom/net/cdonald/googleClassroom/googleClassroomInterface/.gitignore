@@ -22,3 +22,5 @@
 /SaveSheetData.class
 /LoadSheetData.class
 /SaveSheetData$ColumnEntries.class
+/SaveGrades.class
+/SaveGrades$StudentRow.class

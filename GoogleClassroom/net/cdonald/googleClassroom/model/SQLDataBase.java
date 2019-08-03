@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import net.cdonald.googleClassroom.gui.DebugLogDialog;
+
 public class SQLDataBase {
 
 	private Connection conn;
@@ -46,6 +48,13 @@ public class SQLDataBase {
 		}
 	}
 
+
+
+	public static String[] getDBNames(Class<? extends Enum<?>> e) {
+		return Arrays.stream(e.getEnumConstants()).map(Enum::name).toArray(String[]::new);
+	}
+	
+
 	private String buildSQL(String[] tableLabels, String postFieldString, String postBuildString,
 			boolean useFieldNames) {
 		String sqlString = "";
@@ -65,54 +74,89 @@ public class SQLDataBase {
 		return sqlString + postBuildString;
 	}
 
-	public static String[] getDBNames(Class<? extends Enum<?>> e) {
-		return Arrays.stream(e.getEnumConstants()).map(Enum::name).toArray(String[]::new);
+	public void simpleSave(String tableName, Class<? extends Enum<?>> tableLabelEnum, Map<String, String> values) throws SQLException {
+		String[] tableLabels = getDBNames(tableLabelEnum);
+		conditionallyAddTable(tableName, tableLabels);
+		PreparedStatement checkStmt = createCheckStatement(tableName, tableLabels);
+		PreparedStatement insertStmt = createInsertStatement(tableName, tableLabels);
+		PreparedStatement updateStmt = createUpdateStatement(tableName, tableLabels);
+		String [] data = new String[tableLabels.length];
+		DebugLogDialog.appendln(values.toString());
+		int count = 0;
+		for (String tableLabel : tableLabels) {
+			data[count] = values.get(tableLabel);
+			count++;
+		}
+		saveToDB(checkStmt, insertStmt, updateStmt, data);
+		updateStmt.close();
+		insertStmt.close();
+		checkStmt.close();
+		
 	}
-
+	
 	public void save(String tableName, Class<? extends Enum<?>> tableLabelEnum, List<ClassroomData> dataList)
 			throws SQLException {
 		String[] tableLabels = getDBNames(tableLabelEnum);
 		conditionallyAddTable(tableName, tableLabels);
-
-		String insertValues = "values (" + buildSQL(tableLabels, "?", ")", false);
-		String insertSQL = "insert into " + tableName + " (" + buildSQL(tableLabels, "", ") " + insertValues, true);
-		String updateSQL = "update " + tableName + " set "
-				+ buildSQL(tableLabels, "=?", " where " + tableLabels[0] + "=?", true);
-
-		PreparedStatement checkStmt = conn
-				.prepareStatement("SELECT count(*) as count FROM " + tableName + " WHERE " + tableLabels[0] + "=?");
-		PreparedStatement insertStmt = conn.prepareStatement(insertSQL);
-		PreparedStatement updateStmt = conn.prepareStatement(updateSQL);
+		PreparedStatement checkStmt = createCheckStatement(tableName, tableLabels);
+		PreparedStatement insertStmt = createInsertStatement(tableName, tableLabels);
+		PreparedStatement updateStmt = createUpdateStatement(tableName, tableLabels);
 
 		for (ClassroomData data : dataList) {
 			String[] mainData = data.getDBValues();
-			String id = mainData[0];
-			checkStmt.setString(1, id);
-			ResultSet checkResult = checkStmt.executeQuery();
-			checkResult.next();
-			int count = checkResult.getInt(1);
-			int col = 1;
-			PreparedStatement stmtToUse = null;
-			if (count == 0) {
-				stmtToUse = insertStmt;
-			} else {
-				stmtToUse = updateStmt;
-			}
-
-			for (String value : mainData) {
-				stmtToUse.setString(col++, value);
-			}
-
-			// Update has one last field, we use the id a second time for the query
-			if (count != 0) {
-				stmtToUse.setString(col++, id);
-			}
-			stmtToUse.executeUpdate();
+			saveToDB(checkStmt, insertStmt, updateStmt, mainData);
 		}
 
 		updateStmt.close();
 		insertStmt.close();
 		checkStmt.close();
+	}
+
+	
+	
+	private PreparedStatement createInsertStatement(String tableName, String [] tableLabels) throws SQLException {
+		String insertValues = "values (" + buildSQL(tableLabels, "?", ")", false);
+		String insertSQL = "insert into " + tableName + " (" + buildSQL(tableLabels, "", ") " + insertValues, true);
+		PreparedStatement insertStmt = conn.prepareStatement(insertSQL);
+		return insertStmt;
+	}
+	
+	private PreparedStatement createUpdateStatement(String tableName, String [] tableLabels) throws SQLException {
+		String updateSQL = "update " + tableName + " set "
+				+ buildSQL(tableLabels, "=?", " where " + tableLabels[0] + "=?", true);
+		PreparedStatement updateStmt = conn.prepareStatement(updateSQL);
+		return updateStmt;
+	}
+	
+	private PreparedStatement createCheckStatement(String tableName, String [] tableLabels) throws SQLException {
+		PreparedStatement checkStmt = conn
+				.prepareStatement("SELECT count(*) as count FROM " + tableName + " WHERE " + tableLabels[0] + "=?");
+		return checkStmt;
+	}
+	
+	private void saveToDB(PreparedStatement checkStmt, PreparedStatement insertStmt, PreparedStatement updateStmt, String [] mainData) throws SQLException {		
+		String id = mainData[0];
+		checkStmt.setString(1, id);		
+		ResultSet checkResult = checkStmt.executeQuery();
+		checkResult.next();
+		int count = checkResult.getInt(1);
+		int col = 1;
+		PreparedStatement stmtToUse = null;
+		if (count == 0) {
+			stmtToUse = insertStmt;
+		} else {
+			stmtToUse = updateStmt;
+		}
+
+		for (String value : mainData) {
+			stmtToUse.setString(col++, value);
+		}
+
+		// Update has one last field, we use the id a second time for the query
+		if (count != 0) {
+			stmtToUse.setString(col++, id);
+		}
+		stmtToUse.executeUpdate();
 	}
 
 	public void delete(String tableName, Class<? extends Enum<?>> tableLabelEnum, Set<String> fieldValues) {
@@ -138,6 +182,29 @@ public class SQLDataBase {
 			}
 		}
 	}
+	
+	private  Map<String, String> fillMap(ResultSet results, String [] tableLabels) throws SQLException {		
+		Map<String, String> fields = new HashMap<String, String>();
+		for (String labelName : tableLabels) {
+			String value = results.getString(labelName);
+			// System.err.println("putting " + tableName + " " + labelName + " = " + value);
+			fields.put(labelName, value);
+		}
+		return fields;
+	}
+
+	public Map<String, String> loadTableEntry(String tableName, Class<? extends Enum<?>> tableLabelEnum, String fieldName, String id)
+			throws SQLException {
+		String[] tableLabels = getDBNames(tableLabelEnum);
+		// System.err.println("loading " + tableName + Arrays.toString(tableLabels));
+		conditionallyAddTable(tableName, tableLabels);
+		final String selectSQL = "SELECT * FROM " + tableName + " WHERE " + fieldName + "=?";
+	
+		PreparedStatement stmt = conn.prepareStatement(selectSQL);
+		stmt.setString(1, id);
+		
+		return fillMap(stmt.executeQuery(), tableLabels);
+	}
 
 	public List<Map<String, String>> load(String tableName, Class<? extends Enum<?>> tableLabelEnum)
 			throws SQLException {
@@ -150,14 +217,7 @@ public class SQLDataBase {
 		ResultSet results = selectStmt.executeQuery(selectSQL);
 		List<Map<String, String>> fullList = new ArrayList<Map<String, String>>();
 		while (results.next()) {
-			Map<String, String> fields = new HashMap<String, String>();
-			for (String labelName : tableLabels) {
-
-				String value = results.getString(labelName);
-				// System.err.println("putting " + tableName + " " + labelName + " = " + value);
-				fields.put(labelName, value);
-			}
-			fullList.add(fields);
+			fullList.add(fillMap(results, tableLabels));
 		}
 		selectStmt.close();
 		// System.err.println("done loading " + tableName);
@@ -193,6 +253,21 @@ public class SQLDataBase {
 		} catch (SQLException e) {
 			// System.err.print("SQL Error " + e.getMessage());
 		}
+	}
+	
+	public static void main(String [] args) {
+		SQLDataBase dbTest = new SQLDataBase();
+		try {
+			dbTest.connect("C:\\Users\\kdmacdon\\Documents\\Teals\\GoogleClassroomData\\AP_Computer_Science_A\\class.db");
+			Map<String, String> entry = dbTest.loadTableEntry("Assignments", ClassroomData.fieldNames.class, "ID", "34979458003");			
+			System.out.println(entry);
+			dbTest.disconnect();
+		} catch (SQLException e) {
+			System.out.println(e.getMessage());
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
 	}
 	/*
 	 * public void saveToFile(File file) throws IOException { FileOutputStream out =

@@ -523,7 +523,7 @@ public class GoogleClassroomCommunicator {
 		
 		expandIfNeeded(id, current, saveData.getMaxColumn(), saveData.getMaxRow());
 		
-		BatchUpdateValuesRequest body = new BatchUpdateValuesRequest().setValueInputOption("RAW").setData(saveData.getSaveState());
+		BatchUpdateValuesRequest body = new BatchUpdateValuesRequest().setValueInputOption("USER_ENTERED").setData(saveData.getSaveState());
 		BatchUpdateValuesResponse result = sheetsService.spreadsheets().values().batchUpdate(id, body).execute();
 		return result.toString();
 	}
@@ -655,11 +655,13 @@ public class GoogleClassroomCommunicator {
 
 		@Override
 		public SaveSheetData getSheetSaveState() {
-			SaveSheetData saveState = new SaveSheetData("TestStuff2"); 
+			SaveSheetData saveState = new SaveSheetData("TestStuff2");
+			
 			List<Object> values = new ArrayList<Object>();
-			for (int j = 0; j < 50; j++) {
-				values.add((Integer)j);
+			for (int i = 1; i < 20; i++) {
+				values.add("=SUM(B"  + i + ":Z" + i + ")");
 			}
+			saveState.writeOneColumn(values, 0);
 			return saveState;
 			
 		}
@@ -686,8 +688,8 @@ public class GoogleClassroomCommunicator {
 //			System.out.println(getColumnName(i));
 //		}
 		GoogleClassroomCommunicator communicator = new GoogleClassroomCommunicator("Google Classroom Grader", "C:\\Users\\kdmacdon\\Documents\\Teals\\GoogleClassroomData\\tokens", "C:\\Users\\kdmacdon\\Documents\\Teals\\GoogleClassroomData\\credentials.json");
-		
-		communicator.testWrite();
+		communicator.writeSheet( communicator.new TestReader());
+		//communicator.testWrite();
 //		LoadSheetData sheetData = communicator.readSheet(communicator.new TestReader());
 //		for (int row = 0; row < sheetData.getNumRows(); row++) {
 //			System.err.println(sheetData.readRow(row));

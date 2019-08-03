@@ -42,7 +42,10 @@ public class Rubric implements SheetAccessorInterface {
 	public String getTotalCount(String id) {
 		double value = 0.0;
 		for (RubricEntry entry : entries) {
-			value += entry.getStudentDoubleValue(id);
+			Double studentValue = entry.getStudentDoubleValue(id);
+			if (studentValue != null) {
+				value += studentValue;
+			}
 		}
 		return "" + value;
 	}

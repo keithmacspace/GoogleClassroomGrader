@@ -12,19 +12,19 @@ import java.util.List;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
-import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JProgressBar;
 import javax.swing.JTextField;
 import javax.swing.border.Border;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
 import net.cdonald.googleClassroom.googleClassroomInterface.SheetFetcher;
+import net.cdonald.googleClassroom.listenerCoordinator.AddProgressBarListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
+import net.cdonald.googleClassroom.listenerCoordinator.RemoveProgressBarListener;
 import net.cdonald.googleClassroom.listenerCoordinator.SheetFetcherListener;
 import net.cdonald.googleClassroom.model.ClassroomData;
 
@@ -33,12 +33,10 @@ public class GoogleSheetDialog extends JDialog {
 	private static final long serialVersionUID = 3861011773987299144L;
 	private JTextField url;
 	private JButton okButton;
-	private JButton cancelButton;
-	private JButton validateButton;
-	private JComboBox<String> sheetCombo;
+	private JButton cancelButton;	
 	private Class<?> listenerClass;
-	private JLabel fileNameLabel;
-	private JProgressBar progressBar;
+	private String fileName;
+
 
 
 	public GoogleSheetDialog(Frame parent) {
@@ -55,7 +53,6 @@ public class GoogleSheetDialog extends JDialog {
 	}
 
 	private void initLayout() {		
-		progressBar = new JProgressBar();
 
 		JPanel buttonsPanel = setupButtonLayout();
 		JPanel controlPanel = setupControlLayout();		
@@ -67,7 +64,7 @@ public class GoogleSheetDialog extends JDialog {
 
 			@Override
 			public void insertUpdate(DocumentEvent e) {
-				okButton.setEnabled(false);				
+			
 			}
 			@Override
 			public void removeUpdate(DocumentEvent e) {
@@ -83,22 +80,12 @@ public class GoogleSheetDialog extends JDialog {
 		okButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				String urlName = url.getText();				
-				String sheetName = sheetCombo.getSelectedItem().toString();
-				ListenerCoordinator.fire(listenerClass, urlName, sheetName);
-				setVisible(false);
+				String urlName = url.getText();	
+				validate(urlName);
 			}
 		});
 		
-		validateButton.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				String urlName = url.getText();				
-				//sheetCombo.setEnabled(false);
-				fillSheets(urlName);
 
-			}
-		});
 
 		cancelButton.addActionListener(new ActionListener() {
 			@Override
@@ -109,39 +96,32 @@ public class GoogleSheetDialog extends JDialog {
 		pack();
 	}
 	
-	private void fillSheets(String urlName) {
+	private void validate(String urlName) {
 
-		fileNameLabel.setVisible(false);
-		progressBar.setVisible(true);
-		while (sheetCombo.getItemCount() != 0) {
-			sheetCombo.removeItemAt(0);
-		}
+		fileName = null;
+		
+		ListenerCoordinator.fire(AddProgressBarListener.class, "Validating URL");
+		
 		ListenerCoordinator.runLongQuery(SheetFetcher.class, new SheetFetcherListener(urlName) {
 			@Override
 			public void process(List<ClassroomData> list) {
 				for (ClassroomData data : list) {
 					if (data.isEmpty()) {
-						fileNameLabel.setText("filename: " + data.getName());
-					}
-					else {
-						sheetCombo.addItem(data.getName());
+						fileName =  data.getName();
 					}
 				}
 			}					
 			@Override
 			public void done() {
-				progressBar.setVisible(false);
-				fileNameLabel.setVisible(true);
-				if (sheetCombo.getItemCount() == 0) {
-					JOptionPane.showMessageDialog(GoogleSheetDialog.this, "Cannot load that URL, make sure it is shared with you, and it is the correct url", "Can't load",
-							JOptionPane.ERROR_MESSAGE);
+				ListenerCoordinator.fire(RemoveProgressBarListener.class, "Validating URL");
+				if (fileName != null) {
+					ListenerCoordinator.fire(listenerClass, urlName, fileName);
+					setVisible(false);
 				}
 				else {
-					//sheetCombo.setEnabled(true);
-					okButton.setEnabled(true);
-					//sheetCombo.setEditable(true);
+					JOptionPane.showMessageDialog(null, "Make sure you have the name correct\nand permissions to access the file", "Cannot Accesss URL",
+							JOptionPane.ERROR_MESSAGE);
 				}
-				
 			}
 		});	
 	}
@@ -159,11 +139,8 @@ public class GoogleSheetDialog extends JDialog {
 		buttonsPanel.setLayout(buttonLayout);
 		
 		okButton = new JButton("OK");
-		okButton.setEnabled(false);
-		validateButton = new JButton("Validate");
-		cancelButton = new JButton("CANCEL");
+		cancelButton = new JButton("Cancel");
 		buttonsPanel.add(okButton);
-		buttonsPanel.add(validateButton);
 		buttonsPanel.add(cancelButton);
 		setLayout(new BorderLayout());
 		return buttonsPanel;
@@ -172,45 +149,14 @@ public class GoogleSheetDialog extends JDialog {
 		Border titleBorder = BorderFactory.createTitledBorder("Copy in the shareable link of the Google sheet you wish to use");
 		JPanel controlPanel = new JPanel();				
 		url = new JTextField(40);
-		sheetCombo = new JComboBox<String>();
-		sheetCombo.setPreferredSize(new JTextField("sample size longish name").getPreferredSize());
-		sheetCombo.setEditable(true);
-		sheetCombo.setEnabled(true);
-		sheetCombo.addActionListener(new ActionListener() {
-
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				if (e.getActionCommand().equals("comboBoxEdited")) {
-					sheetCombo.insertItemAt((String) sheetCombo.getSelectedItem(), 0);
-				}
-				
-			}
-			
-		});
 		controlPanel.setBorder(titleBorder);
 		controlPanel.setLayout(new GridBagLayout());
 		GridBagConstraints urlConstraints = new GridBagConstraints();
 		urlConstraints.fill = GridBagConstraints.HORIZONTAL;
 		urlConstraints.gridwidth = GridBagConstraints.REMAINDER;
 		addLabelAndComponent(controlPanel, "url:", url, 0, urlConstraints);
-		GridBagConstraints comboConstraints = new GridBagConstraints();
-		comboConstraints.fill = GridBagConstraints.NONE;
 		
-		fileNameLabel = new JLabel("");
-		addLabelAndComponent(controlPanel, "book name:", sheetCombo, 1, comboConstraints);
-		GridBagConstraints fileNameConstraints = new GridBagConstraints();
-		fileNameConstraints.gridx = 2;
-		fileNameConstraints.gridy = 1;
-		fileNameConstraints.anchor = GridBagConstraints.FIRST_LINE_START;
-		controlPanel.add(fileNameLabel, fileNameConstraints);
-		
-		GridBagConstraints progressBarConstraints = new GridBagConstraints();
-		progressBarConstraints.gridx = 3;
-		progressBarConstraints.gridy = 1;
-		progressBarConstraints.anchor = GridBagConstraints.LINE_END;
-		progressBar.setIndeterminate(true);
-		progressBar.setVisible(false);
-		controlPanel.add(progressBar, progressBarConstraints);
+		fileName = null;
 		
 		return controlPanel;
 	}

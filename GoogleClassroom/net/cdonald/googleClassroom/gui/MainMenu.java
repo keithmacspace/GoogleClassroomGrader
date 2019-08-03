@@ -15,6 +15,7 @@ import javax.swing.JMenuItem;
 import javax.swing.KeyStroke;
 
 import net.cdonald.googleClassroom.googleClassroomInterface.CourseFetcher;
+import net.cdonald.googleClassroom.listenerCoordinator.ChooseGradeFileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ClassSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ExitFiredListener;
 import net.cdonald.googleClassroom.listenerCoordinator.GetFileDirQuery;
@@ -67,24 +68,26 @@ public class MainMenu extends JMenuBar {
 	private void fillFileMenu() {
 
 		openClassroom = new JMenu("Open Classroom");
-		JMenuItem exportToSheet = new JMenuItem("Save Grades...");
-		JMenuItem importFromSheet = new JMenuItem("Load Grades...");
+		JMenuItem chooseGradeFile = new JMenuItem("Choose Grade File...");
+		JMenuItem saveGrades = new JMenuItem("Save Grades");
+		JMenuItem loadGrades = new JMenuItem("Load Grades");
 		JMenuItem setWorkingDirectory = new JMenuItem("Working Dir...");
 		
 		JMenuItem exit = new JMenuItem("Exit");
 		
 		file.add(openClassroom);
 		file.addSeparator();
-		file.add(exportToSheet);
-		file.add(importFromSheet);
+		file.add(chooseGradeFile);
+		file.add(saveGrades);
+		file.add(loadGrades);
 		file.addSeparator();
 		file.add(setWorkingDirectory);
 		file.addSeparator();
 		file.add(exit);
 		file.setMnemonic(KeyEvent.VK_F);
 		exit.setMnemonic(KeyEvent.VK_X);
-		importFromSheet.setMnemonic(KeyEvent.VK_I);
-		exportToSheet.setMnemonic(KeyEvent.VK_E);
+		loadGrades.setMnemonic(KeyEvent.VK_L);
+		saveGrades.setMnemonic(KeyEvent.VK_S);
 		exit.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_X, ActionEvent.CTRL_MASK));
 		add(file);
 		
@@ -116,7 +119,17 @@ public class MainMenu extends JMenuBar {
 				}
 			}			
 		});
-		exportToSheet.addActionListener(new ActionListener() {
+		
+		chooseGradeFile.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				ListenerCoordinator.fire(ChooseGradeFileListener.class);
+				
+			}
+			
+		});
+		
+		saveGrades.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				ListenerCoordinator.fire(SaveGradesListener.class);

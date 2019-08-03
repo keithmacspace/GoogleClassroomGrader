@@ -118,7 +118,7 @@ public class FileData extends ClassroomData {
 
 	private String addInstrumentation(String fileText, int location, String instrumentationLine) {
 		String tempText = fileText.substring(0, location + 1);
-		tempText += instrumentationLine + "// instrumentation added to detect infinite loops\n";
+		tempText += instrumentationLine;
 		tempText += fileText.substring(location + 1);
 		return tempText;
 	}

@@ -162,12 +162,13 @@ public class MainToolBar extends JToolBar {
 		
 		ListenerCoordinator.addListener(RubricFileSelectedListener.class, new RubricFileSelectedListener() {
 			@Override
-			public void fired(String url) {
+			public void fired(String url, String fileName) {
+				final String progressName = "Reading " + fileName;
 				rubricNames.clear();
 				for (int i = 1; i < rubricCombo.getComponentCount(); i++) {
 					rubricCombo.remove(i);
 				}
-				ListenerCoordinator.fire(AddProgressBarListener.class,"Reading Rubric Names");
+				ListenerCoordinator.fire(AddProgressBarListener.class, progressName);
 				ListenerCoordinator.runLongQuery(SheetFetcher.class, new SheetFetcherListener(url) {
 					@Override
 					public void process(List<ClassroomData> list) {
@@ -179,7 +180,7 @@ public class MainToolBar extends JToolBar {
 					}
 					@Override
 					public void done() {
-						ListenerCoordinator.fire(RemoveProgressBarListener.class,"Reading Rubric Names");
+						ListenerCoordinator.fire(RemoveProgressBarListener.class, progressName);
 						if (rubricNames.size() != 0) {
 							ListenerCoordinator.fire(RubricFileValidListener.class);
 						}

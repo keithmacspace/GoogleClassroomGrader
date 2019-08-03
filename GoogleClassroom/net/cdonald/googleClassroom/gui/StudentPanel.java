@@ -1,16 +1,12 @@
 package net.cdonald.googleClassroom.gui;
 
 import java.awt.BorderLayout;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.swing.Action;
-import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
@@ -22,15 +18,15 @@ import javax.swing.event.ListSelectionListener;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
-import javax.swing.text.DefaultEditorKit;
 
+import net.cdonald.googleClassroom.googleClassroomInterface.SaveGrades;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
-import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricEditorDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentListInfo;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentSelectedListener;
 import net.cdonald.googleClassroom.model.FileData;
 import net.cdonald.googleClassroom.model.Rubric;
+import net.cdonald.googleClassroom.model.RubricEntry;
 import net.cdonald.googleClassroom.model.StudentData;
 
 public class StudentPanel extends JPanel {
@@ -217,8 +213,23 @@ public class StudentPanel extends JPanel {
 				revalidate();
 				resizeColumns();
 			}
-		});
-		
+		});		
+	}
+	
+	public void addStudentGrades(SaveGrades saveGrades, Rubric rubric) {
+		for (int i = 0; i < studentModel.getRowCount(); i++) {
+			StudentData studentInfo = (StudentData)studentModel.getValueAt(i, StudentListInfo.LAST_NAME_COLUMN);
+			String lastName = studentInfo.getName();
+			String firstName = studentInfo.getFirstName();
+			String date = (String)studentModel.getValueAt(i, StudentListInfo.DATE_COLUMN);
+			saveGrades.addStudent(lastName, firstName, date);
+			for (RubricEntry entry : rubric.getEntries()) {
+				Double grade = entry.getStudentDoubleValue(studentInfo.getId());
+				if (grade != null) {
+					saveGrades.addStudentScore(lastName, firstName, entry.getName(), grade);
+				}
+			}
+		}
 	}
 	
 

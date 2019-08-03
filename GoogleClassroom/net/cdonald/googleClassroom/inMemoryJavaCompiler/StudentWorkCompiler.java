@@ -64,7 +64,7 @@ public class StudentWorkCompiler {
 	}
 	
 	public String getInstrumentationLine() {
-		return this.getClass().getCanonicalName() + ".stopInstrumentation();";
+		return this.getClass().getCanonicalName() + ".stopInstrumentation();"  + "// instrumentation added to detect infinite loops\n";
 	}
 
 

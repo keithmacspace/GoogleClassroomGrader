@@ -83,13 +83,10 @@ public class RubricEntry {
 		return getStudentValue(studentID); 
 	}
 	
-	public double getStudentDoubleValue(String studentID) {
-		double studentValue = 0.0;
+	public Double getStudentDoubleValue(String studentID) {
+		Double studentValue = null;
 		if (studentScores.containsKey(studentID)) {			
-			Double doubleValue = studentScores.get(studentID);
-			if (doubleValue != null) {
-				studentValue = doubleValue;
-			}
+			studentValue = studentScores.get(studentID);
 		}
 		return studentValue;
 	}
@@ -99,8 +96,7 @@ public class RubricEntry {
 		
 		if (studentScores.containsKey(studentID)) {			
 			Double doubleValue = studentScores.get(studentID);
-			if (doubleValue != null) {
-				
+			if (doubleValue != null) {				
 				double test = doubleValue;
 				if ((int) test == test) {
 					displayValue = "" + ((int) test);

@@ -19,6 +19,7 @@ import net.cdonald.googleClassroom.googleClassroomInterface.AssignmentFetcher;
 import net.cdonald.googleClassroom.googleClassroomInterface.CourseFetcher;
 import net.cdonald.googleClassroom.googleClassroomInterface.FileFetcher;
 import net.cdonald.googleClassroom.googleClassroomInterface.GoogleClassroomCommunicator;
+import net.cdonald.googleClassroom.googleClassroomInterface.SaveGrades;
 import net.cdonald.googleClassroom.googleClassroomInterface.SheetFetcher;
 import net.cdonald.googleClassroom.googleClassroomInterface.StudentFetcher;
 import net.cdonald.googleClassroom.gui.DataStructureChangedListener;
@@ -39,6 +40,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.GetDBNameQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetFileDirQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetStudentFilesQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetWorkingDirQuery;
+import net.cdonald.googleClassroom.listenerCoordinator.GradeFileSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.LoadTestFileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LongQueryListener;
@@ -74,6 +76,7 @@ public class DataController implements StudentListInfo {
 	private GoogleClassroomCommunicator googleClassroom;
 	private MyPreferences prefs;
 	private ClassroomData rubricURL;
+	private ClassroomData gradeURL;
 	
 
 	public DataController(MainGoogleClassroomFrame mainFrame) {
@@ -106,9 +109,15 @@ public class DataController implements StudentListInfo {
 			currentCourse = prefs.getClassroom();
 			ListenerCoordinator.fire(ClassSelectedListener.class, currentCourse);
 		}
-		String rubricURLName = prefs.getRubricFile();
+		String rubricURLName = prefs.getRubricURL();
+		String rubricFileName = prefs.getRubricFile();
 		if (rubricURLName != null) {
-			ListenerCoordinator.fire(RubricFileSelectedListener.class, rubricURLName);
+			ListenerCoordinator.fire(RubricFileSelectedListener.class, rubricURLName, rubricFileName);
+		}
+		String gradeURL = prefs.getGradeURL();
+		String gradeFileName = prefs.getGradeFile();
+		if (gradeURL != null) {
+			ListenerCoordinator.fire(GradeFileSelectedListener.class, gradeURL, gradeFileName);
 		}
 	}
 	
@@ -226,7 +235,7 @@ public class DataController implements StudentListInfo {
 		ListenerCoordinator.addQueryResponder(GetCurrentRubricURL.class, new GetCurrentRubricURL() {
 			@Override
 			public String fired() {
-				return rubricURL.getName();
+				return getRubricURL();
 			}
 		});
 		
@@ -253,13 +262,18 @@ public class DataController implements StudentListInfo {
 			}			
 		});
 		
+		
+		
 		ListenerCoordinator.addListener(RubricFileSelectedListener.class, new RubricFileSelectedListener() {
 			@Override
-			public void fired(String text) {
-				if (rubricURL == null || !rubricURL.getName().equals(text)) {
-					String urlID = googleClassroom.googleSheetID(text);
-					rubricURL = new ClassroomData(text, urlID);
-					prefs.setRubricFile(text);
+			public void fired(String url, String fileName) {
+				if (rubricURL == null || !rubricURL.getName().equals(url)) {
+					if (checkValidURL(url, prefs.getGradeURL()) == false) {
+						return;
+					}
+					String urlID = googleClassroom.googleSheetID(url);
+					rubricURL = new ClassroomData(url, urlID);
+					prefs.setRubricInfo(fileName, url);
 				}
 			}
 		});
@@ -284,8 +298,7 @@ public class DataController implements StudentListInfo {
 						if (setRubric(rubric) == JOptionPane.YES_OPTION) {
 							saveRubric();
 						}
-					}
-				
+					}				
 				}
 				else {
 					rubric = null;
@@ -303,11 +316,40 @@ public class DataController implements StudentListInfo {
 
 			}			
 		});
+				
 		
-
-		
+		ListenerCoordinator.addListener(GradeFileSelectedListener.class, new GradeFileSelectedListener() {
+			@Override
+			public void fired(String url, String fileName) {
+				if (checkValidURL(prefs.getRubricURL(), url) == false) {
+					return;
+				}
+				String urlID = googleClassroom.googleSheetID(url);
+				gradeURL = new ClassroomData(url, urlID);
+				prefs.setGradeInfo(fileName, url);
+			}
+		});
 		
 	}
+
+	private boolean checkValidURL(String rubricURL, String gradeFileURL) {
+		if (gradeFileURL == null || rubricURL == null) {
+			return true;
+		}
+		String rubricID = googleClassroom.googleSheetID(rubricURL);
+		String gradeID =  googleClassroom.googleSheetID(gradeFileURL);
+		if (rubricID.equals(gradeID)) {
+			JOptionPane.showMessageDialog(null, "Rubric file and grade file cannot be the same because all grades are saved on a sheet with the rubric name",  "Bad URL",
+					JOptionPane.ERROR_MESSAGE);
+			return false;
+		}
+		return true;
+	}
+	
+	public String getGradeFileURL() {
+		return prefs.getGradeURL();
+	}
+
 
 	public Rubric getRubric() {
 		return rubric;
@@ -562,7 +604,10 @@ public class DataController implements StudentListInfo {
 
 
 	public String getRubricURL() {
-		return rubricURL.getName();
+		if (rubricURL != null) {
+			return rubricURL.getName();
+		}
+		return "";
 	}
 
 	public void setOwner(StudentListModel owner) {
@@ -618,9 +663,25 @@ public class DataController implements StudentListInfo {
 	}
 	
 	public Rubric newRubric(String name) {
-		GoogleSheetData sheetData = new GoogleSheetData(name, rubricURL.getId(), "NewRubric");
-		rubric = new Rubric(sheetData);
-		return rubric;
+		if (rubricURL != null) {
+			GoogleSheetData sheetData = new GoogleSheetData(name, rubricURL.getId(), "NewRubric");
+			rubric = new Rubric(sheetData);
+			return rubric;
+		}
+		return null;
 	}
-
+	
+	public SaveGrades newSaveGrades(String assignmentName) {
+		SaveGrades grades = new SaveGrades(new GoogleSheetData(rubric.getName(), gradeURL.getId(), rubric.getName()), rubric, assignmentName, prefs.getGradedByName() );
+		return grades;
+	}
+	
+	public void saveGrades(SaveGrades grades) {
+		try {
+			googleClassroom.writeSheet(grades);
+		} catch (IOException e) {
+			JOptionPane.showMessageDialog(null, "Error saving grades to google sheet " + e.getMessage(),  "Save problem",
+					JOptionPane.ERROR_MESSAGE);
+		}
+	}
 }

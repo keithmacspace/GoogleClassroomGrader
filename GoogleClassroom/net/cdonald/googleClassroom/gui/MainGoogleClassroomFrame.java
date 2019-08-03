@@ -17,14 +17,19 @@ import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.WindowConstants;
 
 import net.cdonald.googleClassroom.control.DataController;
+import net.cdonald.googleClassroom.googleClassroomInterface.SaveGrades;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompileListener;
+import net.cdonald.googleClassroom.listenerCoordinator.AddProgressBarListener;
+import net.cdonald.googleClassroom.listenerCoordinator.ChooseGradeFileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ClassSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ExitFiredListener;
 import net.cdonald.googleClassroom.listenerCoordinator.GetDebugDialogQuery;
+import net.cdonald.googleClassroom.listenerCoordinator.GradeFileSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LaunchNewRubricDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricEditorDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricFileDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
+import net.cdonald.googleClassroom.listenerCoordinator.RemoveProgressBarListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricFileSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RunRubricSelected;
 import net.cdonald.googleClassroom.listenerCoordinator.RunSelected;
@@ -167,17 +172,26 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 			}
 		});
 		
+ 
+		
 		ListenerCoordinator.addListener(SaveGradesListener.class, new SaveGradesListener() {
 			@Override
 			public void fired() {
-				//importExportDialog.setVisible(SaveGradesListener.class)
+				ListenerCoordinator.fire(AddProgressBarListener.class, "Saving Grades");				
+				ClassroomData assignment = mainToolBar.getAssignmentSelected();
+				SaveGrades grades = dataController.newSaveGrades(assignment.getName());
+				studentPanel.addStudentGrades(grades, dataController.getRubric());
+				dataController.saveGrades(grades);
+				ListenerCoordinator.fire(RemoveProgressBarListener.class, "Saving Grades");
+				
 			}			
 		});
 		
 		ListenerCoordinator.addListener(LaunchRubricFileDialogListener.class, new LaunchRubricFileDialogListener() {
 			@Override
 			public void fired() {
-				importExportDialog.setVisible("Open Rubric File", RubricFileSelectedListener.class, dataController.getRubricURL());			}			
+				importExportDialog.setVisible("Select Rubric File", RubricFileSelectedListener.class, dataController.getRubricURL());			
+			}			
 		});
 		
 		ListenerCoordinator.addListener(LaunchRubricEditorDialogListener.class, new LaunchRubricEditorDialogListener() {
@@ -204,6 +218,13 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 			public DebugLogDialog fired() {
 				return dbg;
 			}
+		});
+		
+		ListenerCoordinator.addListener(ChooseGradeFileListener.class, new ChooseGradeFileListener() {
+			@Override
+			public void fired() {
+				importExportDialog.setVisible("Select Grades File", GradeFileSelectedListener.class, dataController.getGradeFileURL());			
+			}			
 		});
 	}
 	
