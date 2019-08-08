@@ -13,22 +13,30 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Semaphore;
 
 import net.cdonald.googleClassroom.gui.DebugLogDialog;
 
 public class SQLDataBase {
 
 	private Connection conn;
+	private Semaphore semaphore;
 
 	public SQLDataBase() {
 		super();
-
+		semaphore = new Semaphore(1);
 		conn = null;
 	}
 
 	public void connect(String url) throws SQLException {
-		if (conn == null) {
 
+		if (conn == null) {
+			try {
+				semaphore.acquire();
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 			url = "jdbc:sqlite:" + url;
 			conn = DriverManager.getConnection(url);
 			//System.out.println("Connection established");
@@ -37,6 +45,7 @@ public class SQLDataBase {
 
 	public void disconnect() {
 		if (conn != null) {
+			semaphore.release();
 			try {
 				conn.close();
 				//System.out.println("Connection closed");

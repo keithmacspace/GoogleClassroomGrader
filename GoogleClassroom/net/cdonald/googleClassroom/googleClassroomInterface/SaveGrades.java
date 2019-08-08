@@ -1,129 +1,78 @@
 package net.cdonald.googleClassroom.googleClassroomInterface;
 
+import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import net.cdonald.googleClassroom.listenerCoordinator.StudentListInfo;
 import net.cdonald.googleClassroom.model.GoogleSheetData;
 import net.cdonald.googleClassroom.model.Rubric;
 import net.cdonald.googleClassroom.model.RubricEntry;
+import net.cdonald.googleClassroom.model.StudentData;
 
-public class SaveGrades implements SheetAccessorInterface{
-	public class StudentRow {
-		Map<String, Object> columns;
-		public StudentRow(String lastName, String firstName, String assignmentSubmitDate) {
-			columns = new HashMap<String, Object>();
-			columns.put(StudentListInfo.defaultColumnNames[StudentListInfo.LAST_NAME_COLUMN], lastName);
-			columns.put(StudentListInfo.defaultColumnNames[StudentListInfo.FIRST_NAME_COLUMN], firstName);
-			columns.put(StudentListInfo.defaultColumnNames[StudentListInfo.DATE_COLUMN], assignmentSubmitDate);
-		}
-		public void addScore(String rubricName, Double score) {
-			columns.put(rubricName, score);
-		}
-		public List<Object> generateRow(Map<Integer, String> columnLocations) {
-			List<Object> row = new ArrayList<Object>();
-			for (Integer column : columnLocations.keySet()) {
-				while (row.size() <= column) {
-					row.add(null);
-				}
-				String key = columnLocations.get(column);
-				if (columns.containsKey(key)) {
-					row.set(column, columns.get(key));
-				}
-			}
-			return row;
-		}
-	}
-	private Rubric rubric;
-	private String assignmentName;
+public class SaveGrades extends LoadGrades{
 	private String graderName;
-	private List<StudentRow> studentRowList;
-	private Map<String, StudentRow> studentRowMap;
-	private Map<Integer, String> columnLocations;
 	private Set<String> graded;
-	private GoogleSheetData targetFile;
-	public SaveGrades(GoogleSheetData targetFile, Rubric rubric, String assignmentName, String graderName) {
-		this.targetFile = targetFile;
-		this.rubric = rubric;
-		this.assignmentName = assignmentName;
-		this.graderName = graderName;
+	public SaveGrades(GoogleClassroomCommunicator communicator, GoogleSheetData targetFile, Rubric rubric, List<StudentData> students, String graderName) {
+		super(targetFile, rubric, students);		
 		graded = new HashSet<String>();
-		studentRowMap  = new HashMap<String, StudentRow>();
-		studentRowList  = new ArrayList<StudentRow>();
-		columnLocations = new HashMap<Integer, String>();
-		int column = 0;
-		for (String columnName : StudentListInfo.defaultColumnNames) {
-			if (!columnName.equals(StudentListInfo.defaultColumnNames[StudentListInfo.COMPILER_COLUMN]) ) {
-				columnLocations.put(column, columnName);
-				column++;
-			}			
-		}		
-		for (RubricEntry entry : rubric.getEntries()) {
-			columnLocations.put(column, entry.getName());
-			column++;
+		this.graderName = graderName;
+		try {
+			loadData(communicator, true);
+		} catch (IOException e) {
+
 		}
 	}
-	public void addStudent(String lastName, String firstName, String assigmentSubmitDate) {
-		String key = lastName + firstName;
-		StudentRow studentRow = new StudentRow(lastName, firstName, assigmentSubmitDate); 
-		studentRowMap.put(key, studentRow);
-		studentRowList.add(studentRow);
-	}
 	
-	public void addStudentScore(String lastName, String firstName, String rubricName, Double score) {
-		String key = lastName + firstName;
+
+	public void addStudentScore(StudentData student, String rubricName, Double score) {
 		graded.add(rubricName);
-		studentRowMap.get(key).addScore(rubricName, score);
+		super.addStudentColumn(student, rubricName, score);
+		
 	}
 	
-	
-	@Override
-	public GoogleSheetData getSheetInfo() {
-		return targetFile;
+	public void addAssignmentDate(StudentData student, String assignmentDate) {
+		super.addStudentColumn(student, StudentListInfo.defaultColumnNames[StudentListInfo.DATE_COLUMN], assignmentDate);
 	}
+	
 	@Override
 	public SaveSheetData getSheetSaveState() {
 		// At this point we take all the data that has been added and create the actual save sheet data
-		SaveSheetData saveData = new SaveSheetData(rubric.getName());
+		SaveSheetData saveData = new SaveSheetData(SaveSheetData.ValueType.USER_ENTERED, getRubric().getName());
 		List<Object> assignmentRow = new ArrayList<Object>();
 		assignmentRow.add("Assignment");
-		assignmentRow.add(assignmentName);
+		assignmentRow.add(getAssignmentName());
 		int currentRow = 1;
 		saveData.addOneRow(assignmentRow, currentRow++);
-		List<Object> gradedByRow = new ArrayList<Object>();
-		List<Object> columnNameRow = new ArrayList<Object>();
-		List<Object> rubricValueRow = new ArrayList<Object>();
-		gradedByRow.add("Graded By");
-		rubricValueRow.add("Rubric Value");
+		int numColumns = getNumColumns();
+		List<Object> gradedByRow = new ArrayList<Object>(numColumns);
+		List<Object> columnNameRow = new ArrayList<Object>(numColumns);
+		List<Object> rubricValueRow = new ArrayList<Object>(numColumns);
+		for (int col = 0; col < numColumns; col++) {
+			gradedByRow.add(null);
+			columnNameRow.add(null);
+			rubricValueRow.add(null);
+		}
+		gradedByRow.set(0, "Graded By");
+		rubricValueRow.set(0, "Rubric Value");
 
 		int totalColumn = 0;
 
+		for (int col = 0; col < numColumns; col++) {
+			String columnName = getColumnName(col);
 				
-		for (Integer column : columnLocations.keySet()) {
-			while (columnNameRow.size() <= column) {
-				columnNameRow.add(null);
-			}
-			// These two will always be the same size
-			while (gradedByRow.size() <= column) {
-				gradedByRow.add(null);				
-				rubricValueRow.add(null);
-			}
-			String columnName = columnLocations.get(column);
 			if (columnName.equalsIgnoreCase("Total")) {
-				totalColumn = column;
+				totalColumn = col;
 			}
 			if (graded.contains(columnName)) {
-				gradedByRow.set(column, graderName);
+				gradedByRow.set(col, graderName);
 			}
-			columnNameRow.set(column, columnName);
-			for (RubricEntry entry : rubric.getEntries()) {
+			columnNameRow.set(col, columnName);
+			for (RubricEntry entry : getRubric().getEntries()) {
 				if (entry.getName().equalsIgnoreCase(columnName)) {					
-					rubricValueRow.set(column, entry.getValue());
+					rubricValueRow.set(col, entry.getValue());
 				}
 			}
 		}
@@ -131,8 +80,8 @@ public class SaveGrades implements SheetAccessorInterface{
 		saveData.addOneRow(rubricValueRow, currentRow++);
 		saveData.addOneRow(columnNameRow, currentRow++);
 		int firstStudentRow = currentRow;
-		for (StudentRow studentRow : studentRowList) {
-			saveData.addOneRow(studentRow.generateRow(columnLocations), currentRow++);
+		for (int studentNum = 0; studentNum < getNumStudents(); studentNum++) {
+			saveData.addOneRow(generateStudentRow(studentNum), currentRow++);
 		}
 		int lastStudentRow = currentRow;
 		List<Object> totalColumnStrings = new ArrayList<Object>();
@@ -142,7 +91,8 @@ public class SaveGrades implements SheetAccessorInterface{
 			String endColumnName = GoogleClassroomCommunicator.getColumnName(saveData.getMaxColumn());
 			totalColumnStrings.add("=SUM(" + startColumnName + i + ":" + endColumnName + i+ ")");
 		}
-		saveData.writeOneColumn(totalColumnStrings, totalColumn, firstStudentRow);
+		saveData.writeColumnEntries(totalColumnStrings, totalColumn, firstStudentRow);
 		return saveData;
 	}
+	
 }

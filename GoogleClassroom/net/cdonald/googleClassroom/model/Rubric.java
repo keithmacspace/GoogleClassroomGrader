@@ -222,7 +222,7 @@ public class Rubric implements SheetAccessorInterface {
 	
 	@Override
 	public SaveSheetData getSheetSaveState() {
-		SaveSheetData saveState = new SaveSheetData(sheetData.getName());
+		SaveSheetData saveState = new SaveSheetData(SaveSheetData.ValueType.RAW, sheetData.getName());
 		List<List<Object>> columnData = new ArrayList<List<Object>>();
 		Map<String, List<Object>> fileData = new HashMap<String, List<Object>>();
 		
@@ -238,12 +238,12 @@ public class Rubric implements SheetAccessorInterface {
 
 		int currentColumn = RubricEntry.HeadingNames.values().length + 1;
 		for (List<Object> column : columnData) {
-			saveState.writeOneColumn(column, currentColumn);
+			saveState.writeFullColumn(column, currentColumn);
 			currentColumn++;
 		}
 		for (String key : fileData.keySet()) {
 			List<Object> fileColumn = fileData.get(key);
-			saveState.writeOneColumn(fileColumn, currentColumn);
+			saveState.writeFullColumn(fileColumn, currentColumn);
 			currentColumn++;			
 		}
 		// Add 3 blank columns to the end.  This should take care of deletions

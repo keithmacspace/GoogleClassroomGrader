@@ -19,6 +19,7 @@ import net.cdonald.googleClassroom.googleClassroomInterface.AssignmentFetcher;
 import net.cdonald.googleClassroom.googleClassroomInterface.CourseFetcher;
 import net.cdonald.googleClassroom.googleClassroomInterface.FileFetcher;
 import net.cdonald.googleClassroom.googleClassroomInterface.GoogleClassroomCommunicator;
+import net.cdonald.googleClassroom.googleClassroomInterface.LoadGrades;
 import net.cdonald.googleClassroom.googleClassroomInterface.SaveGrades;
 import net.cdonald.googleClassroom.googleClassroomInterface.SheetFetcher;
 import net.cdonald.googleClassroom.googleClassroomInterface.StudentFetcher;
@@ -42,6 +43,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.GetStudentFilesQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetWorkingDirQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GradeFileSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
+import net.cdonald.googleClassroom.listenerCoordinator.LoadGradesListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LoadTestFileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LongQueryListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RemoveProgressBarListener;
@@ -301,6 +303,7 @@ public class DataController implements StudentListInfo {
 					}				
 				}
 				else {
+					setRubric(null);
 					rubric = null;
 				}
 
@@ -313,11 +316,15 @@ public class DataController implements StudentListInfo {
 			@Override
 			public void fired() {
 				saveRubric();
-
 			}			
 		});
 				
-		
+		ListenerCoordinator.addListener(LoadGradesListener.class, new LoadGradesListener() {
+			@Override
+			public void fired() {
+				loadGrades();
+			}			
+		});		
 		ListenerCoordinator.addListener(GradeFileSelectedListener.class, new GradeFileSelectedListener() {
 			@Override
 			public void fired(String url, String fileName) {
@@ -365,7 +372,11 @@ public class DataController implements StudentListInfo {
 		}
 		this.rubric = rubric;
 		structureListener.dataStructureChanged();
-		ListenerCoordinator.fire(AddRubricTabsListener.class, rubric);
+		if (rubric != null) {
+			ListenerCoordinator.fire(AddRubricTabsListener.class, rubric);
+			loadGrades();
+		}
+		
 		return JOptionPane.NO_OPTION;
 	}
 	
@@ -672,8 +683,22 @@ public class DataController implements StudentListInfo {
 	}
 	
 	public SaveGrades newSaveGrades(String assignmentName) {
-		SaveGrades grades = new SaveGrades(new GoogleSheetData(rubric.getName(), gradeURL.getId(), rubric.getName()), rubric, assignmentName, prefs.getGradedByName() );
+		SaveGrades grades = new SaveGrades(googleClassroom, new GoogleSheetData(rubric.getName(), gradeURL.getId(), rubric.getName()), rubric, studentData, prefs.getGradedByName() );
+		grades.setAssignmentName(assignmentName);
 		return grades;
+	}
+	
+	public void loadGrades() {
+		LoadGrades grades = new LoadGrades(new GoogleSheetData(rubric.getName(), gradeURL.getId(), rubric.getName()), rubric, studentData);
+		try {
+			ListenerCoordinator.fire(AddProgressBarListener.class, "Loading Grades");
+			grades.loadData(googleClassroom, false);
+			updateListener.dataUpdated();
+		} catch (IOException e) {
+
+		}
+		ListenerCoordinator.fire(RemoveProgressBarListener.class, "Loading Grades");
+		
 	}
 	
 	public void saveGrades(SaveGrades grades) {

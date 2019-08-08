@@ -24,6 +24,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.LaunchNewRubricDialogList
 import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricEditorDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricFileDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
+import net.cdonald.googleClassroom.listenerCoordinator.LoadGradesListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LoadTestFileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LongQueryListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricFileValidListener;
@@ -73,6 +74,9 @@ public class MainMenu extends JMenuBar {
 		JMenuItem loadGrades = new JMenuItem("Load Grades");
 		JMenuItem setWorkingDirectory = new JMenuItem("Working Dir...");
 		
+		saveGrades.setEnabled(false);
+		loadGrades.setEnabled(false);
+		
 		JMenuItem exit = new JMenuItem("Exit");
 		
 		file.add(openClassroom);
@@ -88,6 +92,7 @@ public class MainMenu extends JMenuBar {
 		exit.setMnemonic(KeyEvent.VK_X);
 		loadGrades.setMnemonic(KeyEvent.VK_L);
 		saveGrades.setMnemonic(KeyEvent.VK_S);
+		saveGrades.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, ActionEvent.CTRL_MASK));
 		exit.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_X, ActionEvent.CTRL_MASK));
 		add(file);
 		
@@ -99,7 +104,7 @@ public class MainMenu extends JMenuBar {
 			}			
 		});
 		
-		setWorkingDirectory .addActionListener(new ActionListener() {
+		setWorkingDirectory.addActionListener(new ActionListener() {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -135,9 +140,14 @@ public class MainMenu extends JMenuBar {
 				ListenerCoordinator.fire(SaveGradesListener.class);
 				
 			}
-		});
+		});	
 		
-
+		loadGrades.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				ListenerCoordinator.fire(LoadGradesListener.class);			
+			}
+		});	
 
 		ListenerCoordinator.runLongQuery(CourseFetcher.class, new LongQueryListener<ClassroomData>() {
 			@Override
@@ -148,6 +158,15 @@ public class MainMenu extends JMenuBar {
 			}			
 		});
 		
+		ListenerCoordinator.addListener(RubricSelected.class, new RubricSelected() {
+			@Override
+			public void fired(GoogleSheetData googleSheet) {
+				saveGrades.setEnabled(!googleSheet.isEmpty());
+				loadGrades.setEnabled(!googleSheet.isEmpty());
+				editRubric.setEnabled(!googleSheet.isEmpty());
+			}
+		});
+
 	}
 	
 	private void fillRubricMenu() {

@@ -218,15 +218,18 @@ public class StudentPanel extends JPanel {
 	
 	public void addStudentGrades(SaveGrades saveGrades, Rubric rubric) {
 		for (int i = 0; i < studentModel.getRowCount(); i++) {
+			if (studentTable.getCellEditor() != null) {
+				studentTable.getCellEditor().stopCellEditing();
+			}
 			StudentData studentInfo = (StudentData)studentModel.getValueAt(i, StudentListInfo.LAST_NAME_COLUMN);
-			String lastName = studentInfo.getName();
-			String firstName = studentInfo.getFirstName();
+			saveGrades.addStudentColumn(studentInfo, StudentListInfo.defaultColumnNames[StudentListInfo.LAST_NAME_COLUMN], studentInfo.getName());
+			saveGrades.addStudentColumn(studentInfo, StudentListInfo.defaultColumnNames[StudentListInfo.FIRST_NAME_COLUMN], studentInfo.getFirstName());
 			String date = (String)studentModel.getValueAt(i, StudentListInfo.DATE_COLUMN);
-			saveGrades.addStudent(lastName, firstName, date);
+			saveGrades.addStudentColumn(studentInfo, StudentListInfo.defaultColumnNames[StudentListInfo.DATE_COLUMN], date);
 			for (RubricEntry entry : rubric.getEntries()) {
 				Double grade = entry.getStudentDoubleValue(studentInfo.getId());
 				if (grade != null) {
-					saveGrades.addStudentScore(lastName, firstName, entry.getName(), grade);
+					saveGrades.addStudentColumn(studentInfo, entry.getName(), grade);
 				}
 			}
 		}

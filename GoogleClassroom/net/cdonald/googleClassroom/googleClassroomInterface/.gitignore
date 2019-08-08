@@ -24,3 +24,7 @@
 /SaveSheetData$ColumnEntries.class
 /SaveGrades.class
 /SaveGrades$StudentRow.class
+/SaveSheetData$ValueType.class
+/LoadGrades.class
+/GradeAccessor.class
+/GradeAccessor$StudentRow.class

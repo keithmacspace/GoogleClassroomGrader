@@ -6,15 +6,18 @@ import java.util.List;
 import com.google.api.services.sheets.v4.model.ValueRange;
 
 public class SaveSheetData {
+	public enum ValueType {USER_ENTERED, RAW}
 	private List<ValueRange> saveState;
 	private List<ColumnEntries> columns;
 	private String sheetName;
 	private int maxColumn;
 	private int maxRow;
+	private ValueType valueType;
 	private class ColumnEntries {
 		private List<Object> columnValues;
 		private int columnNumber;
 		private int startRow;
+		// Pass in -1 if we should write the entire column
 		public ColumnEntries(List<Object> columnValues, int columnNumber, int startRow) {
 			super();
 			this.columnValues = new ArrayList<Object>(columnValues);
@@ -35,7 +38,13 @@ public class SaveSheetData {
 			}
 			String columnName = GoogleClassroomCommunicator.getColumnName(columnNumber);
 			ValueRange range = new ValueRange();
-			range.setRange(sheetName + "!" + columnName + startRow + ":" + columnName + (startRow + data.size()));
+			// I am using -1 as a flag to say write the entire column
+			if (startRow != -1) {
+				range.setRange(sheetName + "!" + columnName + startRow + ":" + columnName + (startRow + data.size()));
+			}
+			else {
+				range.setRange(sheetName + "!" + columnName + ":" + columnName);
+			}
 			range.setValues(data);
 			return range;
 		}
@@ -43,11 +52,16 @@ public class SaveSheetData {
 	}
 
 
-	public SaveSheetData(String sheetName) {
+	public SaveSheetData(ValueType valueType, String sheetName) {
+		this.valueType = valueType;
 		columns = new ArrayList<ColumnEntries>();
 		maxColumn = 0;
 		this.sheetName = sheetName;
 		saveState = new ArrayList<ValueRange>();
+	}
+	
+	public String getValueType() {
+		return valueType.toString();
 	}
 	
 	public int getMaxColumn() {
@@ -62,12 +76,16 @@ public class SaveSheetData {
 	
 	// This method will overwrite the data in a single column, it doesn't matter if only one
 	// value is written, everything below that value will be overwritten with empty data
-	public void writeOneColumn(List<Object> column, int currentColumn) {
-		writeOneColumn(column, currentColumn, 1);
+	public void writeFullColumn(List<Object> column, int currentColumn) {
+		maxRow = Math.max(column.size(), maxRow);
+		maxColumn = Math.max(maxColumn, currentColumn);
+		columns.add(new ColumnEntries(column, currentColumn, -1));
 	}
 	
-	public void writeOneColumn(List<Object> column, int currentColumn, int startRow) {
-		maxRow = Math.max(column.size(), maxRow);
+	// This value will write the data in the entries starting at row X and going down
+	// to row y
+	public void writeColumnEntries(List<Object> column, int currentColumn, int startRow) {
+		maxRow = Math.max(column.size() + startRow, maxRow);
 		maxColumn = Math.max(maxColumn, currentColumn);
 		columns.add(new ColumnEntries(column, currentColumn, startRow));
 		

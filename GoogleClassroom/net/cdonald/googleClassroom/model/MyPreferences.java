@@ -23,9 +23,11 @@ public class MyPreferences {
 	private enum DBPrefNames {CLASS_ID, RUBRIC_URL, RUBRIC_FILE, GRADE_URL, GRADE_FILE};
 	private Map<String, String> dbPrefs;
 	private String classDBName;
+	private SQLDataBase prefsDB;
 	
 	public MyPreferences() {
 		preferences = Preferences.userNodeForPackage(net.cdonald.googleClassroom.gui.MainGoogleClassroomFrame.class);
+		prefsDB = new SQLDataBase();
 	}	
 	
 	public String getRubricFile() {
@@ -121,7 +123,7 @@ public class MyPreferences {
 	}
 	
 	private void saveClassPrefs() {
-		SQLDataBase prefsDB = openClassPrefs();
+		openClassPrefs();
 		try {
 			prefsDB.simpleSave("CLASS_PREFS", DBPrefNames.class, dbPrefs);			
 		} catch (SQLException e) {
@@ -137,7 +139,7 @@ public class MyPreferences {
 	}
 	
 	private void loadClassPrefs(String classID) {
-		SQLDataBase prefsDB = openClassPrefs();
+		openClassPrefs();
 		try {
 			dbPrefs = prefsDB.loadTableEntry("CLASS_PREFS", DBPrefNames.class, DBPrefNames.CLASS_ID.toString(), classID);			
 		} catch (SQLException e) {
@@ -148,15 +150,13 @@ public class MyPreferences {
 		prefsDB.disconnect();
 	}
 	
-	private SQLDataBase openClassPrefs() {
-		SQLDataBase prefsDB = new SQLDataBase();
+	private void openClassPrefs() {		
 		try {
 			prefsDB.connect(classDBName);
 		} catch (SQLException e) {
 			SQLErrorMessage(e, "Cannot load");
 			prefsDB = null;
 		}
-		return prefsDB;
 	}
 	
 	public String getTokenDir() {

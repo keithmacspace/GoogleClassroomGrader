@@ -424,12 +424,15 @@ public class GoogleClassroomCommunicator {
 		String id = sheetReader.getSheetInfo().getSpreadsheetId();
 		String sheetName = sheetReader.getSheetInfo().getName();		
 		Sheet current = getSheet(sheetReader.getSheetInfo(), sheetName);
-		int numCols = current.getProperties().getGridProperties().getColumnCount();
-		int numRows = current.getProperties().getGridProperties().getRowCount();
-		String range = sheetName + "!A1:" + getColumnName(numCols) + numRows;
-		ValueRange response = sheetsService.spreadsheets().values().get(id, range).execute();
-		List<List<Object>> values = response.getValues();
-		return new LoadSheetData(values);
+		if (current != null) {
+			int numCols = current.getProperties().getGridProperties().getColumnCount();
+			int numRows = current.getProperties().getGridProperties().getRowCount();
+			String range = sheetName + "!A1:" + getColumnName(numCols) + numRows;
+			ValueRange response = sheetsService.spreadsheets().values().get(id, range).execute();
+			List<List<Object>> values = response.getValues();
+			return new LoadSheetData(values);
+		}
+		return null;
 	}
 	
 	Sheet getSheet(GoogleSheetData sheetData, String sheetName) throws IOException  {
@@ -515,15 +518,13 @@ public class GoogleClassroomCommunicator {
 	public String writeSheet(SheetAccessorInterface sheetWriter) throws IOException {
 		initServices();
 		String id = sheetWriter.getSheetInfo().getSpreadsheetId();
-		String sheetName = sheetWriter.getSheetInfo().getName();
-		
 
 		Sheet current = createIfNeeded(sheetWriter.getSheetInfo());
 		SaveSheetData saveData = sheetWriter.getSheetSaveState();
 		
 		expandIfNeeded(id, current, saveData.getMaxColumn(), saveData.getMaxRow());
 		
-		BatchUpdateValuesRequest body = new BatchUpdateValuesRequest().setValueInputOption("USER_ENTERED").setData(saveData.getSaveState());
+		BatchUpdateValuesRequest body = new BatchUpdateValuesRequest().setValueInputOption(saveData.getValueType()).setData(saveData.getSaveState());
 		BatchUpdateValuesResponse result = sheetsService.spreadsheets().values().batchUpdate(id, body).execute();
 		return result.toString();
 	}
@@ -655,13 +656,13 @@ public class GoogleClassroomCommunicator {
 
 		@Override
 		public SaveSheetData getSheetSaveState() {
-			SaveSheetData saveState = new SaveSheetData("TestStuff2");
+			SaveSheetData saveState = new SaveSheetData(SaveSheetData.ValueType.RAW, "TestStuff2");
 			
 			List<Object> values = new ArrayList<Object>();
 			for (int i = 1; i < 20; i++) {
 				values.add("=SUM(B"  + i + ":Z" + i + ")");
 			}
-			saveState.writeOneColumn(values, 0);
+			saveState.writeFullColumn(values, 0);
 			return saveState;
 			
 		}

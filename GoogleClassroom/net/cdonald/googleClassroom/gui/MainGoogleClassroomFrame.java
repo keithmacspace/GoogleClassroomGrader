@@ -301,7 +301,7 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 	public void dataUpdated() {
 		studentPanel.dataChanged();
 	}
-	
+		
 	@Override
 	public void dataStructureChanged() {
 		studentPanel.structureChanged();
