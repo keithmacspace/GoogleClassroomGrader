@@ -148,24 +148,10 @@ public class StudentWorkCompiler {
 				final String PROGRESS_BAR_NAME = "Compiling";
 				ListenerCoordinator.fire(AddProgressBarListener.class, PROGRESS_BAR_NAME);
 				Set<String> keys = studentBuildInfoMap.keySet();
-				for (String key : keys) {
+				for (String studentID : keys) {
+					CompilerMessage compilerMessage = compile(studentID);
+					publish(compilerMessage);
 					
-					StudentBuildInfo studentBuildInfo = studentBuildInfoMap.get(key);
-					studentBuildInfo.setStudentCompilerMap(null);
-					List<FileData> studentFiles = studentBuildInfo.getStudentFileData();
-					InMemoryJavaCompiler compiler = InMemoryJavaCompiler.newInstance();
-					try {
-						for (FileData file : studentFiles) {
-							compiler.addSource(file.getClassName(), file.getFileContents());
-						}
-						Map<String, Class<?>> compiled = compiler.compileAll();
-						studentBuildInfo.setStudentCompilerMap(compiled);
-						publish(new CompilerMessage(key, true));
-					} catch (CompilationException e) {
-						publish(new CompilerMessage(key, false, e.getLocalizedMessage()));
-					} catch (Exception e2) {
-						publish(new CompilerMessage(key, false, e2.getMessage()));
-					}
 				}
 				ListenerCoordinator.fire(RemoveProgressBarListener.class, PROGRESS_BAR_NAME);
 				return null;
@@ -180,6 +166,25 @@ public class StudentWorkCompiler {
 
 		};
 		compilerWorker.execute();
+	}
+	
+	public CompilerMessage compile(String studentID) {
+		StudentBuildInfo studentBuildInfo = studentBuildInfoMap.get(studentID);
+		studentBuildInfo.setStudentCompilerMap(null);
+		List<FileData> studentFiles = studentBuildInfo.getStudentFileData();
+		InMemoryJavaCompiler compiler = InMemoryJavaCompiler.newInstance();
+		try {
+			for (FileData file : studentFiles) {
+				compiler.addSource(file.getClassName(), file.getFileContents());
+			}
+			Map<String, Class<?>> compiled = compiler.compileAll();
+			studentBuildInfo.setStudentCompilerMap(compiled);			
+		} catch (CompilationException e) {
+			return new CompilerMessage(studentID, false, e.getLocalizedMessage());
+		} catch (Exception e2) {
+			return new CompilerMessage(studentID, false, e2.getMessage());
+		}
+		return new CompilerMessage(studentID, true);
 	}
 	
 
@@ -364,5 +369,14 @@ public class StudentWorkCompiler {
 			return studentBuildInfoMap.get(id).getCompilerMessage();
 		}
 		return null;
+	}
+
+
+	public void recompile(String studentID, String fileName, String fileText) {
+		if (studentBuildInfoMap.containsKey(studentID)) {
+			studentBuildInfoMap.get(studentID).changeFileData(fileName, fileText);
+			compile(studentID);
+		}
+		
 	}
 }

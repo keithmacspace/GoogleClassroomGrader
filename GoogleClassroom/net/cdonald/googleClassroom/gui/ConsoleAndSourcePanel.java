@@ -34,6 +34,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.GetStudentFilesQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetStudentTextAreasQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.PreRunBlockingListener;
+import net.cdonald.googleClassroom.listenerCoordinator.RecompileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.SystemInListener;
 import net.cdonald.googleClassroom.model.ClassroomData;
@@ -54,16 +55,17 @@ public class ConsoleAndSourcePanel extends JPanel {
 	private Map<String, SplitOutErrPanel> rubricPanels;
 	private static Semaphore pauseSemaphore = new Semaphore(1);
 	private JTextArea currentInputHistory;
+	private String currentID;
+	private List<JTextArea> currentSourceTextAreas;
 
 
 	public ConsoleAndSourcePanel() {
-
 		setMinimumSize(new Dimension(400, 400));
-
 		createPopupMenu();
 		createLayout();
 		registerListeners();
 		setVisible(true);
+		currentSourceTextAreas = new ArrayList<JTextArea>();
 		rubricPanels = new HashMap<String, SplitOutErrPanel>();
 
 	}
@@ -73,38 +75,25 @@ public class ConsoleAndSourcePanel extends JPanel {
 		consoleInput.setText("");		
 	}
 
-	// We can select students too quickly and end up creating a mishmash in the
-	// source code
-	// window so use a semaphore to make sure that doesn't happen
 	public void setWindowData(String idToDisplay) {
 		SwingUtilities.invokeLater(new Runnable() {
 
 			@Override
 			public void run() {
+				currentSourceTextAreas.clear();
+				sourceTabbedPane.removeAll();
+				currentID = idToDisplay;
 				if (idToDisplay != null) {
 					List<FileData> fileDataList = (List<FileData>) ListenerCoordinator.runQuery(GetStudentFilesQuery.class, idToDisplay);
-					CompilerMessage compilerMessage = (CompilerMessage)ListenerCoordinator.runQuery(GetCompilerMessageQuery.class, idToDisplay);
-
-					sourceTabbedPane.removeAll();
+					CompilerMessage compilerMessage = (CompilerMessage)ListenerCoordinator.runQuery(GetCompilerMessageQuery.class, idToDisplay);					
 					if (fileDataList != null) {
-						int sourceIndex = 0;
 						for (FileData fileData : fileDataList) {
-							setSourceContents(fileData.getName(), fileData.getFileContents());													
-							sourceIndex++;
+							setSourceContents(fileData.getName(), fileData.getFileContents());
 						}
 						if (compilerMessage != null && compilerMessage.getCompilerMessage() != null && compilerMessage.getCompilerMessage().length() > 2) {
 								setSourceContents("Compiler Message", compilerMessage.getCompilerMessage());
 						}
 
-					} else {
-						for (int i = 0; i < sourceTabbedPane.getTabCount(); i++) {
-							sourceTabbedPane.getComponentAt(i).setVisible(false);
-						}
-					}
-				}
-				else {
-					for (int i = 0; i < sourceTabbedPane.getTabCount(); i++) {
-						sourceTabbedPane.getComponentAt(i).setVisible(false);
 					}
 				}
 				bindStudentAreas(idToDisplay);
@@ -120,7 +109,9 @@ public class ConsoleAndSourcePanel extends JPanel {
 		sourcePanel.setLayout(new BorderLayout());
 		JTextArea sourceArea = new JTextArea();
 		sourceArea.setText(text);
+		sourceArea.setComponentPopupMenu(popupSource);
 		sourcePanel.add(new JScrollPane(sourceArea));
+		currentSourceTextAreas.add(sourceArea);
 		sourceTabbedPane.addTab(title, sourcePanel);
 		sourceArea.setCaretPosition(0);		
 	}
@@ -149,20 +140,23 @@ public class ConsoleAndSourcePanel extends JPanel {
 		popupSource.add(paste);
 		popupInput.add(paste);
 
-		JMenuItem recompile = new JMenuItem("Recompile And Run");
+		JMenuItem recompile = new JMenuItem("Recompile");
 		popupSource.add(recompile);
-//		recompile.addActionListener(new ActionListener() {
-//			@Override
-//			public void actionPerformed(ActionEvent e) {
-//
-//				int currentTab = sourceTabbedPane.getSelectedIndex();
-//				if (currentTab < sourceCodeList.size()) {
-//					ListenerCoordinator.fire(RecompileListener.class, currentFile,
-//							sourceCodeList.get(currentTab).getText());
-//				}
-//
-//			}
-//		});
+		recompile.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				if (currentID != null) {
+					int currentTab = sourceTabbedPane.getSelectedIndex();
+					String fileName = sourceTabbedPane.getTitleAt(currentTab);
+					if (currentTab < currentSourceTextAreas.size()) {
+						JTextArea currentSourceArea = currentSourceTextAreas.get(currentTab);
+						String sourceText = currentSourceArea.getText();
+						ListenerCoordinator.fire(RecompileListener.class, currentID, fileName, sourceText);
+					}
+				}
+
+			}
+		});
 	}
 	private class SplitOutErrPanel {
 		private JPanel out;
@@ -175,8 +169,6 @@ public class ConsoleAndSourcePanel extends JPanel {
 			out.setBorder(BorderFactory.createTitledBorder("System.out"));
 			err.setLayout(new BorderLayout());			
 			err.setBorder(BorderFactory.createTitledBorder("System.err"));
-			out.setComponentPopupMenu(popupDisplays);
-			err.setComponentPopupMenu(popupDisplays);
 			splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, out, err);
 			splitPane.setResizeWeight(0.9);
 		}
@@ -190,8 +182,12 @@ public class ConsoleAndSourcePanel extends JPanel {
 			clearPanel(err);
 		}
 		public void clearAndAdd(StudentConsoleAreas.OutputAreas outputAreas) {
-			clearAndAddPanel(out, outputAreas.getOutputArea());
-			clearAndAddPanel(err, outputAreas.getErrorArea());
+			JTextArea output = outputAreas.getOutputArea();
+			clearAndAddPanel(out, output);
+			JTextArea error = outputAreas.getErrorArea();
+			clearAndAddPanel(err, error);
+			output.setComponentPopupMenu(popupDisplays);
+			error.setComponentPopupMenu(popupDisplays);
 		}
 	}
 
@@ -200,9 +196,6 @@ public class ConsoleAndSourcePanel extends JPanel {
 		setLayout(new BorderLayout());
 
 		consoleInput = new JTextField();
-
-
-
 		consoleInput.setText("");
 		consoleInput.setMinimumSize(new Dimension(20, 25));
 		consoleInput.setPreferredSize(new Dimension(20, 25));
@@ -224,7 +217,7 @@ public class ConsoleAndSourcePanel extends JPanel {
 		inputHistorWrapperPanel.setLayout(new BorderLayout());
 		;
 		inputHistorWrapperPanel.setBorder(BorderFactory.createTitledBorder("Input History"));
-		inputHistorWrapperPanel.setComponentPopupMenu(popupDisplays);
+
 
 
 		JSplitPane ioSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, outputWrapperPanel.getSplitPane(), inputHistorWrapperPanel);
@@ -333,6 +326,7 @@ public class ConsoleAndSourcePanel extends JPanel {
 			outputWrapperPanel.clearAndAdd(currentAreas.getOutputAreas());
 			currentInputHistory = currentAreas.getInputArea();
 			clearAndAddPanel(inputHistorWrapperPanel, currentInputHistory);
+			currentInputHistory.setComponentPopupMenu(popupDisplays);
 			Set<String> rubricKeys = rubricPanels.keySet();
 			for (String rubricName : rubricKeys) {
 				rubricPanels.get(rubricName).clearAndAdd(currentAreas.getRubricArea(rubricName));

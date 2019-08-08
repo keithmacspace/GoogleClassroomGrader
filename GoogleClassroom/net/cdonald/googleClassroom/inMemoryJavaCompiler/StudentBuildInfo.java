@@ -66,4 +66,14 @@ public class StudentBuildInfo {
 	}
 
 
+	public void changeFileData(String fileName, String fileText) {
+		for (int i = 0; i < studentFileData.size(); i++) {
+			if (studentFileData.get(i).getName().contentEquals(fileName)) {
+				studentFileData.get(i).setFileContents(fileText);
+			}
+		}
+		
+	}
+
+
 }

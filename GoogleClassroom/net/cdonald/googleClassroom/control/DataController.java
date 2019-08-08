@@ -46,6 +46,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.LoadGradesListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LoadTestFileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LongQueryListener;
+import net.cdonald.googleClassroom.listenerCoordinator.RecompileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RemoveProgressBarListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricFileSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricSelected;
@@ -336,6 +337,14 @@ public class DataController implements StudentListInfo {
 				prefs.setGradeInfo(fileName, url);
 			}
 		});
+		ListenerCoordinator.addListener(RecompileListener.class, new RecompileListener() {
+			@Override
+			public void fired(String studentID, String fileName, String fileText) {
+				studentWorkCompiler.recompile(studentID, fileName, fileText);
+				updateListener.dataUpdated();
+			}			
+		});
+		
 		
 	}
 
