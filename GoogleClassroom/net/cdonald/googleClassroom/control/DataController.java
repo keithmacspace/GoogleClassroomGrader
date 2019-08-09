@@ -13,7 +13,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.swing.Action;
 import javax.swing.JOptionPane;
+import javax.swing.JPopupMenu;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.KeyStroke;
+import javax.swing.text.DefaultEditorKit;
 
 import net.cdonald.googleClassroom.googleClassroomInterface.AssignmentFetcher;
 import net.cdonald.googleClassroom.googleClassroomInterface.CourseFetcher;
@@ -50,10 +56,11 @@ import net.cdonald.googleClassroom.listenerCoordinator.RecompileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RemoveProgressBarListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricFileSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricSelected;
+import net.cdonald.googleClassroom.listenerCoordinator.RunJPLAGListener;
 import net.cdonald.googleClassroom.listenerCoordinator.SaveRubricListener;
 import net.cdonald.googleClassroom.listenerCoordinator.SetFileDirListener;
+import net.cdonald.googleClassroom.listenerCoordinator.SetInfoLabelListener;
 import net.cdonald.googleClassroom.listenerCoordinator.SetRunRubricEnableStateListener;
-import net.cdonald.googleClassroom.listenerCoordinator.SetRunningLabelListener;
 import net.cdonald.googleClassroom.listenerCoordinator.SetWorkingDirListener;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentListInfo;
 import net.cdonald.googleClassroom.model.ClassroomData;
@@ -61,6 +68,7 @@ import net.cdonald.googleClassroom.model.CompileErrorListener;
 import net.cdonald.googleClassroom.model.ConsoleData;
 import net.cdonald.googleClassroom.model.FileData;
 import net.cdonald.googleClassroom.model.GoogleSheetData;
+import net.cdonald.googleClassroom.model.JPLAGInvoker;
 import net.cdonald.googleClassroom.model.MyPreferences;
 import net.cdonald.googleClassroom.model.Rubric;
 import net.cdonald.googleClassroom.model.RubricEntry;
@@ -120,7 +128,7 @@ public class DataController implements StudentListInfo {
 		String gradeURL = prefs.getGradeURL();
 		String gradeFileName = prefs.getGradeFile();
 		if (gradeURL != null) {
-			ListenerCoordinator.fire(GradeFileSelectedListener.class, gradeURL, gradeFileName);
+			ListenerCoordinator.fire(GradeFileSelectedListener.class, gradeURL, gradeFileName);			
 		}
 	}
 	
@@ -335,6 +343,7 @@ public class DataController implements StudentListInfo {
 				String urlID = googleClassroom.googleSheetID(url);
 				gradeURL = new ClassroomData(url, urlID);
 				prefs.setGradeInfo(fileName, url);
+				ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.GRADE_FILE, fileName);
 			}
 		});
 		ListenerCoordinator.addListener(RecompileListener.class, new RecompileListener() {
@@ -345,6 +354,12 @@ public class DataController implements StudentListInfo {
 			}			
 		});
 		
+		ListenerCoordinator.addListener(RunJPLAGListener.class, new RunJPLAGListener() {
+			@Override
+			public void fired() {
+				runJPLAG();				
+			}			
+		});
 		
 	}
 
@@ -424,10 +439,10 @@ public class DataController implements StudentListInfo {
 			consoleData.runStarted(id, "");
 			StudentData student = studentMap.get(id);
 			if (student != null) {
-				ListenerCoordinator.fire(SetRunningLabelListener.class, "Running: " + student.getFirstName() + " " + student.getName());
+				ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.RUNNING, "Running: " + student.getFirstName() + " " + student.getName());
 			}
 			studentWorkCompiler.run(id);
-			ListenerCoordinator.fire(SetRunningLabelListener.class, "");
+			ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.RUNNING, "");
 		}
 	}
 	
@@ -449,7 +464,7 @@ public class DataController implements StudentListInfo {
 				updateListener.dataUpdated();
 			}			
 		}
-		ListenerCoordinator.fire(SetRunningLabelListener.class, "");
+		ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.RUNNING, "");
 	}
 	
 	
@@ -698,15 +713,18 @@ public class DataController implements StudentListInfo {
 	}
 	
 	public void loadGrades() {
-		LoadGrades grades = new LoadGrades(new GoogleSheetData(rubric.getName(), gradeURL.getId(), rubric.getName()), rubric, studentData);
-		try {
-			ListenerCoordinator.fire(AddProgressBarListener.class, "Loading Grades");
-			grades.loadData(googleClassroom, false);
-			updateListener.dataUpdated();
-		} catch (IOException e) {
+		if (gradeURL != null) {
+			LoadGrades grades = new LoadGrades(new GoogleSheetData(rubric.getName(), gradeURL.getId(), rubric.getName()), rubric, studentData);
 
+			try {
+				ListenerCoordinator.fire(AddProgressBarListener.class, "Loading Grades");
+				grades.loadData(googleClassroom, false);
+				updateListener.dataUpdated();
+			} catch (IOException e) {
+
+			}
+			ListenerCoordinator.fire(RemoveProgressBarListener.class, "Loading Grades");
 		}
-		ListenerCoordinator.fire(RemoveProgressBarListener.class, "Loading Grades");
 		
 	}
 	
@@ -717,5 +735,34 @@ public class DataController implements StudentListInfo {
 			JOptionPane.showMessageDialog(null, "Error saving grades to google sheet " + e.getMessage(),  "Save problem",
 					JOptionPane.ERROR_MESSAGE);
 		}
+	}
+	
+	public void runJPLAG() {
+		ListenerCoordinator.fire(AddProgressBarListener.class, "Running JPLAG");
+		Map<String, List<FileData>> fileMap = new HashMap<String, List<FileData>>();
+		for (StudentData student : studentData) {
+			String id = student.getId();
+			List<FileData> files = studentWorkCompiler.getSourceCode(id);
+			if (files != null) {
+				fileMap.put(id, files);
+			}
+		}		
+		String outputFile = JPLAGInvoker.invokeJPLAG(fileMap, studentData, prefs.getClassroomDir());
+		JTextArea message = new JTextArea(3,100);
+		message.setText("Attempting to open browser with results.\nIf it does not open, manually copy this path into your browser:\n" + outputFile);
+		message.setWrapStyleWord(true);
+		message.setLineWrap(true);
+		message.setCaretPosition(0);
+		message.setEditable(false);
+		JPopupMenu popupSource = new JPopupMenu();
+		Action copy = new DefaultEditorKit.CopyAction();
+		copy.putValue(Action.NAME, "Copy");
+		copy.putValue(Action.ACCELERATOR_KEY, KeyStroke.getKeyStroke("control C"));
+		popupSource.add(copy);
+		message.setComponentPopupMenu(popupSource);
+		JOptionPane.showMessageDialog(null, new JScrollPane(message),  "Open Results",
+				JOptionPane.INFORMATION_MESSAGE);
+		ListenerCoordinator.fire(RemoveProgressBarListener.class, "Running JPLAG");
+				
 	}
 }

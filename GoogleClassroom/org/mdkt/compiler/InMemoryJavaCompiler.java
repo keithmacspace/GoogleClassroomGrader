@@ -19,7 +19,7 @@ public class InMemoryJavaCompiler {
 	}
 
 	private InMemoryJavaCompiler() {
-		this.javac = ToolProvider.getSystemJavaCompiler();
+		this.javac = javax.tools.ToolProvider.getSystemJavaCompiler();
 		this.classLoader = new DynamicClassLoader(ClassLoader.getSystemClassLoader());
 	}
 

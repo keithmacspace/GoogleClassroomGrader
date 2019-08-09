@@ -12,22 +12,28 @@ import net.cdonald.googleClassroom.listenerCoordinator.AddProgressBarListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.RemoveProgressBarListener;
 import net.cdonald.googleClassroom.listenerCoordinator.SetInfoLabelListener;
-import net.cdonald.googleClassroom.listenerCoordinator.SetRunningLabelListener;
+
 
 public class InfoPanel extends JPanel {
 	private Map<String, JProgressBar> progressBars;
-	private JLabel infoLabel;
-	private JLabel runningLabel;
+	private JLabel [] infoLabels;
+	private String [] defaultStrings;
 	private final String INFO_STRING = "                                                                      ";
 	private final String RUNNING_STRING = "                           ";
+	private final String GRADE_FILE_STRING = "                          ";
 	public InfoPanel() {
 		super();
+		infoLabels = new JLabel[SetInfoLabelListener.LabelTypes.values().length];
+		defaultStrings = new String[infoLabels.length];		
 		progressBars = new HashMap<String, JProgressBar>();
-		infoLabel = new JLabel(INFO_STRING);
-		runningLabel = new JLabel(RUNNING_STRING);
-		setLayout(new FlowLayout());
-		add(infoLabel);
-		add(runningLabel);
+		defaultStrings[SetInfoLabelListener.LabelTypes.GRADE_FILE.ordinal()] = GRADE_FILE_STRING;
+		defaultStrings[SetInfoLabelListener.LabelTypes.RUNNING.ordinal()] = RUNNING_STRING;
+		defaultStrings[SetInfoLabelListener.LabelTypes.RUBRIC_INFO.ordinal()] = INFO_STRING;
+		setLayout(new FlowLayout(FlowLayout.LEFT));
+		for (int i = 0; i < defaultStrings.length; i++) {
+			infoLabels[i] = new JLabel(defaultStrings[i]);
+			add(infoLabels[i]);
+		}
 		ListenerCoordinator.addListener(AddProgressBarListener.class, new AddProgressBarListener() {
 			@Override
 			public void fired(String progressBarName) {
@@ -54,28 +60,23 @@ public class InfoPanel extends JPanel {
 			}
 		});
 		
-		ListenerCoordinator.addBlockingListener(SetRunningLabelListener.class, new SetRunningLabelListener() {
-			@Override
-			public void fired(String label) {				
-				String text = label;
-				if (text.length() < RUNNING_STRING.length()) {
-					text += RUNNING_STRING.substring(text.length());
-				}
-				runningLabel.setText(text);
-			}
-			
-		});
+
 		ListenerCoordinator.addBlockingListener(SetInfoLabelListener.class, new SetInfoLabelListener() {
 			@Override
-			public void fired(String label) {				
-				String text = label;
-				if (text.length() < INFO_STRING.length()) {
-					text += INFO_STRING.substring(text.length());
+			public void fired(SetInfoLabelListener.LabelTypes labelType, String text) {
+				JLabel label = infoLabels[labelType.ordinal()];
+				String mergeText = defaultStrings[labelType.ordinal()];
+				if (labelType == SetInfoLabelListener.LabelTypes.GRADE_FILE) {
+					text = "Grade File: " + text;
 				}
-				runningLabel.setText(text);
-			}
-			
+				if (text.length() < mergeText.length()) {
+					text += mergeText.substring(text.length());
+				}
+				label.setText(text);
+			}			
 		});
+
+		
 	}
 
 }

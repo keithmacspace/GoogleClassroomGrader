@@ -13,8 +13,11 @@ import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
+import javax.swing.event.ChangeEvent;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
+import javax.swing.event.TableColumnModelEvent;
+import javax.swing.event.TableColumnModelListener;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
@@ -22,6 +25,7 @@ import javax.swing.table.TableColumnModel;
 import net.cdonald.googleClassroom.googleClassroomInterface.SaveGrades;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
+import net.cdonald.googleClassroom.listenerCoordinator.SetInfoLabelListener;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentListInfo;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentSelectedListener;
 import net.cdonald.googleClassroom.model.FileData;
@@ -104,15 +108,43 @@ public class StudentPanel extends JPanel {
 				ListSelectionModel lsm = (ListSelectionModel)e.getSource();
 				if (lsm.isSelectionEmpty() == false) {
 					int selectedRow = lsm.getMinSelectionIndex();
+					
 					Object student = studentModel.getValueAt(selectedRow, StudentListInfo.LAST_NAME_COLUMN);
 					String studentId = null;
 					if (student != null) {
 						studentId = ((StudentData)student).getId();
 					}
-					ListenerCoordinator.fire(StudentSelectedListener.class, studentId);					
-				}							
+					ListenerCoordinator.fire(StudentSelectedListener.class, studentId);
+				}				
 			}
-			
+		});
+		
+		studentTable.getColumnModel().addColumnModelListener(new TableColumnModelListener() {
+			@Override
+			public void columnAdded(TableColumnModelEvent e) {
+			}
+
+			@Override
+			public void columnRemoved(TableColumnModelEvent e) {
+			}
+
+			@Override
+			public void columnMoved(TableColumnModelEvent e) {
+			}
+
+			@Override
+			public void columnMarginChanged(ChangeEvent e) {
+			}
+
+			@Override
+			public void columnSelectionChanged(ListSelectionEvent e) {
+				
+				ListSelectionModel lsm = (ListSelectionModel)e.getSource();
+				if (lsm.isSelectionEmpty() == false) {
+					int selectedColumn = lsm.getMaxSelectionIndex();					
+					ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.RUBRIC_INFO, studentListInfo.getColumnTip(selectedColumn));
+				}
+			}			
 		});
 		// studentList.setRowHeight(25);
 		add(new JScrollPane(studentTable), BorderLayout.CENTER);

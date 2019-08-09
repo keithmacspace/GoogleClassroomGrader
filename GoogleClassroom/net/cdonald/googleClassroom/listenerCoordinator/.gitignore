@@ -72,3 +72,5 @@
 /ChooseGradeFileListener.class
 /GradeFileSelectedListener.class
 /LoadGradesListener.class
+/RunJPLAGListener.class
+/SetInfoLabelListener$LabelTypes.class

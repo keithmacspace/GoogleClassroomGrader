@@ -280,14 +280,12 @@ public class StudentWorkCompiler {
 		}
 		
 		public Object getResult() {
-			if (result == null) {
-				return (Double)(0.0);
-			}
 			return result;
 		}
 		@Override
 		public void run() {
-				try {					
+				try {
+					result = null;
 					preventExit.install();
 					result = method.invoke(null, args);					
 				} catch (IllegalAccessException e) {

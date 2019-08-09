@@ -207,14 +207,20 @@ public class RubricEntry {
 
 	void runAutomation(String studentName, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData) {
 		if (automation != null) {
-			double score = 0.0;
-			score = automation.runAutomation(studentName, message, compiler, consoleData);
-			score *= value;
-			// Just truncate below two digits of precision
-			score *= 100.0;
-			score = (int)score;
-			score /= 100.0;						
-			studentScores.put(message.getStudentId(),  score);
+			
+			Double result = automation.runAutomation(studentName, message, compiler, consoleData);
+			if (result != null) {
+				double score = result;
+				score *= value;
+				// Just truncate below two digits of precision
+				score *= 100.0;
+				score = (int)score;
+				score /= 100.0;						
+				studentScores.put(message.getStudentId(),  score);
+			}
+			else {
+				studentScores.put(message.getStudentId(),  null);
+			}
 
 		}
 		

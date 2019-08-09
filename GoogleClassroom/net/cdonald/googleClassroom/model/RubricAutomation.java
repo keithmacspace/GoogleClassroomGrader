@@ -19,7 +19,7 @@ public abstract class RubricAutomation {
 	}
 
 	
-	public double runAutomation(String studentName, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData) {		
+	public Double runAutomation(String studentName, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData) {		
 		return runAutomation_(studentName, message, compiler, consoleData);		
 	}
 	
@@ -51,7 +51,7 @@ public abstract class RubricAutomation {
 
 	public abstract int getNumAutomationColumns();
 
-	protected abstract double runAutomation_(String studentName, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData);
+	protected abstract Double runAutomation_(String studentName, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData);
 	protected abstract void loadAutomationColumns(String entryName, Map<String, List<List<Object>>> columnData);
 	protected abstract void saveAutomationColumns(String entryName, List<List<Object>> columnData, Map<String, List<Object>> fileData);
 	public abstract RubricAutomation newCopy();

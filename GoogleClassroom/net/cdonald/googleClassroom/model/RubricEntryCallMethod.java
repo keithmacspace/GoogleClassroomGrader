@@ -65,7 +65,7 @@ public class RubricEntryCallMethod extends RubricAutomation {
 		this.outputs.add(output);
 	}
 
-	protected double runAutomation_(String studentName, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData) {
+	protected Double runAutomation_(String studentName, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData) {
 		int runCount = 0;
 		int passCount = 0;
 		if (message.isSuccessful()) {
@@ -92,6 +92,9 @@ public class RubricEntryCallMethod extends RubricAutomation {
 
 				// here is where we translate the individual param types into that actual type
 				Object results = compiler.runSpecificMethod(!checkSystemOut, methodToCall, message, paramTypes, args);
+				if (results == null) {
+					return null;
+				}
 				if (checkSystemOut) {
 					results = getSysOutText(message.getStudentId());
 				}
@@ -110,9 +113,9 @@ public class RubricEntryCallMethod extends RubricAutomation {
 			}
 		}		
 		if (runCount > 0) {
-			return (double) passCount / (double) runCount;
+			return (Double)((double) passCount / (double) runCount);
 		}
-		return 0.0;
+		return null;
 	}
 
 	public Object convertStringToObject(String value, Class<?> typeToConvertTo) {

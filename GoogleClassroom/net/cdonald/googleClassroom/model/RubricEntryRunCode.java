@@ -10,7 +10,8 @@ import net.cdonald.googleClassroom.gui.UpdateSourceInterface;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.StudentWorkCompiler;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
-import net.cdonald.googleClassroom.listenerCoordinator.SetRunningLabelListener;
+import net.cdonald.googleClassroom.listenerCoordinator.SetInfoLabelListener;
+
 
 public class RubricEntryRunCode extends  RubricAutomation implements UpdateSourceInterface{
 	private String methodToCall;
@@ -70,15 +71,15 @@ public class RubricEntryRunCode extends  RubricAutomation implements UpdateSourc
 		}
 	}
 	
-	protected double runAutomation_(String studentName, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData) {
+	protected Double runAutomation_(String studentName, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData) {
 		if (message.isSuccessful()) {	
-			ListenerCoordinator.fire(SetRunningLabelListener.class, "Running " + this.getOwnerName() + " for " + studentName);
+			ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.RUNNING, "Running " + this.getOwnerName() + " for " + studentName);
 			String studentId = message.getStudentId();			
 			String completeMethodName = compiler.getCompleteMethodName(studentId, methodBeingChecked);
 			if (completeMethodName == null) {
 				String error =  "no method named " + methodBeingChecked + " in source";
 				addOutput(studentId, error);
-				ListenerCoordinator.fire(SetRunningLabelListener.class, "");
+				ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.RUNNING, "");
 				System.out.println("\0");
 			}			
 			else {
@@ -99,10 +100,13 @@ public class RubricEntryRunCode extends  RubricAutomation implements UpdateSourc
 					returnValue = compiler.compileAndRun(true,  rubricFiles, methodToCall, params, args);				
 				}
 				catch (Exception e) {
-					ListenerCoordinator.fire(SetRunningLabelListener.class, "");
+					ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.RUNNING, "");
 					addOutput(studentId, e.getMessage());					
 					System.out.println("\0");					
-					return 0.0;
+					return null;
+				}
+				if (returnValue == null) {
+					return null;
 				}
 				double value = 0.0;
 				if (returnValue != null) {
@@ -110,11 +114,11 @@ public class RubricEntryRunCode extends  RubricAutomation implements UpdateSourc
 				}				
 				waitForTestFinish();
 				
-				ListenerCoordinator.fire(SetRunningLabelListener.class, "");
+				ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.RUNNING, "");
 				return value;
 			}
 		}
-		return 0.0;
+		return null;
 	}
 	
 	String replaceMethodName(String completeMethodName, String sourceContents) {		

@@ -29,6 +29,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.LoadTestFileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LongQueryListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricFileValidListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricSelected;
+import net.cdonald.googleClassroom.listenerCoordinator.RunJPLAGListener;
 import net.cdonald.googleClassroom.listenerCoordinator.SaveGradesListener;
 import net.cdonald.googleClassroom.listenerCoordinator.SetWorkingDirListener;
 import net.cdonald.googleClassroom.model.ClassroomData;
@@ -41,6 +42,7 @@ public class MainMenu extends JMenuBar {
 	private JMenu help;
 	private JMenu edit;
 	private JMenu run;
+	private JMenu jplag;
 	private JMenu openClassroom;
 	private JMenuItem newRubric;
 	private JMenuItem editRubric;
@@ -55,12 +57,14 @@ public class MainMenu extends JMenuBar {
 		this.owner = owner;
 		file = new JMenu("File");
 		rubric = new JMenu("Rubrics");
+		jplag = new JMenu("JPLAG");
 		edit = new JMenu("Edit");
 		run = new JMenu("Run");
 		help = new JMenu("Help");
 		
 		fillFileMenu();
 		fillRubricMenu();
+		fillJPLAGMenu();
 		fillEditMenu();
 		fillRunMenu();
 		fillHelpMenu();		
@@ -170,8 +174,6 @@ public class MainMenu extends JMenuBar {
 	}
 	
 	private void fillRubricMenu() {
-
-		
 		JMenuItem loadTemporaryFile = new JMenuItem("Load File To Test Rubric...");
 		newRubric = new JMenuItem("New Rubric...");
 		editRubric = new JMenuItem("Edit Rubric...");
@@ -243,9 +245,19 @@ public class MainMenu extends JMenuBar {
 				}
 			}
 			
-		});
-
+		});	
+	}
 	
+	public void fillJPLAGMenu() {
+		JMenuItem runJPLAG = new JMenuItem("Run JPLAG...");
+		jplag.add(runJPLAG);
+		add(jplag);
+		runJPLAG.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				ListenerCoordinator.fire(RunJPLAGListener.class);
+			}
+		});
 	}
 	
 	public void addClass(ClassroomData classroom) {

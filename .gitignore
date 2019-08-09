@@ -3,3 +3,4 @@ tokens/
 *.json
 /..gitignore.un~
 /.gitignore~
+/GoogleClassroom/hs_err_pid10564.log
