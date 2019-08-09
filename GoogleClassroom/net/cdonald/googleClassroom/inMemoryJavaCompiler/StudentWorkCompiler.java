@@ -373,7 +373,8 @@ public class StudentWorkCompiler {
 	public void recompile(String studentID, String fileName, String fileText) {
 		if (studentBuildInfoMap.containsKey(studentID)) {
 			studentBuildInfoMap.get(studentID).changeFileData(fileName, fileText);
-			compile(studentID);
+			CompilerMessage message = compile(studentID); 
+			studentBuildInfoMap.get(studentID).setCompilerMessage(message);
 		}
 		
 	}

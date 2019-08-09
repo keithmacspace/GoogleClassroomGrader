@@ -29,6 +29,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.LaunchNewRubricDialogList
 import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricEditorDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricFileDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
+import net.cdonald.googleClassroom.listenerCoordinator.RecompileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RemoveProgressBarListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricFileSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RunRubricSelected;
@@ -224,6 +225,15 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 			@Override
 			public void fired() {
 				importExportDialog.setVisible("Select Grades File", GradeFileSelectedListener.class, dataController.getGradeFileURL());			
+			}			
+		});
+		
+		ListenerCoordinator.addListener(RecompileListener.class, new RecompileListener() {
+			@Override
+			public void fired(String studentID, String fileName, String fileText) {
+				dataController.recompile(studentID, fileName, fileText);
+				dataUpdated();
+				consoleAndSourcePanel.setWindowData(studentID);
 			}			
 		});
 	}

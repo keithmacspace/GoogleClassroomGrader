@@ -346,13 +346,7 @@ public class DataController implements StudentListInfo {
 				ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.GRADE_FILE, fileName);
 			}
 		});
-		ListenerCoordinator.addListener(RecompileListener.class, new RecompileListener() {
-			@Override
-			public void fired(String studentID, String fileName, String fileText) {
-				studentWorkCompiler.recompile(studentID, fileName, fileText);
-				updateListener.dataUpdated();
-			}			
-		});
+
 		
 		ListenerCoordinator.addListener(RunJPLAGListener.class, new RunJPLAGListener() {
 			@Override
@@ -764,5 +758,10 @@ public class DataController implements StudentListInfo {
 				JOptionPane.INFORMATION_MESSAGE);
 		ListenerCoordinator.fire(RemoveProgressBarListener.class, "Running JPLAG");
 				
+	}
+
+	public void recompile(String studentID, String fileName, String fileText) {
+		studentWorkCompiler.recompile(studentID, fileName, fileText);
+		
 	}
 }
