@@ -31,6 +31,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricFileDialogLis
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.RecompileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RemoveProgressBarListener;
+import net.cdonald.googleClassroom.listenerCoordinator.RemoveSourceListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricFileSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RunRubricSelected;
 import net.cdonald.googleClassroom.listenerCoordinator.RunSelected;
@@ -236,6 +237,15 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 				consoleAndSourcePanel.setWindowData(studentID);
 			}			
 		});
+		ListenerCoordinator.addListener(RemoveSourceListener.class, new RemoveSourceListener() {
+			@Override
+			public void fired(String studentID, String fileName) {
+				dataController.removeSource(studentID, fileName);
+				dataUpdated();
+				consoleAndSourcePanel.setWindowData(studentID);
+			}			
+		});
+	
 	}
 	
 	private void editRubric(Rubric rubricToModify) {

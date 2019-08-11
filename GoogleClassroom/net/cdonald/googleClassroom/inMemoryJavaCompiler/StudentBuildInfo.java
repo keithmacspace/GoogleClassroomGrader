@@ -76,4 +76,16 @@ public class StudentBuildInfo {
 	}
 
 
+	public void removeSource(String fileName) {
+		for (int i = 0; i < studentFileData.size(); i++) {
+			if (studentFileData.get(i).getName().contentEquals(fileName)) {
+				studentFileData.remove(i);
+				break;
+			}
+		}
+ 
+		
+	}
+
+
 }

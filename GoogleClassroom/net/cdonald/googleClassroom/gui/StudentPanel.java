@@ -4,6 +4,7 @@ import java.awt.BorderLayout;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
 import java.awt.event.MouseEvent;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,7 +40,7 @@ public class StudentPanel extends JPanel {
 	private JTable studentTable;
 	private StudentListRenderer studentListRenderer;	
 	private VerticalTableHeaderCellRenderer verticalHeaderRenderer;
-	private boolean resizing;
+	private volatile boolean resizing;
 	private JPopupMenu rightClickPopup;
 
 	public StudentPanel(StudentListInfo studentListInfo) {
@@ -88,7 +89,7 @@ public class StudentPanel extends JPanel {
 			public void componentMoved(ComponentEvent e) {				
 			}
 
-			@Override
+			@Override 
 			public void componentShown(ComponentEvent e) {				
 			}
 
@@ -157,26 +158,32 @@ public class StudentPanel extends JPanel {
 		if (resizing) {
 			return;
 		}
-		resizing = true;
-	    // Use TableColumnModel.getTotalColumnWidth() if your table is included in a JScrollPane
-	    int width = studentTable.getWidth();
-	    TableColumn column;
 
-	    TableColumnModel jTableColumnModel = studentTable.getColumnModel();	    
-	    int numCols = jTableColumnModel.getColumnCount();
-	    final int FIXED_PREFERRED_SIZE = 30;
-	    width = width - (FIXED_PREFERRED_SIZE * (numCols - StudentListInfo.COMPILER_COLUMN));
-	    width /= 3;
-	    for (int i = 0; i < numCols; i++) {
-	        column = jTableColumnModel.getColumn(i);
-	        int preferredWidth = FIXED_PREFERRED_SIZE;
-	        if (i < StudentListInfo.COMPILER_COLUMN) {
-	        	preferredWidth = width;
-	        }
-	        column.setPreferredWidth(preferredWidth);
-	    }
-	    setHeaderRenderer();
-	    resizing = false;
+			SwingUtilities.invokeLater(new Runnable() {
+				public void run() {
+					resizing = true;
+					// Use TableColumnModel.getTotalColumnWidth() if your table is included in a JScrollPane
+					int width = studentTable.getWidth();
+					TableColumn column;
+
+					TableColumnModel jTableColumnModel = studentTable.getColumnModel();	    
+					int numCols = jTableColumnModel.getColumnCount();
+					final int FIXED_PREFERRED_SIZE = 30;
+					width = width - (FIXED_PREFERRED_SIZE * (numCols - StudentListInfo.COMPILER_COLUMN));
+					width /= 3;
+					for (int i = 0; i < numCols; i++) {
+						column = jTableColumnModel.getColumn(i);
+						int preferredWidth = FIXED_PREFERRED_SIZE;
+						if (i < StudentListInfo.COMPILER_COLUMN) {
+							preferredWidth = width;
+						}
+						column.setPreferredWidth(preferredWidth);
+					}
+					setHeaderRenderer();
+					resizing = false;
+				}
+			});
+		
 	}
 	
 	private void setHeaderRenderer() {
@@ -237,10 +244,10 @@ public class StudentPanel extends JPanel {
 	}
 	
 	public void structureChanged() {
-		studentModel.structureChanged();
 		SwingUtilities.invokeLater(new Runnable() {
 			@Override
 			public void run() {
+				studentModel.structureChanged();
 				setHeaderRenderer();
 				revalidate();
 				resizeColumns();
@@ -249,23 +256,29 @@ public class StudentPanel extends JPanel {
 	}
 	
 	public void addStudentGrades(SaveGrades saveGrades, Rubric rubric) {
-		for (int i = 0; i < studentModel.getRowCount(); i++) {
-			if (studentTable.getCellEditor() != null) {
-				studentTable.getCellEditor().stopCellEditing();
-			}
-			StudentData studentInfo = (StudentData)studentModel.getValueAt(i, StudentListInfo.LAST_NAME_COLUMN);
-			saveGrades.addStudentColumn(studentInfo, StudentListInfo.defaultColumnNames[StudentListInfo.LAST_NAME_COLUMN], studentInfo.getName());
-			saveGrades.addStudentColumn(studentInfo, StudentListInfo.defaultColumnNames[StudentListInfo.FIRST_NAME_COLUMN], studentInfo.getFirstName());
-			String date = (String)studentModel.getValueAt(i, StudentListInfo.DATE_COLUMN);
-			saveGrades.addStudentColumn(studentInfo, StudentListInfo.defaultColumnNames[StudentListInfo.DATE_COLUMN], date);
-			for (RubricEntry entry : rubric.getEntries()) {
-				Double grade = entry.getStudentDoubleValue(studentInfo.getId());
-				if (grade != null) {
-					saveGrades.addStudentColumn(studentInfo, entry.getName(), grade);
+
+		SwingUtilities.invokeLater(new Runnable() {
+			public void run() {
+
+				for (int i = 0; i < studentModel.getRowCount(); i++) {
+					if (studentTable.getCellEditor() != null) {
+						studentTable.getCellEditor().stopCellEditing();
+					}
+					StudentData studentInfo = (StudentData)studentModel.getValueAt(i, StudentListInfo.LAST_NAME_COLUMN);
+					saveGrades.addStudentColumn(studentInfo, StudentListInfo.defaultColumnNames[StudentListInfo.LAST_NAME_COLUMN], studentInfo.getName());
+					saveGrades.addStudentColumn(studentInfo, StudentListInfo.defaultColumnNames[StudentListInfo.FIRST_NAME_COLUMN], studentInfo.getFirstName());
+					String date = (String)studentModel.getValueAt(i, StudentListInfo.DATE_COLUMN);
+					saveGrades.addStudentColumn(studentInfo, StudentListInfo.defaultColumnNames[StudentListInfo.DATE_COLUMN], date);
+					for (RubricEntry entry : rubric.getEntries()) {
+						Double grade = entry.getStudentDoubleValue(studentInfo.getId());
+						if (grade != null) {
+							saveGrades.addStudentColumn(studentInfo, entry.getName(), grade);
+						}
+					}
 				}
 			}
-		}
+		});
+
 	}
-	
 
 }

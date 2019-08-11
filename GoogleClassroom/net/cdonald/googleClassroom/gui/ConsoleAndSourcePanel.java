@@ -24,7 +24,11 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import javax.swing.text.BadLocationException;
 import javax.swing.text.DefaultEditorKit;
+import javax.swing.text.Document;
 
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 import net.cdonald.googleClassroom.listenerCoordinator.AddRubricTabsListener;
@@ -35,6 +39,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.GetStudentTextAreasQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.PreRunBlockingListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RecompileListener;
+import net.cdonald.googleClassroom.listenerCoordinator.RemoveSourceListener;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.SystemInListener;
 import net.cdonald.googleClassroom.model.ClassroomData;
@@ -46,7 +51,8 @@ public class ConsoleAndSourcePanel extends JPanel {
 	private JTabbedPane overallTabbedPane;
 	private JTabbedPane sourceTabbedPane;
 	private JTabbedPane rubricTabbedPane;
-	private JTextField consoleInput;
+	//private JTextField consoleInput;
+	private JTextArea consoleInput;
 	private JPopupMenu popupSource;
 	private JPopupMenu popupInput;
 	private JPopupMenu popupDisplays;
@@ -76,8 +82,7 @@ public class ConsoleAndSourcePanel extends JPanel {
 	}
 
 	public void setWindowData(String idToDisplay) {
-		SwingUtilities.invokeLater(new Runnable() {
-
+		SwingUtilities.invokeLater(new Runnable() {			
 			@Override
 			public void run() {
 				currentSourceTextAreas.clear();
@@ -142,6 +147,9 @@ public class ConsoleAndSourcePanel extends JPanel {
 
 		JMenuItem recompile = new JMenuItem("Recompile");
 		popupSource.add(recompile);
+		
+		JMenuItem removeSource = new JMenuItem("Remove Source");
+		popupSource.add(removeSource);
 		recompile.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -152,6 +160,20 @@ public class ConsoleAndSourcePanel extends JPanel {
 						JTextArea currentSourceArea = currentSourceTextAreas.get(currentTab);
 						String sourceText = currentSourceArea.getText();
 						ListenerCoordinator.fire(RecompileListener.class, currentID, fileName, sourceText);
+					}
+				}
+
+			}
+		});
+		
+		removeSource.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				if (currentID != null) {
+					int currentTab = sourceTabbedPane.getSelectedIndex();
+					String fileName = sourceTabbedPane.getTitleAt(currentTab);
+					if (currentTab < currentSourceTextAreas.size()) {
+						ListenerCoordinator.fire(RemoveSourceListener.class, currentID, fileName);
 					}
 				}
 
@@ -195,7 +217,7 @@ public class ConsoleAndSourcePanel extends JPanel {
 		setSize(800, 500);
 		setLayout(new BorderLayout());
 
-		consoleInput = new JTextField();
+		consoleInput = new JTextArea();//new JTextField();
 		consoleInput.setText("");
 		consoleInput.setMinimumSize(new Dimension(20, 25));
 		consoleInput.setPreferredSize(new Dimension(20, 25));
@@ -237,16 +259,42 @@ public class ConsoleAndSourcePanel extends JPanel {
 		overallTabbedPane.addTab("Rubric", rubricTabbedPane);
 		add(overallTabbedPane, BorderLayout.CENTER);
 
-		consoleInput.addActionListener(new ActionListener() {
+		consoleInput.getDocument().addDocumentListener(new DocumentListener() {
 
 			@Override
-			public void actionPerformed(ActionEvent e) {
-				String text = consoleInput.getText();
-				if (currentInputHistory != null) {
-					currentInputHistory.setText(text);
-				}
-				consoleInput.setText("");
-				ListenerCoordinator.fire(SystemInListener.class, text);
+			public void insertUpdate(DocumentEvent e) {
+				if (e.getType() == DocumentEvent.EventType.CHANGE || e.getType() == DocumentEvent.EventType.INSERT) {
+					String text = consoleInput.getText();
+					DebugLogDialog.appendln(text);
+					int returnIndex = text.indexOf("\n");
+					if (returnIndex != -1) {
+						String inputText = text.substring(0, returnIndex);
+						DebugLogDialog.appendln(inputText);
+						ListenerCoordinator.fire(SystemInListener.class, inputText);
+						SwingUtilities.invokeLater(new Runnable() {
+							public void run() {								
+								if (text.length() > returnIndex + 1) {
+									consoleInput.setText(text.substring(returnIndex + 1));
+								}
+								else {
+									consoleInput.setText("");
+								}
+							}
+						});
+					}					
+				}				
+			}
+
+			@Override
+			public void removeUpdate(DocumentEvent e) {
+				
+				
+			}
+
+			@Override
+			public void changedUpdate(DocumentEvent e) {
+				// TODO Auto-generated method stub
+				
 			}
 		});
 

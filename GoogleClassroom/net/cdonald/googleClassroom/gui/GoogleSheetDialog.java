@@ -60,23 +60,7 @@ public class GoogleSheetDialog extends JDialog {
 		add(controlPanel, BorderLayout.CENTER);
 		add(buttonsPanel, BorderLayout.EAST);
 		
-		url.getDocument().addDocumentListener(new DocumentListener() {
-
-			@Override
-			public void insertUpdate(DocumentEvent e) {
-			
-			}
-			@Override
-			public void removeUpdate(DocumentEvent e) {
-			}
-
-			@Override
-			public void changedUpdate(DocumentEvent e) {
-			}			
-		});
-		
-		
-		
+	
 		okButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {

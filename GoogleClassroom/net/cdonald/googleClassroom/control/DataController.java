@@ -54,6 +54,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.LoadTestFileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LongQueryListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RecompileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RemoveProgressBarListener;
+import net.cdonald.googleClassroom.listenerCoordinator.RemoveSourceListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricFileSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricSelected;
 import net.cdonald.googleClassroom.listenerCoordinator.RunJPLAGListener;
@@ -354,7 +355,7 @@ public class DataController implements StudentListInfo {
 				runJPLAG();				
 			}			
 		});
-		
+				
 	}
 
 	private boolean checkValidURL(String rubricURL, String gradeFileURL) {
@@ -761,7 +762,10 @@ public class DataController implements StudentListInfo {
 	}
 
 	public void recompile(String studentID, String fileName, String fileText) {
-		studentWorkCompiler.recompile(studentID, fileName, fileText);
-		
+		studentWorkCompiler.recompile(studentID, fileName, fileText);		
+	}
+	
+	public void removeSource(String studentID, String fileName) {
+		studentWorkCompiler.removeSource(studentID, fileName);
 	}
 }

@@ -62,7 +62,7 @@ public class ConsoleData {
 
 	
 	private void registerListeners() {
-		ListenerCoordinator.addListener(SystemInListener.class, new SystemInListener() {
+		ListenerCoordinator.addBlockingListener(SystemInListener.class, new SystemInListener() {
 			@Override
 			public void fired(String text) {
 				// Only do this when we are running, don't accidentally absorb extra data.
@@ -70,10 +70,10 @@ public class ConsoleData {
 					inWriter.println(text);
 					//System.out.println();
 					if (currentOutputTextArea != null) {
-						currentOutputTextArea.append(text);
+						currentOutputTextArea.append(text + "\n");
 					}
 					if (currentInputTextArea != null) {
-						currentInputTextArea.append(text);
+						currentInputTextArea.append(text + "\n");
 					}
 				}		
 			}

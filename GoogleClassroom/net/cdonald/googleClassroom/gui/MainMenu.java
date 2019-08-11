@@ -74,29 +74,25 @@ public class MainMenu extends JMenuBar {
 
 		openClassroom = new JMenu("Open Classroom");
 		JMenuItem chooseGradeFile = new JMenuItem("Choose Grade File...");
-		JMenuItem saveGrades = new JMenuItem("Save Grades");
-		JMenuItem loadGrades = new JMenuItem("Load Grades");
+		JMenuItem syncGrades = new JMenuItem("Sync Grades");
 		JMenuItem setWorkingDirectory = new JMenuItem("Working Dir...");
 		
-		saveGrades.setEnabled(false);
-		loadGrades.setEnabled(false);
+		syncGrades.setEnabled(false);
 		
 		JMenuItem exit = new JMenuItem("Exit");
 		
 		file.add(openClassroom);
 		file.addSeparator();
 		file.add(chooseGradeFile);
-		file.add(saveGrades);
-		file.add(loadGrades);
+		file.add(syncGrades);
 		file.addSeparator();
 		file.add(setWorkingDirectory);
 		file.addSeparator();
 		file.add(exit);
 		file.setMnemonic(KeyEvent.VK_F);
 		exit.setMnemonic(KeyEvent.VK_X);
-		loadGrades.setMnemonic(KeyEvent.VK_L);
-		saveGrades.setMnemonic(KeyEvent.VK_S);
-		saveGrades.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, ActionEvent.CTRL_MASK));
+		syncGrades.setMnemonic(KeyEvent.VK_S);
+		syncGrades.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, ActionEvent.CTRL_MASK));
 		exit.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_X, ActionEvent.CTRL_MASK));
 		add(file);
 		
@@ -138,7 +134,7 @@ public class MainMenu extends JMenuBar {
 			
 		});
 		
-		saveGrades.addActionListener(new ActionListener() {
+		syncGrades.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				ListenerCoordinator.fire(SaveGradesListener.class);
@@ -146,12 +142,7 @@ public class MainMenu extends JMenuBar {
 			}
 		});	
 		
-		loadGrades.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				ListenerCoordinator.fire(LoadGradesListener.class);			
-			}
-		});	
+
 
 		ListenerCoordinator.runLongQuery(CourseFetcher.class, new LongQueryListener<ClassroomData>() {
 			@Override
@@ -165,8 +156,7 @@ public class MainMenu extends JMenuBar {
 		ListenerCoordinator.addListener(RubricSelected.class, new RubricSelected() {
 			@Override
 			public void fired(GoogleSheetData googleSheet) {
-				saveGrades.setEnabled(!googleSheet.isEmpty());
-				loadGrades.setEnabled(!googleSheet.isEmpty());
+				syncGrades.setEnabled(!googleSheet.isEmpty());
 				editRubric.setEnabled(!googleSheet.isEmpty());
 			}
 		});

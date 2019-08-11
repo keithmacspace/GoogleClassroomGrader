@@ -375,7 +375,13 @@ public class StudentWorkCompiler {
 			studentBuildInfoMap.get(studentID).changeFileData(fileName, fileText);
 			CompilerMessage message = compile(studentID); 
 			studentBuildInfoMap.get(studentID).setCompilerMessage(message);
-		}
-		
+		}		
+	}
+
+
+	public void removeSource(String studentID, String fileName) {
+		if (studentBuildInfoMap.containsKey(studentID)) {
+			studentBuildInfoMap.get(studentID).removeSource(fileName);
+		}		
 	}
 }
