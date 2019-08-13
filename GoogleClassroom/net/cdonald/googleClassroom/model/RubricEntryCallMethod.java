@@ -172,7 +172,7 @@ public class RubricEntryCallMethod extends RubricAutomation {
 		RubricEntry entry = new RubricEntry();
 		entry.setName("Test");
 		entry.setValue(5);
-		entry.setAutomationType(RubricEntry.AutomationTypes.CALL_METHOD);
+		//entry.setAutomationType(RubricEntry.AutomationTypes.CALL_METHOD);
 		entry.setAutomation(test);
 		return entry;
 

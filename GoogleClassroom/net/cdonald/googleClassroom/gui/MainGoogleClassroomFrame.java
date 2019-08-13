@@ -184,6 +184,7 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 				SaveGrades grades = dataController.newSaveGrades(assignment.getName());
 				studentPanel.addStudentGrades(grades, dataController.getRubric());
 				dataController.saveGrades(grades);
+				dataUpdated();
 				ListenerCoordinator.fire(RemoveProgressBarListener.class, "Saving Grades");
 				
 			}			

@@ -14,10 +14,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.List;
-
-import javax.swing.Action;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -45,10 +42,7 @@ import javax.swing.event.ListSelectionListener;
 import javax.swing.event.TableModelEvent;
 import javax.swing.event.TableModelListener;
 import javax.swing.table.DefaultTableModel;
-import javax.swing.text.DefaultEditorKit;
-
 import net.cdonald.googleClassroom.listenerCoordinator.GetFileDirQuery;
-import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricEditorDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.SetFileDirListener;
 import net.cdonald.googleClassroom.model.FileData;
@@ -63,8 +57,7 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 	private JButton cancelButton;
 	private JTable entriesTable;
 	private RubricElementTableModel entriesModel;	
-	private Rubric rubricToModify;
-	private RubricModifiedListener listener;
+	private Rubric rubricToModify;	
 	private JButton deleteButton;
 	private RunCode runCode;
 	private JPanel defaultPanel;
@@ -78,7 +71,6 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 	public RubricElementDialog(Frame parent, RubricModifiedListener listener) {
 		super(parent, "Rubric Element", true);
 		priorSelectedIndex = -1;		
-		this.listener = listener;
 		entriesModel = new RubricElementTableModel();
 		entriesTable = new JTable(entriesModel);		
 		entriesTable.setDefaultRenderer(RubricEntry.AutomationTypes.class, new RubricElementRenderer(this));
@@ -399,8 +391,9 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 			sourceCodeArea.setEditable(false);
 
 			methodToCallLabel = new JLabel("Method to call: ");
-			
+			methodToCallLabel.setToolTipText("Method's signature should be public static double methodName(). Enter only the name of the method, without parameters or return type.");
 			methodBeingCalledLabel = new JLabel("Testing Student Method: ");
+			methodBeingCalledLabel.setToolTipText("Enter only the name of the method, without parameters or return type.");
 			methodBeingCalledField = new JTextField("", 20);
 			addLabelAndComponent(namePanel, methodToCallLabel, methodToCallField, 0);
 			addLabelAndComponent(namePanel, methodBeingCalledLabel, methodBeingCalledField, 1);

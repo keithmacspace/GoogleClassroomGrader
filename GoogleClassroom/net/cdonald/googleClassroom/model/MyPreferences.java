@@ -74,11 +74,11 @@ public class MyPreferences {
 		preferences.put(GlobalPrefs.FILE_DIR.toString(), fileDir);
 	}
 
-	public String getGradedByName() {
+	public String getUserName() {
 		return preferences.get(GlobalPrefs.GRADED_BY_NAME.toString(), System.getProperty("user.name"));
 	}
 	
-	public void setGradedByName(String name) {
+	public void setUserName(String name) {
 		preferences.put(GlobalPrefs.GRADED_BY_NAME.toString(), name);
 	}
 	

@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import net.cdonald.googleClassroom.listenerCoordinator.StudentListInfo;
@@ -13,16 +14,14 @@ import net.cdonald.googleClassroom.model.RubricEntry;
 import net.cdonald.googleClassroom.model.StudentData;
 
 public class SaveGrades extends LoadGrades{
-	private String graderName;
+
 	private Set<String> graded;
-	public SaveGrades(GoogleClassroomCommunicator communicator, GoogleSheetData targetFile, Rubric rubric, List<StudentData> students, String graderName) {
-		super(targetFile, rubric, students);		
+	public SaveGrades(GoogleClassroomCommunicator communicator, GoogleSheetData targetFile, Rubric rubric, List<StudentData> students, String graderName, Map<String, Map<String, String>> graderCommentsMap) {
+		super(targetFile, rubric, students, graderName, graderCommentsMap);		
 		graded = new HashSet<String>();
-		this.graderName = graderName;
 		try {
 			loadData(communicator, true);
 		} catch (IOException e) {
-
 		}
 	}
 	
@@ -31,6 +30,11 @@ public class SaveGrades extends LoadGrades{
 		graded.add(rubricName);
 		super.addStudentColumn(student, rubricName, score);
 		
+	}
+	
+	public void addStudentNotes(StudentData student, String notes) {
+		graded.add(getNotesHeader());
+		super.addStudentColumn(student, getNotesHeader(), notes);
 	}
 	
 	public void addAssignmentDate(StudentData student, String assignmentDate) {
@@ -42,8 +46,6 @@ public class SaveGrades extends LoadGrades{
 		// At this point we take all the data that has been added and create the actual save sheet data
 		SaveSheetData saveData = new SaveSheetData(SaveSheetData.ValueType.USER_ENTERED, getRubric().getName());
 		List<Object> assignmentRow = new ArrayList<Object>();
-		assignmentRow.add("Assignment");
-		assignmentRow.add(getAssignmentName());
 		int currentRow = 1;
 		saveData.addOneRow(assignmentRow, currentRow++);
 		int numColumns = getNumColumns();
@@ -66,9 +68,7 @@ public class SaveGrades extends LoadGrades{
 			if (columnName.equalsIgnoreCase("Total")) {
 				totalColumn = col;
 			}
-			if (graded.contains(columnName)) {
-				gradedByRow.set(col, graderName);
-			}
+
 			columnNameRow.set(col, columnName);
 			for (RubricEntry entry : getRubric().getEntries()) {
 				if (entry.getName().equalsIgnoreCase(columnName)) {					
@@ -83,6 +83,7 @@ public class SaveGrades extends LoadGrades{
 		for (int studentNum = 0; studentNum < getNumStudents(); studentNum++) {
 			saveData.addOneRow(generateStudentRow(studentNum), currentRow++);
 		}
+
 		int lastStudentRow = currentRow;
 		List<Object> totalColumnStrings = new ArrayList<Object>();
 		

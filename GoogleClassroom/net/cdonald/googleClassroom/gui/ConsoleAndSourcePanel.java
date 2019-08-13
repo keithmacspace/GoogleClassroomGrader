@@ -265,11 +265,11 @@ public class ConsoleAndSourcePanel extends JPanel {
 			public void insertUpdate(DocumentEvent e) {
 				if (e.getType() == DocumentEvent.EventType.CHANGE || e.getType() == DocumentEvent.EventType.INSERT) {
 					String text = consoleInput.getText();
-					DebugLogDialog.appendln(text);
+
 					int returnIndex = text.indexOf("\n");
 					if (returnIndex != -1) {
 						String inputText = text.substring(0, returnIndex);
-						DebugLogDialog.appendln(inputText);
+
 						ListenerCoordinator.fire(SystemInListener.class, inputText);
 						SwingUtilities.invokeLater(new Runnable() {
 							public void run() {								

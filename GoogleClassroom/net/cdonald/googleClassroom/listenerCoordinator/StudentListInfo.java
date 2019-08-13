@@ -1,5 +1,7 @@
 package net.cdonald.googleClassroom.listenerCoordinator;
 
+import java.util.Map;
+
 import net.cdonald.googleClassroom.gui.StudentListModel;
 
 
@@ -18,4 +20,6 @@ public interface StudentListInfo {
 	public String getColumnTip(int column);
 	public String getColumnName(int column);
 	public void setOwner(StudentListModel owner);
+	public Map<String, Map<String, String> > getNotesCommentsMap();
+	public String getUserName();
 }

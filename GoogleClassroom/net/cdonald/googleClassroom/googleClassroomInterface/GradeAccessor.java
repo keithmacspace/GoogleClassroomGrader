@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import net.cdonald.googleClassroom.gui.DebugLogDialog;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentListInfo;
 import net.cdonald.googleClassroom.model.GoogleSheetData;
 import net.cdonald.googleClassroom.model.Rubric;
@@ -15,16 +16,16 @@ import net.cdonald.googleClassroom.model.StudentData;
 
 public abstract class GradeAccessor implements SheetAccessorInterface {
 	private Rubric rubric;
-	private String assignmentName;
 	private List<StudentRow> studentRowList;
 	private Map<String, StudentRow > studentRowMap;
 	private Map<String, List<StudentRow> > studentRowNameMap;
 	private List<String> columns;
 	private GoogleSheetData targetFile;
-	public GradeAccessor(GoogleSheetData targetFile, Rubric rubric, List<StudentData> students) {
+	private String graderName;
+	public GradeAccessor(GoogleSheetData targetFile, Rubric rubric, List<StudentData> students, String graderName) {
 		this.targetFile = targetFile;
 		this.setRubric(rubric);
-		this.setAssignmentName(null);
+		this.graderName = graderName;
 		columns = new ArrayList<String>();
 		studentRowMap  = new HashMap<String, StudentRow>();
 		studentRowList  = new ArrayList<StudentRow>();
@@ -54,6 +55,17 @@ public abstract class GradeAccessor implements SheetAccessorInterface {
 			studentRowMap.put(key, studentRow);
 			studentRowList.add(studentRow);
 		}
+	}
+	public String getNoNameNotesHeader() {
+		return ": Notes";
+	}
+	
+	public String getNotesHeader() {
+		return graderName + getNoNameNotesHeader();
+	}
+	
+	public String getGraderName() {
+		return graderName;
 	}
 	
 	public String getNameKey(String lastName, String firstName) {
@@ -127,13 +139,6 @@ public abstract class GradeAccessor implements SheetAccessorInterface {
 	}
 	public void setRubric(Rubric rubric) {
 		this.rubric = rubric;
-	}
-
-	public String getAssignmentName() {
-		return assignmentName;
-	}
-	public void setAssignmentName(String assignmentName) {
-		this.assignmentName = assignmentName;
 	}
 
 	protected class StudentRow {

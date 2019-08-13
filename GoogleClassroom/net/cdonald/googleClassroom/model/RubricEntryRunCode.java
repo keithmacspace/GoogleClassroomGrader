@@ -311,14 +311,16 @@ public class RubricEntryRunCode extends  RubricAutomation implements UpdateSourc
 			methodToCall = null;
 			for (int row = 0; row < labelRow.size(); row++) {
 				String label = (String)labelRow.get(row);
-				if (label.equalsIgnoreCase(MethodNames.METHOD_BEING_CHECKED.toString())) {
-					methodBeingChecked = (String)columns.get(1).get(row);					
-				}
-				else if (label.equalsIgnoreCase(MethodNames.METHOD_TO_CALL.toString())) {
-					methodToCall = (String)columns.get(1).get(row);
-				}
-				else if (label.equalsIgnoreCase(MethodNames.SOURCE_FILE.toString())) {
-					files.add(columns.get(1).get(row));
+				if (label != null) { 
+					if (label.equalsIgnoreCase(MethodNames.METHOD_BEING_CHECKED.toString())) {
+						methodBeingChecked = (String)columns.get(1).get(row);					
+					}
+					else if (label.equalsIgnoreCase(MethodNames.METHOD_TO_CALL.toString())) {
+						methodToCall = (String)columns.get(1).get(row);
+					}
+					else if (label.equalsIgnoreCase(MethodNames.SOURCE_FILE.toString())) {
+						files.add(columns.get(1).get(row));
+					}
 				}
 			}
 			if (files.size() == 0 || methodBeingChecked == null || methodToCall == null) {

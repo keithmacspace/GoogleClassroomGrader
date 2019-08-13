@@ -14,7 +14,7 @@ public class RubricEntry {
 	}
 
 	public static enum AutomationTypes {
-		NONE, COMPILES, CALL_MAIN, CALL_METHOD, RUN_CODE
+		NONE, COMPILES, /*CALL_MAIN, CALL_METHOD,*/ RUN_CODE
 	}
 
 	String id;

@@ -4,17 +4,24 @@ import java.awt.BorderLayout;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
 import java.awt.event.MouseEvent;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
+import javax.swing.BorderFactory;
 import javax.swing.JPanel;
-import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
+import javax.swing.JTabbedPane;
 import javax.swing.JTable;
+import javax.swing.JTextArea;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeEvent;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.event.TableColumnModelEvent;
@@ -41,10 +48,16 @@ public class StudentPanel extends JPanel {
 	private StudentListRenderer studentListRenderer;	
 	private VerticalTableHeaderCellRenderer verticalHeaderRenderer;
 	private volatile boolean resizing;
-	private JPopupMenu rightClickPopup;
+	private Map<String, JTextArea> notesAndCommentsTextArea;
+	private Map<String, String> notesAndCommentsMap;
+	private Map<String, Map<String, String>> otherComments;
+	private String currentStudent;
+	private JTabbedPane commentTabs;
 
 	public StudentPanel(StudentListInfo studentListInfo) {
 		setLayout(new BorderLayout());
+		this.otherComments = studentListInfo.getNotesCommentsMap();
+		this.notesAndCommentsMap = studentListInfo.getNotesCommentsMap().get(studentListInfo.getUserName());
 		studentModel = new StudentListModel(studentListInfo);
 		studentTable = new JTable(studentModel) {
 			private static final long serialVersionUID = 1L;
@@ -58,8 +71,7 @@ public class StudentPanel extends JPanel {
                         return studentListInfo.getColumnTip(index);
                     }
                 };
-            }
-            
+            }            
 		};		
 		studentTable.setAutoCreateRowSorter(false);
 		studentTable.setCellSelectionEnabled(true);
@@ -72,9 +84,49 @@ public class StudentPanel extends JPanel {
 		studentTable.setDefaultRenderer(FileData.class, studentListRenderer);
 		studentTable.setDefaultRenderer(CompilerMessage.class, studentListRenderer);
 		studentTable.setDefaultRenderer(StudentData.class, studentListRenderer);
+
+
+		notesAndCommentsTextArea = new HashMap<String, JTextArea>();
+
+
+		JPanel commentPane = new JPanel();	
+		commentPane.setLayout(new BorderLayout());
+		commentPane.setBorder(BorderFactory.createTitledBorder("Notes/Comments"));
+		commentTabs = new JTabbedPane();
+		addCommentArea(studentListInfo.getUserName(), true);
+		commentPane.add(commentTabs, BorderLayout.CENTER);
+		JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, new JScrollPane(studentTable), commentPane);
+		splitPane.setResizeWeight(0.95);
+		add(splitPane, BorderLayout.CENTER);
+		//studentList.setRowHeight(25);
 		
-		setHeaderRenderer();
-	    addComponentListener( new ComponentListener() {
+		JTextArea userComments = notesAndCommentsTextArea.get(studentListInfo.getUserName());
+		userComments.getDocument().addDocumentListener(new DocumentListener() {
+
+			@Override
+			public void insertUpdate(DocumentEvent e) {
+				if (currentStudent != null) {
+					notesAndCommentsMap.put(currentStudent, userComments.getText());
+					
+				}
+			}
+
+			@Override
+			public void removeUpdate(DocumentEvent e) {				
+				if (currentStudent != null) {
+					notesAndCommentsMap.put(currentStudent, userComments.getText());
+					
+				}
+			}
+
+			@Override
+			public void changedUpdate(DocumentEvent e) {
+	
+			}
+			
+		});
+
+		addComponentListener( new ComponentListener() {
 	        @Override
 	        public void componentResized(ComponentEvent e) {
 	        	SwingUtilities.invokeLater(new Runnable() {
@@ -112,9 +164,22 @@ public class StudentPanel extends JPanel {
 					
 					Object student = studentModel.getValueAt(selectedRow, StudentListInfo.LAST_NAME_COLUMN);
 					String studentId = null;
+					currentStudent = null;					
 					if (student != null) {
 						studentId = ((StudentData)student).getId();
 					}
+					for (int tab = 0; tab < commentTabs.getTabCount(); tab++) {
+						String graderName = commentTabs.getTitleAt(tab);						
+						Map<String, String> commentMap = otherComments.get(graderName);
+						JTextArea commentArea = notesAndCommentsTextArea.get(graderName);
+						if (studentId != null && commentMap.containsKey(studentId)) {
+							commentArea.setText(commentMap.get(studentId));
+						}
+						else {
+							commentArea.setText("");
+						}
+					}
+					currentStudent = studentId;
 					ListenerCoordinator.fire(StudentSelectedListener.class, studentId);
 				}				
 			}
@@ -147,8 +212,14 @@ public class StudentPanel extends JPanel {
 				}
 			}			
 		});
-		// studentList.setRowHeight(25);
-		add(new JScrollPane(studentTable), BorderLayout.CENTER);
+
+	}
+	
+	private void addCommentArea(String title, boolean editable) {
+		JTextArea commentArea = new JTextArea();
+		commentArea.setEditable(editable);
+		commentTabs.addTab(title, new JScrollPane(commentArea));		
+		notesAndCommentsTextArea.put(title, commentArea);
 	}
 	
 
@@ -237,8 +308,20 @@ public class StudentPanel extends JPanel {
 			@Override
 			public void run() {
 				studentModel.fireTableDataChanged();				
-			}
-			
+
+				for (String key : otherComments.keySet()) {
+					boolean found = false;
+				
+					for (int tab = 0; tab < commentTabs.getTabCount() && found == false; tab++) {
+						if (commentTabs.getTitleAt(tab).equalsIgnoreCase(key)) {
+							found = true;													
+						}
+					}
+					if (found == false) {
+						addCommentArea(key, false);
+					}
+				}
+			}			
 		});		
 		
 	}
@@ -274,6 +357,9 @@ public class StudentPanel extends JPanel {
 						if (grade != null) {
 							saveGrades.addStudentColumn(studentInfo, entry.getName(), grade);
 						}
+					}
+					if (notesAndCommentsMap.containsKey(studentInfo.getId())) {
+						saveGrades.addStudentNotes(studentInfo, notesAndCommentsMap.get(studentInfo.getId()));
 					}
 				}
 			}

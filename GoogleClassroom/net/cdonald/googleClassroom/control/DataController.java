@@ -89,6 +89,7 @@ public class DataController implements StudentListInfo {
 	private MyPreferences prefs;
 	private ClassroomData rubricURL;
 	private ClassroomData gradeURL;
+	private Map<String, Map<String, String> > notesCommentsMap;
 	
 
 	public DataController(MainGoogleClassroomFrame mainFrame) {
@@ -100,6 +101,8 @@ public class DataController implements StudentListInfo {
 		currentCourse = null;
 		structureListener = mainFrame;
 		updateListener = mainFrame;
+		notesCommentsMap = new HashMap<String, Map<String, String>>();
+		notesCommentsMap.put(prefs.getUserName(), new HashMap<String, String>());
 		initGoogle();
 		registerListeners();
 	}
@@ -598,6 +601,15 @@ public class DataController implements StudentListInfo {
 		return null;
 	}
 	
+	@Override
+	public Map<String, Map<String, String> >getNotesCommentsMap() {
+		return notesCommentsMap;
+	}
+	
+	@Override
+	public String getUserName() {
+		return prefs.getUserName();
+	}
 
 	public String getStudentId(int row) {
 		return studentData.get(row).getId();
@@ -702,14 +714,13 @@ public class DataController implements StudentListInfo {
 	}
 	
 	public SaveGrades newSaveGrades(String assignmentName) {
-		SaveGrades grades = new SaveGrades(googleClassroom, new GoogleSheetData(rubric.getName(), gradeURL.getId(), rubric.getName()), rubric, studentData, prefs.getGradedByName() );
-		grades.setAssignmentName(assignmentName);
+		SaveGrades grades = new SaveGrades(googleClassroom, new GoogleSheetData(rubric.getName(), gradeURL.getId(), rubric.getName()), rubric, studentData, prefs.getUserName(), notesCommentsMap);
 		return grades;
 	}
 	
 	public void loadGrades() {
 		if (gradeURL != null) {
-			LoadGrades grades = new LoadGrades(new GoogleSheetData(rubric.getName(), gradeURL.getId(), rubric.getName()), rubric, studentData);
+			LoadGrades grades = new LoadGrades(new GoogleSheetData(rubric.getName(), gradeURL.getId(), rubric.getName()), rubric, studentData, prefs.getUserName(), notesCommentsMap);
 
 			try {
 				ListenerCoordinator.fire(AddProgressBarListener.class, "Loading Grades");
