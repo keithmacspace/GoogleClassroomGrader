@@ -1,7 +1,6 @@
 package net.cdonald.googleClassroom.gui;
 
 import java.awt.BorderLayout;
-import java.awt.Dimension;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
@@ -18,6 +17,7 @@ import javax.swing.WindowConstants;
 
 import net.cdonald.googleClassroom.control.DataController;
 import net.cdonald.googleClassroom.googleClassroomInterface.SaveGrades;
+import net.cdonald.googleClassroom.gui.RubricElementDialog.ModifyResult;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.AddProgressBarListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ChooseGradeFileListener;
@@ -25,6 +25,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.ClassSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ExitFiredListener;
 import net.cdonald.googleClassroom.listenerCoordinator.GetDebugDialogQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GradeFileSelectedListener;
+import net.cdonald.googleClassroom.listenerCoordinator.LaunchGuidedSetupListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LaunchNewRubricDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricEditorDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricFileDialogListener;
@@ -37,6 +38,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.RunRubricSelected;
 import net.cdonald.googleClassroom.listenerCoordinator.RunSelected;
 import net.cdonald.googleClassroom.listenerCoordinator.SaveGradesListener;
 import net.cdonald.googleClassroom.model.ClassroomData;
+import net.cdonald.googleClassroom.model.MyPreferences;
 import net.cdonald.googleClassroom.model.Rubric;
 
 public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
@@ -56,28 +58,55 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 	private NewRubricDialog newRubricDialog;
 	private InfoPanel infoPanel;
 	private DebugLogDialog dbg;
+	private GuidedSetupDialog guidedSetup;
+
 
 
 	public MainGoogleClassroomFrame() throws InterruptedException {
-		super(APP_NAME);		
+		super(APP_NAME);
+		dbg = new DebugLogDialog(this);
 		dataController = new DataController(this);		
-		rubricElementDialog = new RubricElementDialog(this, this);
+		rubricElementDialog = new RubricElementDialog(this, this, dataController.getPrefs());
 		newRubricDialog = new NewRubricDialog(this);
+		guidedSetup = new GuidedSetupDialog(this, dataController);
 
+		
 		setLayout();		
 
-		dbg = new DebugLogDialog(this);
+		
 		
 		importExportDialog = new GoogleSheetDialog(this);
 
 		registerListeners();
+		
+		boolean ranGuided = false;
+		if (dataController.getPrefs().getJsonPath() == null) {
+			runGuidedSetup(true);
+			ranGuided = true;			
+		}
+		
 		setVisible(true);
+		if (ranGuided == true) {
+			callExit();
+		}
+		
 		dataController.performFirstInit();
-		dbg.setVisible(true);
+		
+
+	
+		if (dataController.getPrefs().getClass() == null) {
+			new GuidedSetupFinalInstructions(this).setVisible(true);
+		}
 	}
 	
 
-
+	private boolean runGuidedSetup(boolean forceRun) {
+		if (forceRun == true) {
+			guidedSetup.runGuidedSetup();
+			return true;
+		}
+		return false;
+	}
 
 
 	private void setLayout() {
@@ -103,12 +132,12 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		setMinimumSize(new Dimension(400, 400));
-		setSize(800, 500);
+		MyPreferences prefs = dataController.getPrefs();
+		this.setSize(prefs.getDimension(MyPreferences.Dimensions.MAIN, 800, 700));
 		setLayout(new BorderLayout());
 		consoleAndSourcePanel = new ConsoleAndSourcePanel();
 		mainToolBar = new MainToolBar();
-		studentPanel = new StudentPanel(dataController);
+		studentPanel = new StudentPanel(dataController, prefs.getSplitLocation(MyPreferences.Dividers.STUDENT_NOTES));
 		mainMenu = new MainMenu(this);
 		infoPanel = new InfoPanel();
 		setJMenuBar(mainMenu);
@@ -116,6 +145,10 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 		add(mainToolBar, BorderLayout.PAGE_START);
 		add(studentPanel, BorderLayout.WEST);
 		splitPanePrimary = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, studentPanel, consoleAndSourcePanel);
+		int splitLocation = dataController.getPrefs().getSplitLocation(MyPreferences.Dividers.STUDENT_SOURCE);
+		if (splitLocation != 0) {
+			splitPanePrimary.setDividerLocation(splitLocation);
+		}
 		add(splitPanePrimary, BorderLayout.CENTER);
 		add(infoPanel, BorderLayout.SOUTH);
 
@@ -124,16 +157,36 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 		addWindowListener(new WindowAdapter() {
 			@Override
 			public void windowClosing(WindowEvent ev) {
+				MyPreferences prefs = dataController.getPrefs();
+				prefs.setDimension(MyPreferences.Dimensions.MAIN, getSize());
+				prefs.setSplitLocation(MyPreferences.Dividers.STUDENT_SOURCE, splitPanePrimary.getDividerLocation());
+				prefs.setSplitLocation(MyPreferences.Dividers.STUDENT_NOTES, studentPanel.getDividerLocation());
 				dataController.closing();
 				dispose();
 				System.gc();
 			}
 		});
 	}
+	
+	private void callExit() {
+		WindowListener[] listeners = getWindowListeners();
+		for (WindowListener listener : listeners) {
+			listener.windowClosing(new WindowEvent(MainGoogleClassroomFrame.this, 0));
+		}				
+		
+	}
 
 
 	private void registerListeners() {
 
+		ListenerCoordinator.addListener(LaunchGuidedSetupListener.class, new LaunchGuidedSetupListener() {
+			@Override
+			public void fired() {
+				runGuidedSetup(true);
+				callExit();
+			}
+		});
+		
 		
 		ListenerCoordinator.addListener(ClassSelectedListener.class, new ClassSelectedListener() {
 			@Override
@@ -150,27 +203,24 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 		
 		ListenerCoordinator.addListener(ExitFiredListener.class, new ExitFiredListener() {
 			public void fired() {
-				WindowListener[] listeners = getWindowListeners();
-				for (WindowListener listener : listeners) {
-					listener.windowClosing(new WindowEvent(MainGoogleClassroomFrame.this, 0));
-				}				
+				callExit();
 			}
 		});
 		
 		ListenerCoordinator.addListener(RunRubricSelected.class, new RunRubricSelected() {
 
 			@Override
-			public void fired() {
+			public void fired(boolean runAll) {
 				if (dataController.getRubric() == null) {
 					return;
 				}
-				runRubricOrCode(false);
+				runRubricOrCode(false, runAll);
 			}
 		});
 
 		ListenerCoordinator.addListener(RunSelected.class, new RunSelected() {
-			public void fired() {
-				runRubricOrCode(true);
+			public void fired(boolean runAll) {
+				runRubricOrCode(true, runAll);
 			}
 		});
 		
@@ -251,22 +301,27 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 	
 	private void editRubric(Rubric rubricToModify) {
 		Rubric copy = new Rubric(rubricToModify);
-		if (rubricElementDialog.modifyRubric(copy) == true) {
+		RubricElementDialog.ModifyResult result = rubricElementDialog.modifyRubric(copy); 
+		if (result != ModifyResult.CANCEL) {
 			mainToolBar.addRubricInfo(copy.getSheetInfo(), true);
 			dataController.setRubric(copy);
-			dataController.saveRubric();
+			if (result == ModifyResult.SAVE) {
+				dataController.saveRubric();
+			}
 		}
 	}
 	
-	private void runRubricOrCode(boolean runSource) {
+	private void runRubricOrCode(boolean runSource, boolean runAll) {
 		runWorker = new SwingWorker<Void, String>() {
 
 			@Override
 			protected Void doInBackground() throws Exception {
-				disableRuns();
-				List<String> ids = studentPanel.getSelectedIds();
-				
-				if (ids.size() == 0) {
+				disableRuns();				
+				List<String> ids = null;
+				if (runAll == false) {
+					ids = studentPanel.getSelectedIds();
+				}
+				else {
 					ids = dataController.getAllIDs();
 				}
 				try {
@@ -276,9 +331,6 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 							dataController.run(id);												
 						}
 						else {
-//							List<FileData> fileDataList = dataController.getSourceCode(id);
-//							consoleAndSourcePanel.setWindowData(fileDataList, dataController.getConsoleOutput(id),
-//									dataController.getConsoleInputHistory(id));
 							dataController.runRubric(id);
 						}
 						publish(id);
@@ -301,11 +353,6 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 		runWorker.execute();
 		
 	}
-
-
-
-
-
 	
 	private void disableRuns() {
 		mainToolBar.disableButtons();
@@ -315,7 +362,8 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 		mainToolBar.enableRunButton();
 		if (dataController.getRubric() != null) {
 			mainToolBar.enableRunRubricButton();
-		}		
+		}
+		mainMenu.enableRuns(studentPanel.isAnyStudentSelected());
 	}
 
 	@Override

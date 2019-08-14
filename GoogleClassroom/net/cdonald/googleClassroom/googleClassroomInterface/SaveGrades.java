@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import net.cdonald.googleClassroom.gui.DebugLogDialog;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentListInfo;
 import net.cdonald.googleClassroom.model.GoogleSheetData;
 import net.cdonald.googleClassroom.model.Rubric;
@@ -33,6 +34,9 @@ public class SaveGrades extends LoadGrades{
 	}
 	
 	public void addStudentNotes(StudentData student, String notes) {
+		if (getColumnLocation(getNotesHeader()) == -1) {
+			addColumnName(getNotesHeader());
+		}
 		graded.add(getNotesHeader());
 		super.addStudentColumn(student, getNotesHeader(), notes);
 	}

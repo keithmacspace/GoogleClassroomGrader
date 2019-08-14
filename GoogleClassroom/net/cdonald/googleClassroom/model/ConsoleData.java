@@ -17,10 +17,10 @@ import javax.swing.SwingWorker;
 import net.cdonald.googleClassroom.gui.DebugLogDialog;
 import net.cdonald.googleClassroom.gui.StudentConsoleAreas;
 import net.cdonald.googleClassroom.listenerCoordinator.AppendOutputTextListener;
-import net.cdonald.googleClassroom.listenerCoordinator.GetDebugDialogQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetStudentTextAreasQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.PreRunBlockingListener;
+import net.cdonald.googleClassroom.listenerCoordinator.SetAdditionalConsoleListener;
 import net.cdonald.googleClassroom.listenerCoordinator.SystemInListener;
 import net.cdonald.googleClassroom.listenerCoordinator.SystemOutListener;
 
@@ -29,22 +29,25 @@ public class ConsoleData {
 	private PipedInputStream inPipe;
 	private final PipedInputStream outPipe = new PipedInputStream();
 	private final PipedInputStream errPipe = new PipedInputStream();
+	private final PipedInputStream debugOutPipe = new PipedInputStream();
+	private final PipedInputStream debugErrPipe = new PipedInputStream();
 	private PrintWriter inWriter;
 	private PrintStream outWriter;
 	private PrintStream errWriter;
-	private SwingWorker<Void, Character> consoleWorker;
-	private SwingWorker<Void, Character> consoleErrWorker;
-	private boolean done;
+	private PrintStream debugOutStream;
+	private PrintStream debugErrStream;
+	private ConsoleWorker consoleWorker;
+
 	private Map<String, StudentConsoleAreas> studentConsoleAreaMap;
 	private String currentStudentID;
 	private String currentRubricName;
 	private JTextArea currentOutputTextArea;
 	private JTextArea currentErrorTextArea;
 	private JTextArea currentInputTextArea;
+	private JTextArea additionalTextArea;
 	private PrintStream oldOut;
 	private PrintStream oldErr;
 	private InputStream oldIn;
-	private DebugLogDialog dbg;
 	private static Semaphore runSemaphore = new Semaphore(1);	
 
 
@@ -56,7 +59,13 @@ public class ConsoleData {
 		registerListeners();
 		redirectConsole();
 		studentConsoleAreaMap = new HashMap<String, StudentConsoleAreas>();
-		
+		try {
+			debugOutStream = new PrintStream(new PipedOutputStream(debugOutPipe), true);
+			debugErrStream = new PrintStream(new PipedOutputStream(debugErrPipe), true);
+		} catch (IOException e) {
+			
+		}
+		swapStreams();
 	}
 
 
@@ -90,7 +99,14 @@ public class ConsoleData {
 			public StudentConsoleAreas fired(String studentID) {
 				return getStudentConsoleAreaMap(studentID);
 			}
-		});		
+		});
+		
+		ListenerCoordinator.addBlockingListener(SetAdditionalConsoleListener.class, new SetAdditionalConsoleListener() {
+			@Override
+			public void fired(JTextArea additionalArea) {
+				additionalTextArea = additionalArea;
+			}
+		});
 	}
 	
 	public StudentConsoleAreas getStudentConsoleAreaMap(String studentID) {
@@ -137,7 +153,7 @@ public class ConsoleData {
 		ListenerCoordinator.fire(PreRunBlockingListener.class, id);
 	}
 	private void runStopped() {		
-		restoreStreams();
+		swapStreams();
 		inPipe = new PipedInputStream();
 		try {
 			inWriter = new PrintWriter(new PipedOutputStream(inPipe), true);
@@ -173,6 +189,18 @@ public class ConsoleData {
 		System.setErr(errWriter);
 	}
 
+	// Swap in our debug streams
+	private void swapStreams() {
+		System.out.flush();
+		System.err.flush();
+		//System.setOut(oldOut);
+		System.setOut(debugOutStream);
+		System.setIn(oldIn);
+		//System.setErr(oldErr);
+		System.setErr(debugErrStream);
+		
+	}
+
 	private void restoreStreams() {
 		// Put things back
 		System.out.flush();
@@ -182,22 +210,28 @@ public class ConsoleData {
 		System.setErr(oldErr);		
 	}
 	
-	public void debugPrint() {
-
-	}
-
 	public void setDone() {
+		consoleWorker.setStop(true);
 		restoreStreams();
-		done = true;
 		consoleWorker.cancel(true);
-		consoleErrWorker.cancel(true);
-	}
-	private class ConsoleWorker extends SwingWorker<Void, Character> {
-		private boolean outArea;
-		public ConsoleWorker(boolean outArea) {
-			this.outArea = outArea;
-		}
 
+	}
+	
+	private class PipeInfo{
+		char character;
+		PipedInputStream pipe;
+		public PipeInfo(char character, PipedInputStream pipe) {
+			this.character = character;
+			this.pipe = pipe;
+		}
+	}
+
+	private class ConsoleWorker extends SwingWorker<Void, PipeInfo> {
+		public volatile boolean stop;
+
+		public void setStop(boolean stop) {
+			this.stop = stop;
+		}
 
 		@Override
 		protected void done() {
@@ -205,54 +239,85 @@ public class ConsoleData {
 		}
 
 		@Override
-		protected void process(List<Character> chunks) {
+		protected void process(List<PipeInfo> chunks) {
 			boolean done = false;
-			String temp = "";
-			for (Character str : chunks) {					
-				// Special flag sent by StudentWorkCompiler to tell us when we are done running
-				// a
-				// program. I know it is a little ugly, I just can't figure out how to wait
-				// until
-				// all the output finishes flowing down
-				if (str == 0) {						
-					done = true;
-				} else {						
-					temp += str.toString();
+			String outTemp = "";
+			String errTemp = "";
+			String debugTemp = "";
+			for (PipeInfo info : chunks) {
+				char ch = info.character;
+				if (info.pipe == outPipe) {
+					// Special flag sent by StudentWorkCompiler to tell us when we are done running
+					// a program. I know it is a little ugly, I just can't figure out how to wait
+					// until all the output finishes flowing down
+					
+					if (ch == 0) {
+						done = true;
+					} else {
+						outTemp += ch;
+					}					
+				}
+				else if (info.pipe == errPipe) {
+					errTemp += ch;
+				}
+				else {
+					debugTemp += ch;
 				}
 			}
-			if (dbg == null) {
-				dbg = (DebugLogDialog)ListenerCoordinator.runQuery(GetDebugDialogQuery.class);
-			}
-			
-			
-			if (outArea) {
-				//dbg.append("Out: " + temp + "\n");
-				
+			if (outTemp.length() != 0) {
 				if (currentOutputTextArea != null) {
-					currentOutputTextArea.append(temp);
+					currentOutputTextArea.append(outTemp);
 				}
+			}
+			if (errTemp.length() != 0) {
+				if (currentErrorTextArea != null) {
+					currentErrorTextArea.append(errTemp);
+				}				
+			}
+			
+			if (debugTemp.length() != 0) {				
+				if (additionalTextArea != null) {
+					additionalTextArea.append(debugTemp);
+					additionalTextArea.revalidate();
+				}
+				DebugLogDialog.append(debugTemp);
+			}
+			if (done == true) {				
 				if (done == true) {
 					runStopped();
 				}
-				ListenerCoordinator.fire(SystemOutListener.class, currentStudentID, currentRubricName, temp, (Boolean)done);
-				
+				ListenerCoordinator.fire(SystemOutListener.class, currentStudentID, currentRubricName, outTemp, (Boolean)done);				
 			}
-			else {
-				//dbg.append("Err: " + temp + "\n");
-				if (currentErrorTextArea != null) {
-					currentErrorTextArea.append(temp);
+		}
+		
+		private void readPipe(PipedInputStream pipe) {
+			try {
+	
+				while (pipe != null && pipe.available() != 0) {
+					char temp = (char)pipe.read();
+					publish(new PipeInfo(temp, pipe));
+					if (temp == '\n' && pipe != errPipe && pipe != debugErrPipe) {
+						if (errPipe.available() != 0 || debugErrPipe.available() != 0) {
+							break;
+						}
+					}
 				}
+			} catch (IOException e) {
+
 			}
+			
 		}
 
 		@Override
 		protected Void doInBackground() {
 			try {
-				while (true) {
-					PipedInputStream pipe = (outArea) ? outPipe : errPipe;
-					if (pipe.available() != 0) {
-						publish((char) pipe.read());
-					}
+				while (stop == false) {
+					
+					readPipe(errPipe);
+					readPipe(outPipe);
+					readPipe(debugErrPipe);
+					readPipe(debugOutPipe);
+					
 				}
 			} catch (Exception e) {
 
@@ -263,12 +328,15 @@ public class ConsoleData {
 		
 	}
 
+	
+	
 	private void redirectConsole() {
 
-		consoleWorker = new ConsoleWorker(true);
-		consoleErrWorker = new ConsoleWorker(false);
+		consoleWorker = new ConsoleWorker();
 		consoleWorker.execute();
-		consoleErrWorker.execute();
+
+
 	}
+
 
 }

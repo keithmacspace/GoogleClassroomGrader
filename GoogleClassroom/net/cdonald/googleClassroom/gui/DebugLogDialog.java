@@ -14,26 +14,26 @@ public class DebugLogDialog extends JDialog {
 	public DebugLogDialog(Frame parent) {
 		super(parent, "Debug Logs", false);		
 		setLayout(new BorderLayout());
-		setPreferredSize(new Dimension(400, 400));
+		setSize(new Dimension(400, 400));
 		textArea = new JTextArea();
 		dbg = this;
-		add(new JScrollPane(textArea));
+		add(new JScrollPane(textArea), BorderLayout.CENTER);
 	}
+	
+	public static void showDebugInfo() {
+		dbg.setVisible(true);		
+	}
+		
 	
 	public static void append(String text) {
 		if (dbg != null) {
 			dbg.textArea.append(text);
 		}
-		else {
-			System.err.print(text);
-		}
+
 	}
 	public static void appendln(String text) {
 		if (dbg != null) {
 			dbg.textArea.append(text + "\n");
-		}
-		else {
-			System.err.println(text);
 		}
 	}	
 }

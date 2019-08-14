@@ -151,7 +151,7 @@ public class GoogleClassroomCommunicator {
 		getCredentialsSemaphore.release();
 	}
 
-	private Credential getCredentials() throws IOException {
+	public Credential getCredentials() throws IOException {
 
 		InputStream in = new FileInputStream(credentialsFilePath);
 		GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));

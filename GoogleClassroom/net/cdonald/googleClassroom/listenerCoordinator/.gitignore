@@ -75,3 +75,6 @@
 /RunJPLAGListener.class
 /SetInfoLabelListener$LabelTypes.class
 /RemoveSourceListener.class
+/SetAdditionalConsoleListener.class
+/RunGuidedSetupListener.class
+/LaunchGuidedSetupListener.class

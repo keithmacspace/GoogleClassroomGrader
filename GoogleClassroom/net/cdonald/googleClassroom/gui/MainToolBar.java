@@ -67,8 +67,8 @@ public class MainToolBar extends JToolBar {
 		rubricCombo = new JComboBox<GoogleSheetData>();
 		rubricModel = new DefaultComboBoxModel<GoogleSheetData>();
 		rubricCombo.setModel(rubricModel);		
-		runButton = new JButton("Run");
-		runRubricButton = new JButton("Run Rubrics");
+		runButton = new JButton("Run All");
+		runRubricButton = new JButton("Run All Rubrics");
 		stopButton = new JButton("Stop");
 
 		stopButton.setEnabled(false);
@@ -96,7 +96,7 @@ public class MainToolBar extends JToolBar {
 		runButton.setEnabled(true);
 	}
 	
-	public void enableRunRubricButton() {
+	public void enableRunRubricButton() {		
 		if (runButton.isEnabled()) {
 			runRubricButton.setEnabled(true);
 		}
@@ -238,14 +238,14 @@ public class MainToolBar extends JToolBar {
 		runButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				ListenerCoordinator.fire(RunSelected.class);
+				ListenerCoordinator.fire(RunSelected.class, true);
 			}			
 		});	
 		
 		runRubricButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				ListenerCoordinator.fire(RunRubricSelected.class);
+				ListenerCoordinator.fire(RunRubricSelected.class, true);
 			}			
 		});
 		

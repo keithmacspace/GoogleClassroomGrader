@@ -1,6 +1,6 @@
 package net.cdonald.googleClassroom.listenerCoordinator;
 
 public interface RunSelected {
-	public void fired();
+	public void fired(boolean runAll);
 
 }

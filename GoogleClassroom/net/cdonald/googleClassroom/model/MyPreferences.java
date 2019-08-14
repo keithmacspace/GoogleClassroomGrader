@@ -1,14 +1,9 @@
 package net.cdonald.googleClassroom.model;
 
+import java.awt.Dimension;
 import java.io.File;
-import java.sql.SQLException;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
-
-import javax.swing.JOptionPane;
-
-import net.cdonald.googleClassroom.gui.DebugLogDialog;
 
 /**
  * 
@@ -16,11 +11,15 @@ import net.cdonald.googleClassroom.gui.DebugLogDialog;
  *
  */
 public class MyPreferences {
+	public enum Dimensions {MAIN, RUN_CODE, RUBRIC_EDIT}
+	public enum Dividers {STUDENT_SOURCE, STUDENT_NOTES}
 	// We store a few global preferences in java's prefs, but the rest we store
 	// for individual classes in a per-class db
 	private Preferences preferences;
-	private enum GlobalPrefs {WORKING_DIR, CLASS_ID, CLASS_NAME, FILE_DIR, GRADED_BY_NAME, RUBRIC_URL, RUBRIC_FILE};
-	private enum ClassPrefs {GRADE_URL, GRADE_FILE};	
+	
+	private enum GlobalPrefs {WORKING_DIR, CLASS_ID, CLASS_NAME, FILE_DIR, GRADED_BY_NAME, RUBRIC_URL, RUBRIC_FILE}
+	
+	private enum ClassPrefs {CLASS_RUBRIC_URL, CLASS_RUBRIC_FILE, GRADE_URL, GRADE_FILE};	
 
 	
 	public MyPreferences() {
@@ -28,17 +27,64 @@ public class MyPreferences {
 	}	
 	
 	public String getRubricFile() {
-		return preferences.get(GlobalPrefs.RUBRIC_FILE.toString(), null);			
+		return getRubricInfo(GlobalPrefs.RUBRIC_FILE, ClassPrefs.CLASS_RUBRIC_FILE);			
 	}
 	
-
 	public String getRubricURL() {
-		return preferences.get(GlobalPrefs.RUBRIC_URL.toString(), null);	
+		return getRubricInfo(GlobalPrefs.RUBRIC_URL, ClassPrefs.CLASS_RUBRIC_URL);
 	}
+	
+	public int getSplitLocation(Dividers divider) {
+		return preferences.getInt(divider.toString(), 0);
+	}
+	
+	public void setSplitLocation(Dividers divider, int location) {
+		preferences.putInt(divider.toString(), location);
+	}
+	
+	public Dimension getDimension(Dimensions dimType, int defaultX, int defaultY) {
+		int xVal = preferences.getInt(dimType.toString() + "_X", defaultX);
+		int yVal = preferences.getInt(dimType.toString() + "_Y", defaultY);
+		return new Dimension(xVal, yVal);
+	}
+	
+	public boolean dimensionExists(Dimensions dimType) {
+		String searchString = dimType.toString() + "_X";
+		try {
+			for (String key : preferences.keys()) {
+				if (key.equals(searchString)) {
+					return true;
+				}
+			}
+		} catch (BackingStoreException e) {
+
+		}
+		return false;
+	}
+
+	
+	public void setDimension(Dimensions dimType, Dimension dimension) {
+		preferences.putInt(dimType.toString() + "_X", dimension.width);
+		preferences.putInt(dimType.toString() + "_Y", dimension.height);
+	
+	}
+
+	
+	private String getRubricInfo(GlobalPrefs globalPref, ClassPrefs classPref) {
+		String rubricInfo = getClassPref(classPref);
+		if (rubricInfo == null) {
+			rubricInfo = preferences.get(globalPref.toString(), null);
+		}
+		return rubricInfo;		
+	}
+	
+	
 	
 	public void setRubricInfo(String rubricName, String rubricURL) {
 		preferences.put(GlobalPrefs.RUBRIC_FILE.toString(),  rubricName);
 		preferences.put(GlobalPrefs.RUBRIC_URL.toString(), rubricURL);
+		setClassPrefs(ClassPrefs.CLASS_RUBRIC_FILE, rubricName);
+		setClassPrefs(ClassPrefs.CLASS_RUBRIC_URL, rubricURL);
 
 	}
 	

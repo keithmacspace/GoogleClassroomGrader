@@ -125,7 +125,7 @@ public class ListenerCoordinator {
 		Class<?>[] paramTypes = new Class<?>[params.length];
 		for (int i = 0; i < params.length; i++) {
 			if (params[i] == null) {
-				paramTypes[i] = String.class;
+				paramTypes[i] = null;
 			}
 			else {
 				paramTypes[i] = params[i].getClass();
@@ -187,18 +187,11 @@ public class ListenerCoordinator {
 		Object returnValue = null;
 
 		try {
-			Method methodToFire = classToFire.getMethod(methodToFireName, paramTypes);
-			returnValue = methodToFire.invoke(objectToRun, params);
-		} catch (IllegalAccessException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IllegalArgumentException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (InvocationTargetException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (NoSuchMethodException e) {
+			for (Method method : classToFire.getDeclaredMethods()) {
+				if (method.getAnnotatedParameterTypes().length == paramTypes.length && method.getName().contentEquals(methodToFireName)) {
+					return method.invoke(objectToRun, params);
+				}
+			}
 			String paramString = "(";
 			for (int i= 0; i < paramTypes.length; i++) {
 				paramString += paramTypes[i].toString();
@@ -213,6 +206,15 @@ public class ListenerCoordinator {
 			for (Method method : objectToRun.getClass().getMethods()) {
 				System.err.println(method.toGenericString());
 			}
+			return null;
+		} catch (IllegalAccessException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IllegalArgumentException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InvocationTargetException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (SecurityException e) {
 			// TODO Auto-generated catch block

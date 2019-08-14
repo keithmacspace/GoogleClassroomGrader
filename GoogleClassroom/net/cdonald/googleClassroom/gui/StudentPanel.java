@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import javax.swing.BorderFactory;
 import javax.swing.JPanel;
@@ -19,6 +18,7 @@ import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
+import javax.swing.border.TitledBorder;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
@@ -53,11 +53,15 @@ public class StudentPanel extends JPanel {
 	private Map<String, Map<String, String>> otherComments;
 	private String currentStudent;
 	private JTabbedPane commentTabs;
-
-	public StudentPanel(StudentListInfo studentListInfo) {
-		setLayout(new BorderLayout());
+	private String currentGrader;
+	private TitledBorder notesTitle;
+	private static final String DEFAULT_NOTES_HEADER = "Notes/Comments";
+	private JPanel commentPane;
+	private JSplitPane splitPane;
+	public StudentPanel(StudentListInfo studentListInfo, int dividerLocation) {
 		this.otherComments = studentListInfo.getNotesCommentsMap();
-		this.notesAndCommentsMap = studentListInfo.getNotesCommentsMap().get(studentListInfo.getUserName());
+		this.currentGrader = studentListInfo.getUserName();
+		this.notesAndCommentsMap = studentListInfo.getNotesCommentsMap().get(currentGrader);
 		studentModel = new StudentListModel(studentListInfo);
 		studentTable = new JTable(studentModel) {
 			private static final long serialVersionUID = 1L;
@@ -89,25 +93,39 @@ public class StudentPanel extends JPanel {
 		notesAndCommentsTextArea = new HashMap<String, JTextArea>();
 
 
-		JPanel commentPane = new JPanel();	
+		commentPane = new JPanel();	
 		commentPane.setLayout(new BorderLayout());
-		commentPane.setBorder(BorderFactory.createTitledBorder("Notes/Comments"));
-		commentTabs = new JTabbedPane();
-		addCommentArea(studentListInfo.getUserName(), true);
+		notesTitle = BorderFactory.createTitledBorder(DEFAULT_NOTES_HEADER);
+		commentPane.setBorder(notesTitle);
+		commentTabs = new JTabbedPane();		
 		commentPane.add(commentTabs, BorderLayout.CENTER);
-		JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, new JScrollPane(studentTable), commentPane);
-		splitPane.setResizeWeight(0.95);
+		JPanel studentPanel = new JPanel();
+		studentPanel.setLayout(new BorderLayout());
+		studentPanel.add(new JScrollPane(studentTable), BorderLayout.CENTER);
+
+
+		splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, studentPanel, commentPane);
+		splitPane.setResizeWeight(0.90);
+		if (dividerLocation != 0) {
+			splitPane.setDividerLocation(dividerLocation);
+		}
+
+
+		setLayout(new BorderLayout());
 		add(splitPane, BorderLayout.CENTER);
-		//studentList.setRowHeight(25);
+
 		
-		JTextArea userComments = notesAndCommentsTextArea.get(studentListInfo.getUserName());
+
+
+		//studentList.setRowHeight(25);
+		notesAndCommentsTextArea.put(currentGrader, new JTextArea());
+		JTextArea userComments = notesAndCommentsTextArea.get(currentGrader);
 		userComments.getDocument().addDocumentListener(new DocumentListener() {
 
 			@Override
 			public void insertUpdate(DocumentEvent e) {
 				if (currentStudent != null) {
-					notesAndCommentsMap.put(currentStudent, userComments.getText());
-					
+					notesAndCommentsMap.put(currentStudent, userComments.getText());					
 				}
 			}
 
@@ -115,7 +133,6 @@ public class StudentPanel extends JPanel {
 			public void removeUpdate(DocumentEvent e) {				
 				if (currentStudent != null) {
 					notesAndCommentsMap.put(currentStudent, userComments.getText());
-					
 				}
 			}
 
@@ -158,30 +175,43 @@ public class StudentPanel extends JPanel {
 				if (e.getValueIsAdjusting()) {
 					return;
 				}
-				ListSelectionModel lsm = (ListSelectionModel)e.getSource();
-				if (lsm.isSelectionEmpty() == false) {
-					int selectedRow = lsm.getMinSelectionIndex();
-					
-					Object student = studentModel.getValueAt(selectedRow, StudentListInfo.LAST_NAME_COLUMN);
-					String studentId = null;
-					currentStudent = null;					
-					if (student != null) {
-						studentId = ((StudentData)student).getId();
-					}
-					for (int tab = 0; tab < commentTabs.getTabCount(); tab++) {
-						String graderName = commentTabs.getTitleAt(tab);						
-						Map<String, String> commentMap = otherComments.get(graderName);
-						JTextArea commentArea = notesAndCommentsTextArea.get(graderName);
-						if (studentId != null && commentMap.containsKey(studentId)) {
-							commentArea.setText(commentMap.get(studentId));
+				SwingUtilities.invokeLater(new Runnable() {
+					public void run() {
+						ListSelectionModel lsm = (ListSelectionModel)e.getSource();
+						if (lsm.isSelectionEmpty() == false) {
+							int selectedRow = lsm.getMinSelectionIndex();
+
+							Object student = studentModel.getValueAt(selectedRow, StudentListInfo.LAST_NAME_COLUMN);
+							String studentId = null;
+							currentStudent = null;					
+							if (student != null) {
+								StudentData studentInfo = (StudentData)student;
+								studentId = studentInfo.getId();
+								notesTitle.setTitle(DEFAULT_NOTES_HEADER + ": " + studentInfo.getFirstName() + " " + studentInfo.getName());
+							}
+							addCommentAreas(studentId);
+							for (int tab = 0; tab < commentTabs.getTabCount(); tab++) {
+								String graderName = commentTabs.getTitleAt(tab);						
+								Map<String, String> commentMap = otherComments.get(graderName);
+								JTextArea commentArea = notesAndCommentsTextArea.get(graderName);
+								if (studentId != null && commentMap.containsKey(studentId)) {
+									commentArea.setText(commentMap.get(studentId));
+								}
+								else {
+									commentArea.setText("");
+								}
+							}
+							currentStudent = studentId;
 						}
 						else {
-							commentArea.setText("");
+							notesTitle.setTitle(DEFAULT_NOTES_HEADER);
+							currentStudent = null;
+							addCommentAreas(null);
 						}
+						commentPane.repaint();
+						ListenerCoordinator.fire(StudentSelectedListener.class, currentStudent);
 					}
-					currentStudent = studentId;
-					ListenerCoordinator.fire(StudentSelectedListener.class, studentId);
-				}				
+				});
 			}
 		});
 		
@@ -209,17 +239,41 @@ public class StudentPanel extends JPanel {
 				if (lsm.isSelectionEmpty() == false) {
 					int selectedColumn = lsm.getMaxSelectionIndex();					
 					ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.RUBRIC_INFO, studentListInfo.getColumnTip(selectedColumn));
+					if (selectedColumn < StudentListInfo.COMPILER_COLUMN) {
+						studentTable.setColumnSelectionInterval(0, studentTable.getColumnCount() - 1);
+					}
 				}
 			}			
 		});
 
 	}
+	public int getDividerLocation() {
+		return splitPane.getDividerLocation();
+	}
+	
+	private void addCommentAreas(String studentId) {
+		commentTabs.removeAll();
+		if (studentId != null) {
+			addCommentArea(currentGrader, true);
+			for (String key : otherComments.keySet()) {
+				if (key.equalsIgnoreCase(currentGrader) == false) {
+						addCommentArea(key, false);
+					
+				}
+			}
+		}
+	}
 	
 	private void addCommentArea(String title, boolean editable) {
-		JTextArea commentArea = new JTextArea();
+		JTextArea commentArea = notesAndCommentsTextArea.get(title);
+		if (commentArea == null) {
+			commentArea = new JTextArea();
+			notesAndCommentsTextArea.put(title, commentArea);
+		}
+		
 		commentArea.setEditable(editable);
-		commentTabs.addTab(title, new JScrollPane(commentArea));		
-		notesAndCommentsTextArea.put(title, commentArea);
+		commentTabs.addTab(title, new JScrollPane(commentArea));
+		
 	}
 	
 
@@ -230,31 +284,31 @@ public class StudentPanel extends JPanel {
 			return;
 		}
 
-			SwingUtilities.invokeLater(new Runnable() {
-				public void run() {
-					resizing = true;
-					// Use TableColumnModel.getTotalColumnWidth() if your table is included in a JScrollPane
-					int width = studentTable.getWidth();
-					TableColumn column;
+		SwingUtilities.invokeLater(new Runnable() {
+			public void run() {
+				resizing = true;
+				// Use TableColumnModel.getTotalColumnWidth() if your table is included in a JScrollPane
+				int width = studentTable.getWidth();
+				TableColumn column;
 
-					TableColumnModel jTableColumnModel = studentTable.getColumnModel();	    
-					int numCols = jTableColumnModel.getColumnCount();
-					final int FIXED_PREFERRED_SIZE = 30;
-					width = width - (FIXED_PREFERRED_SIZE * (numCols - StudentListInfo.COMPILER_COLUMN));
-					width /= 3;
-					for (int i = 0; i < numCols; i++) {
-						column = jTableColumnModel.getColumn(i);
-						int preferredWidth = FIXED_PREFERRED_SIZE;
-						if (i < StudentListInfo.COMPILER_COLUMN) {
-							preferredWidth = width;
-						}
-						column.setPreferredWidth(preferredWidth);
+				TableColumnModel jTableColumnModel = studentTable.getColumnModel();	    
+				int numCols = jTableColumnModel.getColumnCount();
+				final int FIXED_PREFERRED_SIZE = 30;
+				width = width - (FIXED_PREFERRED_SIZE * (numCols - StudentListInfo.COMPILER_COLUMN));
+				width /= 3;
+				for (int i = 0; i < numCols; i++) {
+					column = jTableColumnModel.getColumn(i);
+					int preferredWidth = FIXED_PREFERRED_SIZE;
+					if (i < StudentListInfo.COMPILER_COLUMN) {
+						preferredWidth = width;
 					}
-					setHeaderRenderer();
-					resizing = false;
+					column.setPreferredWidth(preferredWidth);
 				}
-			});
-		
+				setHeaderRenderer();
+				resizing = false;
+			}
+		});
+
 	}
 	
 	private void setHeaderRenderer() {
@@ -307,20 +361,8 @@ public class StudentPanel extends JPanel {
 
 			@Override
 			public void run() {
-				studentModel.fireTableDataChanged();				
-
-				for (String key : otherComments.keySet()) {
-					boolean found = false;
-				
-					for (int tab = 0; tab < commentTabs.getTabCount() && found == false; tab++) {
-						if (commentTabs.getTitleAt(tab).equalsIgnoreCase(key)) {
-							found = true;													
-						}
-					}
-					if (found == false) {
-						addCommentArea(key, false);
-					}
-				}
+				studentModel.fireTableDataChanged();
+				addCommentAreas(currentStudent);
 			}			
 		});		
 		
@@ -365,6 +407,9 @@ public class StudentPanel extends JPanel {
 			}
 		});
 
+	}
+	public boolean isAnyStudentSelected() {
+		return currentStudent != null;
 	}
 
 }

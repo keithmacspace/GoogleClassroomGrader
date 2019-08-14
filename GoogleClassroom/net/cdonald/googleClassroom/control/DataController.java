@@ -31,6 +31,7 @@ import net.cdonald.googleClassroom.googleClassroomInterface.SheetFetcher;
 import net.cdonald.googleClassroom.googleClassroomInterface.StudentFetcher;
 import net.cdonald.googleClassroom.gui.DataStructureChangedListener;
 import net.cdonald.googleClassroom.gui.DataUpdateListener;
+import net.cdonald.googleClassroom.gui.GuidedSetupDialog;
 import net.cdonald.googleClassroom.gui.MainGoogleClassroomFrame;
 import net.cdonald.googleClassroom.gui.StudentListModel;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
@@ -48,13 +49,12 @@ import net.cdonald.googleClassroom.listenerCoordinator.GetFileDirQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetStudentFilesQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetWorkingDirQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GradeFileSelectedListener;
+import net.cdonald.googleClassroom.listenerCoordinator.LaunchGuidedSetupListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.LoadGradesListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LoadTestFileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LongQueryListener;
-import net.cdonald.googleClassroom.listenerCoordinator.RecompileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RemoveProgressBarListener;
-import net.cdonald.googleClassroom.listenerCoordinator.RemoveSourceListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricFileSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricSelected;
 import net.cdonald.googleClassroom.listenerCoordinator.RunJPLAGListener;
@@ -91,6 +91,7 @@ public class DataController implements StudentListInfo {
 	private ClassroomData gradeURL;
 	private Map<String, Map<String, String> > notesCommentsMap;
 	
+	
 
 	public DataController(MainGoogleClassroomFrame mainFrame) {
 		prefs = new MyPreferences();
@@ -102,12 +103,21 @@ public class DataController implements StudentListInfo {
 		structureListener = mainFrame;
 		updateListener = mainFrame;
 		notesCommentsMap = new HashMap<String, Map<String, String>>();
+		initGoogle();		
 		notesCommentsMap.put(prefs.getUserName(), new HashMap<String, String>());
-		initGoogle();
 		registerListeners();
+
 	}
 	
-	private void initGoogle() {
+
+	
+	public void initGoogle() {
+		if (googleClassroom != null)  {
+			return;
+		}
+		if (prefs.getJsonPath() == null) {
+			return;
+		}
 		try {
 			googleClassroom = new GoogleClassroomCommunicator(MainGoogleClassroomFrame.APP_NAME, prefs.getTokenDir(), prefs.getJsonPath());
 		} catch (IOException e) {
@@ -119,10 +129,18 @@ public class DataController implements StudentListInfo {
 		}
 	}
 	
+	public void testCredentials() throws IOException {
+		googleClassroom.getCredentials();
+	}
+	
 	public void performFirstInit() {
+
 		if (prefs.getClassroom() != null) {
 			currentCourse = prefs.getClassroom();
 			ListenerCoordinator.fire(ClassSelectedListener.class, currentCourse);
+		}
+		else {
+			
 		}
 		String rubricURLName = prefs.getRubricURL();
 		String rubricFileName = prefs.getRubricFile();
@@ -133,7 +151,7 @@ public class DataController implements StudentListInfo {
 		String gradeFileName = prefs.getGradeFile();
 		if (gradeURL != null) {
 			ListenerCoordinator.fire(GradeFileSelectedListener.class, gradeURL, gradeFileName);			
-		}
+		}				
 	}
 	
 	private void registerListeners() {
@@ -194,8 +212,9 @@ public class DataController implements StudentListInfo {
 			public String fired() {
 				return prefs.getFileDir();
 			}
-		});	
+		});
 		
+
 		ListenerCoordinator.addQueryResponder(GetDBNameQuery.class, new GetDBNameQuery() {
 			@Override
 			public String fired(DBType type) {
@@ -380,6 +399,10 @@ public class DataController implements StudentListInfo {
 	}
 
 
+	public MyPreferences getPrefs() {
+		return prefs;
+	}
+
 	public Rubric getRubric() {
 		return rubric;
 	}
@@ -443,11 +466,6 @@ public class DataController implements StudentListInfo {
 			ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.RUNNING, "");
 		}
 	}
-	
-	public void debugPrint() {
-		consoleData.debugPrint();
-	}
-	
 	
 	public void runRubric(String studentId) {
 		if (rubric != null) {

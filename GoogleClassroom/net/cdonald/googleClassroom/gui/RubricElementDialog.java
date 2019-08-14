@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -42,17 +43,21 @@ import javax.swing.event.ListSelectionListener;
 import javax.swing.event.TableModelEvent;
 import javax.swing.event.TableModelListener;
 import javax.swing.table.DefaultTableModel;
+
 import net.cdonald.googleClassroom.listenerCoordinator.GetFileDirQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.SetFileDirListener;
 import net.cdonald.googleClassroom.model.FileData;
+import net.cdonald.googleClassroom.model.MyPreferences;
 import net.cdonald.googleClassroom.model.Rubric;
 import net.cdonald.googleClassroom.model.RubricEntry;
 import net.cdonald.googleClassroom.model.RubricEntryRunCode;
 
 public class RubricElementDialog extends JDialog implements RubricElementListener {
 	private static final long serialVersionUID = -5580080426150572162L;
+	public enum ModifyResult{CANCEL, TEST, SAVE};
 	private JButton saveButton;
+	private JButton testButton;
 	private JButton addRubricEntry;
 	private JButton cancelButton;
 	private JTable entriesTable;
@@ -63,13 +68,15 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 	private JPanel defaultPanel;
 	private JTable mainRunnerTable;
 	private String DEFAULT_SOURCE_STRING = "";
-	private boolean saveRubric;
+	private ModifyResult modifyResult;
 	private int priorSelectedIndex;
+	private MyPreferences prefs;
 
 		
 	
-	public RubricElementDialog(Frame parent, RubricModifiedListener listener) {
+	public RubricElementDialog(Frame parent, RubricModifiedListener listener, MyPreferences prefs) {
 		super(parent, "Rubric Element", true);
+		this.prefs = prefs;
 		priorSelectedIndex = -1;		
 		entriesModel = new RubricElementTableModel();
 		entriesTable = new JTable(entriesModel);		
@@ -81,7 +88,8 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 
 
 		saveButton = new JButton("Save");
-		addRubricEntry = new JButton("Add");
+		testButton = new JButton("Test");
+		addRubricEntry = new JButton("Add Row");
 		deleteButton = new JButton("Delete");
 		cancelButton = new JButton("Cancel");
 		cancelButton.setMnemonic(KeyEvent.VK_C);
@@ -91,8 +99,9 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 		JPanel constantPanel = new JPanel();
 		constantPanel.setLayout(new BorderLayout());
 		
-		JPanel buttonsPanel = createButtonPanel(4);
+		JPanel buttonsPanel = createButtonPanel(5);
 		buttonsPanel.add(saveButton);
+		buttonsPanel.add(testButton);
 		buttonsPanel.add(addRubricEntry);
 		buttonsPanel.add(deleteButton);
 		buttonsPanel.add(cancelButton);			
@@ -107,6 +116,9 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 		defaultPanel.setLayout(new BorderLayout());
 		defaultPanel.add(new JScrollPane(entriesTable), BorderLayout.CENTER);
 		defaultPanel.add(constantPanel, BorderLayout.EAST);
+		if (prefs.dimensionExists(MyPreferences.Dimensions.RUBRIC_EDIT)) {
+			defaultPanel.setPreferredSize(prefs.getDimension(MyPreferences.Dimensions.RUBRIC_EDIT, 0, 0));
+		}
 
 		add(defaultPanel, BorderLayout.CENTER);
 		ListSelectionModel selectionModel = entriesTable.getSelectionModel();
@@ -114,10 +126,20 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 		saveButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				saveRubric = true;				
+				modifyResult = ModifyResult.SAVE;				
 				setVisible(false);				
 			}
 		});
+
+		testButton.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				modifyResult = ModifyResult.TEST;				
+				setVisible(false);				
+			}
+		});
+
+		
 		
 		addRubricEntry.addActionListener(new ActionListener() {
 			@Override
@@ -144,7 +166,7 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 		cancelButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				saveRubric = false;
+				modifyResult = ModifyResult.CANCEL;
 				setVisible(false);
 			}
 		});
@@ -295,12 +317,12 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 
 	
 
-	public boolean modifyRubric(Rubric rubricToModify) {
+	public ModifyResult modifyRubric(Rubric rubricToModify) {
 		this.rubricToModify = rubricToModify;
 		entriesModel.setRubricToModify(rubricToModify);
-		saveRubric = false;
+		modifyResult = ModifyResult.CANCEL;
 		setVisible(true);
-		return saveRubric;
+		return modifyResult;
 		
 	}
 
@@ -440,6 +462,9 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 			runPanel.setLayout(new BorderLayout());
 			runPanel.add(nameAndButtons, BorderLayout.NORTH);
 			runPanel.add(sourceCodePanel, BorderLayout.CENTER);
+			if (prefs.dimensionExists(MyPreferences.Dimensions.RUN_CODE)) {
+				runPanel.setPreferredSize(prefs.getDimension(MyPreferences.Dimensions.RUN_CODE, 0, 0));
+			}
 			
 			addFilesButton.addActionListener(new ActionListener() {
 				@Override
@@ -546,8 +571,10 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 			isActive = false;
 			Dimension current = runSplit.getTopComponent().getSize();
 			runCodeDimension = new Dimension(runPanel.getSize());
+			prefs.setDimension(MyPreferences.Dimensions.RUN_CODE, runCodeDimension);
 			remove(runSplit);
 			defaultPanel.setPreferredSize(current);
+			prefs.setDimension(MyPreferences.Dimensions.RUBRIC_EDIT, current);
 			add(defaultPanel);
 		}
 		private void fillRunCode() {				
