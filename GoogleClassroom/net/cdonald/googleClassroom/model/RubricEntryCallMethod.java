@@ -198,7 +198,7 @@ public class RubricEntryCallMethod extends RubricAutomation {
 	}
 
 	@Override
-	protected void loadAutomationColumns(String entryName, Map<String, List<List<Object>>> columnData) {
+	protected void loadAutomationColumns(String entryName, Map<String, List<List<Object>>> columnData, Map<String, FileData> fileData) {
 		// TODO Auto-generated method stub
 		
 	}
@@ -207,6 +207,11 @@ public class RubricEntryCallMethod extends RubricAutomation {
 	protected void saveAutomationColumns(String entryName, List<List<Object>> columnData,
 			Map<String, List<Object>> fileData) {
 		// TODO Auto-generated method stub
+		
+	}
+	
+	@Override
+	public void removeFileData(FileData fileData) {
 		
 	}
 }

@@ -14,24 +14,33 @@ import net.cdonald.googleClassroom.model.StudentData;
 
 public class LoadGrades extends GradeAccessor{
 	private Map<String, Map<String, String>> graderCommentsMap;
+	private Map<String, String> gradedByMap;
 	public LoadGrades(GoogleSheetData targetFile, Rubric rubricParam, List<StudentData> students, String graderName, Map<String, Map<String, String>> graderCommentsMap)  {
 		super(targetFile, rubricParam, students, graderName);
 		this.graderCommentsMap = graderCommentsMap;
+		gradedByMap = new HashMap<String, String>();
 	}
 	
 	public void loadData(GoogleClassroomCommunicator communicator, boolean keepCurrentRubricValues) throws IOException {
+		setLoading(true);
 		LoadSheetData data = communicator.readSheet(this);
 		if (data != null) {
 			int nameRow = processColumnNames(data);
 			// If namerow comes back -1, then we are starting right from the starting line
 			nameRow++;		
 			processNameData(nameRow, data, keepCurrentRubricValues);
-		}		
+		}
+		setLoading(false);
+	}
+	
+	public String getGradedBy(String columnName) {
+		return gradedByMap.get(columnName.toUpperCase());
 	}
 
 	
 	private int processColumnNames(LoadSheetData data) {
 		
+		List<Object> gradedRow = null;
 		for (int i = 0; i < data.getNumRows(); i++) {
 			List<Object> row = data.readRow(i);
 			int matchCount = 0;
@@ -44,17 +53,31 @@ public class LoadGrades extends GradeAccessor{
 					if (column.equalsIgnoreCase(StudentListInfo.defaultColumnNames[StudentListInfo.FIRST_NAME_COLUMN])) {
 						matchCount++;
 					}
+					if (column.equalsIgnoreCase("Graded By")) {
+						gradedRow = row;
+					}
 					if (matchCount == 2) {
 						break;
 					}
 				}
 			}
-			if (matchCount == 2) {
+			if (matchCount == 2) { 
 				int columnIndex = 0;
 				for (Object columnObject : row) {
 					boolean insertBlank = true;
 					if (columnObject instanceof String) {						
 						String column = (String)columnObject;
+						Object gradedBy = null;
+						if (gradedRow.size() > columnIndex) {
+							gradedBy = gradedRow.get(columnIndex);
+						}
+						if (gradedBy != null) {
+							gradedByMap.put(column.toUpperCase(), gradedBy.toString());
+						}
+						else {
+							gradedByMap.put(column.toUpperCase(), null);
+						}
+
 						if (column.length() > 1) {
 							insertBlank = false;
 							int currentIndex = getColumnLocation(column);

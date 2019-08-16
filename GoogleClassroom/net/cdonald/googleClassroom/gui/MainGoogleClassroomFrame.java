@@ -301,7 +301,15 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 	
 	private void editRubric(Rubric rubricToModify) {
 		Rubric copy = new Rubric(rubricToModify);
-		RubricElementDialog.ModifyResult result = rubricElementDialog.modifyRubric(copy); 
+		List<String> ids = studentPanel.getSelectedIds();
+		if (ids == null || ids.size() == 0) {
+			ids = dataController.getAllIDs();
+		}
+		String id = null;
+		if (ids != null && ids.size() > 0) {
+			id = ids.get(0);
+		}
+		RubricElementDialog.ModifyResult result = rubricElementDialog.modifyRubric(copy, dataController.getStudentWorkCompiler(), id); 
 		if (result != ModifyResult.CANCEL) {
 			mainToolBar.addRubricInfo(copy.getSheetInfo(), true);
 			dataController.setRubric(copy);

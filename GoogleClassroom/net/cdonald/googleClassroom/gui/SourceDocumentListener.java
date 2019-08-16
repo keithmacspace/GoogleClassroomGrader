@@ -6,16 +6,15 @@ import javax.swing.event.DocumentListener;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.Document;
 
+import net.cdonald.googleClassroom.model.FileData;
+
 public class SourceDocumentListener implements DocumentListener {
 
-	private UpdateSourceInterface listener;
+	private FileData fileData;
 	private String fileName;
-	private JTextArea textArea;
-	public SourceDocumentListener(UpdateSourceInterface listener, String fileName, JTextArea textArea) {
+	public SourceDocumentListener(FileData fileData, JTextArea textArea) {
 		super();
-		this.listener = listener;
-		this.fileName = fileName;
-		this.textArea = textArea;
+		this.fileData = fileData;
 	}
 	
 	private void updateSource(DocumentEvent e) {
@@ -23,7 +22,7 @@ public class SourceDocumentListener implements DocumentListener {
 		int length = d.getLength();
 		try {
 			String text = d.getText(0, length);
-			listener.updateSource(fileName, text);
+			fileData.setFileContents(text);
 		} catch (BadLocationException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();

@@ -209,6 +209,7 @@ public class RubricEntry {
 		if (automation != null) {
 			
 			Double result = automation.runAutomation(studentName, message, compiler, consoleData);
+			// Leave the old score if the result is null.
 			if (result != null) {
 				double score = result;
 				score *= value;
@@ -218,10 +219,6 @@ public class RubricEntry {
 				score /= 100.0;						
 				studentScores.put(message.getStudentId(),  score);
 			}
-			else {
-				studentScores.put(message.getStudentId(),  null);
-			}
-
 		}
 		
 		else {
@@ -310,10 +307,10 @@ public class RubricEntry {
 
 
 	
-	public void loadAutomationColumns(Map<String, List<List<Object>>> columnData) {
+	public void loadAutomationColumns(Map<String, List<List<Object>>> columnData, Map<String, FileData> fileDataMap) {
 	
 		if (automation != null) {
-			automation.loadAutomationColumns(name, columnData);
+			automation.loadAutomationColumns(name, columnData, fileDataMap);
 		}
 	}
 	
@@ -328,5 +325,11 @@ public class RubricEntry {
 		if (automation != null) {
 			rubricTabs.add(name);
 		}		
+	}
+	
+	public void removeFileData(FileData fileData) {
+		if (automation != null) {
+			automation.removeFileData(fileData);
+		}
 	}
 }

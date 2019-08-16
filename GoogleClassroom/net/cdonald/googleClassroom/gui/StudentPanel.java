@@ -237,8 +237,12 @@ public class StudentPanel extends JPanel {
 				
 				ListSelectionModel lsm = (ListSelectionModel)e.getSource();
 				if (lsm.isSelectionEmpty() == false) {
-					int selectedColumn = lsm.getMaxSelectionIndex();					
-					ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.RUBRIC_INFO, studentListInfo.getColumnTip(selectedColumn));
+					int selectedColumn = lsm.getMaxSelectionIndex();
+					String tip = studentListInfo.getColumnTip(selectedColumn);
+					if (tip == null) {
+						tip = "";
+					}
+					ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.RUBRIC_INFO, tip);
 					if (selectedColumn < StudentListInfo.COMPILER_COLUMN) {
 						studentTable.setColumnSelectionInterval(0, studentTable.getColumnCount() - 1);
 					}
@@ -410,6 +414,24 @@ public class StudentPanel extends JPanel {
 	}
 	public boolean isAnyStudentSelected() {
 		return currentStudent != null;
+	}
+	
+	public static void printIndices() {
+		int [] a = {4, 3, 2, 1};
+		for (int i = 0; i < a.length; i++) {
+			if (a[i] == 2) {
+				System.out.println(i);
+			}
+		}
+		for (int j = 0; j < a.length; j++) {
+			if (a[j] == 4) {
+				System.out.println(j);
+			}
+		}
+	}
+	
+	public static void main(String [] args) {
+		printIndices();
 	}
 
 }

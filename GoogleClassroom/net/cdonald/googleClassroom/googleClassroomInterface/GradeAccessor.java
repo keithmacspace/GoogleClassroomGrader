@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.sun.jdi.DoubleValue;
+
 import net.cdonald.googleClassroom.gui.DebugLogDialog;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentListInfo;
 import net.cdonald.googleClassroom.model.GoogleSheetData;
@@ -19,13 +21,17 @@ public abstract class GradeAccessor implements SheetAccessorInterface {
 	private List<StudentRow> studentRowList;
 	private Map<String, StudentRow > studentRowMap;
 	private Map<String, List<StudentRow> > studentRowNameMap;
+	private Set<String> modifiedSet;
 	private List<String> columns;
 	private GoogleSheetData targetFile;
 	private String graderName;
-	public GradeAccessor(GoogleSheetData targetFile, Rubric rubric, List<StudentData> students, String graderName) {
+	private boolean loading;
+	public GradeAccessor(GoogleSheetData targetFile, Rubric rubric, List<StudentData> students, String graderName) {		
 		this.targetFile = targetFile;
 		this.setRubric(rubric);
+		loading = true;
 		this.graderName = graderName;
+		modifiedSet = new HashSet<String>();
 		columns = new ArrayList<String>();
 		studentRowMap  = new HashMap<String, StudentRow>();
 		studentRowList  = new ArrayList<StudentRow>();
@@ -68,6 +74,15 @@ public abstract class GradeAccessor implements SheetAccessorInterface {
 		return graderName;
 	}
 	
+	public boolean isLoading() {
+		return loading;
+	}
+	public void setLoading(boolean loading) {
+		this.loading = loading;
+	}
+	public Set<String> getModifiedSet() {
+		return modifiedSet;
+	}
 	public String getNameKey(String lastName, String firstName) {
 		return lastName.toUpperCase() + firstName.toUpperCase();
 	}
@@ -158,6 +173,42 @@ public abstract class GradeAccessor implements SheetAccessorInterface {
 
 		
 		public void addColumn(String columnName, Object score) {
+			if (loading == false) {
+				Object original = columns.get(columnName.toUpperCase());
+				try {
+					if (original == null && score != null) {
+						// This will throw & we'll skip adding to modified
+						Double.parseDouble(score.toString());
+						modifiedSet.add(columnName.toUpperCase());
+					}
+					if (original != null && score != null) {
+						String originalString = original.toString();
+						String scoreString = score.toString();
+						if (!original.toString().equals(score.toString())) {
+
+							// If score throws, skip adding to modified
+							double scoreValue = Double.parseDouble(scoreString);
+							double originalValue = -1.0;
+							try {
+								originalValue = Double.parseDouble(originalString);
+							}
+							catch (NumberFormatException ei) {
+								
+							}
+							
+							// We only care about modified scores
+							if (scoreValue != originalValue) {																							
+								modifiedSet.add(columnName.toUpperCase());
+
+							}
+						}
+					}
+				}
+				catch (NumberFormatException e) {
+
+				}
+
+			}
 			columns.put(columnName.toUpperCase(), score);
 		}
 		public List<Object> generateRow(List<String> columnNames) {

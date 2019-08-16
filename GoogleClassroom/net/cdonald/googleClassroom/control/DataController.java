@@ -33,6 +33,7 @@ import net.cdonald.googleClassroom.gui.DataStructureChangedListener;
 import net.cdonald.googleClassroom.gui.DataUpdateListener;
 import net.cdonald.googleClassroom.gui.GuidedSetupDialog;
 import net.cdonald.googleClassroom.gui.MainGoogleClassroomFrame;
+import net.cdonald.googleClassroom.gui.RubricElementDialog;
 import net.cdonald.googleClassroom.gui.StudentListModel;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.StudentWorkCompiler;
@@ -106,7 +107,6 @@ public class DataController implements StudentListInfo {
 		initGoogle();		
 		notesCommentsMap.put(prefs.getUserName(), new HashMap<String, String>());
 		registerListeners();
-
 	}
 	
 
@@ -291,8 +291,8 @@ public class DataController implements StudentListInfo {
 			
 		ListenerCoordinator.addListener(LoadTestFileListener.class, new LoadTestFileListener() {
 			@Override
-			public void fired(String file) {
-				loadTestFile(file);				
+			public void fired(List<FileData> allFiles) {
+				loadTestFile(allFiles);				
 			}			
 		});
 		
@@ -403,6 +403,12 @@ public class DataController implements StudentListInfo {
 		return prefs;
 	}
 
+	public StudentWorkCompiler getStudentWorkCompiler() {
+		return studentWorkCompiler;
+	}
+
+
+
 	public Rubric getRubric() {
 		return rubric;
 	}
@@ -417,7 +423,7 @@ public class DataController implements StudentListInfo {
 		}
 		this.rubric = rubric;
 		structureListener.dataStructureChanged();
-		if (rubric != null) {
+		if (rubric != null && studentData.size() > 1) {
 			ListenerCoordinator.fire(AddRubricTabsListener.class, rubric);
 			loadGrades();
 		}
@@ -551,7 +557,7 @@ public class DataController implements StudentListInfo {
 			break;
 		case DATE_COLUMN:
 			List<FileData> fileData = studentWorkCompiler.getSourceCode(getStudentId(rowIndex));
-			if (fileData != null) {
+			if (fileData != null && fileData.size() > 0) {
 				Date date = fileData.get(0).getDate();
 				if (date != null) {
 					retVal = date.toString();
@@ -684,26 +690,20 @@ public class DataController implements StudentListInfo {
 		return ids;
 	}
 	
-	public boolean loadTestFile(String fileName) {
+	public boolean loadTestFile(List<FileData> allFiles) {
 		clearAllData();
-	    FileData fileData = null;
-		try {
-			Path path = Paths.get(fileName);
-			String text = new String(Files.readAllBytes(path));
-			BasicFileAttributes attr = Files.readAttributes(path, BasicFileAttributes.class);
-			// Strip out the path
-			String basicFileName = path.getFileName().toString();
-			fileData = new FileData(basicFileName, text, "" + studentData.size(), attr.creationTime().toString());
-			studentData.add(new StudentData(basicFileName, "testFile", "" + studentData.size(), null));
-			studentWorkCompiler.addFile(fileData);
-			studentWorkCompiler.compileAll();
-			if (updateListener != null) {
-				updateListener.dataUpdated();
-			}
+		
 
-		}catch (IOException e) {
-			return false;
+		studentData.add(new StudentData("TestFiles", "testFile", "" + allFiles.get(0).getId(), null));
+		for (FileData fileData : allFiles) {
+			studentWorkCompiler.addFile(fileData);
 		}
+		studentWorkCompiler.compileAll();
+		if (updateListener != null) {
+			updateListener.dataUpdated();
+		}
+
+
 		return true;		
 	}
 	
@@ -797,4 +797,5 @@ public class DataController implements StudentListInfo {
 	public void removeSource(String studentID, String fileName) {
 		studentWorkCompiler.removeSource(studentID, fileName);
 	}
+
 }

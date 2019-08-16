@@ -4,6 +4,11 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -34,6 +39,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.RunSelected;
 import net.cdonald.googleClassroom.listenerCoordinator.SaveGradesListener;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentSelectedListener;
 import net.cdonald.googleClassroom.model.ClassroomData;
+import net.cdonald.googleClassroom.model.FileData;
 import net.cdonald.googleClassroom.model.GoogleSheetData;
 
 public class MainMenu extends JMenuBar {
@@ -145,7 +151,7 @@ public class MainMenu extends JMenuBar {
 	}
 	
 	private void fillRubricMenu() {
-		JMenuItem loadTemporaryFile = new JMenuItem("Load File To Test Rubric...");
+		JMenuItem loadTemporaryFile = new JMenuItem("Load Files To Test Rubric...");
 		runAllRubrics = new JMenuItem("Run All Rubrics");
 		runSelectedRubrics = new JMenuItem("Run Selected Rubrics");
 		newRubric = new JMenuItem("New Rubric...");
@@ -214,12 +220,27 @@ public class MainMenu extends JMenuBar {
 				} else {
 					tempFileChooser = new JFileChooser();
 				}
+				tempFileChooser.setMultiSelectionEnabled(true);
 
 
-				if (tempFileChooser.showOpenDialog(owner) == JFileChooser.APPROVE_OPTION) {
-					File file = tempFileChooser.getSelectedFile();
-					String directoryPath = file.getAbsolutePath();
-					ListenerCoordinator.fire(LoadTestFileListener.class, directoryPath);
+				if (tempFileChooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+					List<FileData> allFiles = new ArrayList<FileData>();
+					for (File file : tempFileChooser.getSelectedFiles()) { 
+						Path path = Paths.get(file.getAbsolutePath());						
+						String fileName = path.getFileName().toString();
+
+						try {
+							String text = new String(Files.readAllBytes(path));
+
+							FileData fileData = new FileData(fileName, text, "0", null);
+							allFiles.add(fileData);
+
+						} catch (IOException e1) {
+							// TODO Auto-generated catch block
+							e1.printStackTrace();
+						}						
+					}
+					ListenerCoordinator.fire(LoadTestFileListener.class, allFiles);
 				}	
 			}
 		});			

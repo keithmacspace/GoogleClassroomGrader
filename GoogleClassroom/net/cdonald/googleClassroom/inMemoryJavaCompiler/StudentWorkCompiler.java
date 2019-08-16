@@ -115,18 +115,23 @@ public class StudentWorkCompiler {
 				return runCore(expectingReturn, method, args);
 			}		
 		}
-		return null;
-		
+		return null;		
 	}
 	
-	public Object compileAndRun(boolean expectingReturn, List<FileData> fileDataList, String methodName, Class<?> []params, Object[] args) throws Exception {
+	public Map<String, Class<?>> compile(List<FileData> fileDataList) throws Exception {
 		InMemoryJavaCompiler compiler = InMemoryJavaCompiler.newInstance();
 		Map<String, Class<?>> compiled = null;
 
 		for (FileData fileData : fileDataList) {				
 			compiler.addSource(fileData.getClassName(), fileData.getFileContents());
 		}
-		compiled = compiler.compileAll();		
+		compiled = compiler.compileAll();
+		return compiled;
+		
+	}
+	
+	public Object compileAndRun(boolean expectingReturn, List<FileData> fileDataList, String methodName, Class<?> []params, Object[] args) throws Exception {
+		Map<String, Class<?>> compiled = compile(fileDataList);
 		return runSpecificMethod(expectingReturn, methodName, fileDataList, compiled, params, args);
 	}
 	

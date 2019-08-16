@@ -50,10 +50,12 @@ public abstract class RubricAutomation {
 	}
 
 	public abstract int getNumAutomationColumns();
-
-	protected abstract Double runAutomation_(String studentName, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData);
-	protected abstract void loadAutomationColumns(String entryName, Map<String, List<List<Object>>> columnData);
-	protected abstract void saveAutomationColumns(String entryName, List<List<Object>> columnData, Map<String, List<Object>> fileData);
 	public abstract RubricAutomation newCopy();
+	public abstract void removeFileData(FileData fileData);
+	protected abstract Double runAutomation_(String studentName, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData);
+	protected abstract void saveAutomationColumns(String entryName, List<List<Object>> columnData, Map<String, List<Object>> fileData);
+	protected abstract void loadAutomationColumns(String entryName, Map<String, List<List<Object>>> columnData,	Map<String, FileData> fileDataMap);
+
+
 
 }

@@ -16,12 +16,14 @@ public class Rubric implements SheetAccessorInterface {
 	private GoogleSheetData sheetData;
 	private List<RubricEntry> entries;
 	private boolean inModifiedState;
+	private Map<String, FileData> fileDataMap;
 	
 
 	public Rubric(GoogleSheetData sheetData) {
 		super();
 		this.sheetData = sheetData;
 		entries = new ArrayList<RubricEntry>();
+		fileDataMap = new HashMap<String, FileData>();
 	}
 	
 	public Rubric(Rubric other) {		
@@ -31,14 +33,35 @@ public class Rubric implements SheetAccessorInterface {
 			entries.add(new RubricEntry(otherEntry));
 		}
 		inModifiedState = other.inModifiedState;
+		fileDataMap = new HashMap<String, FileData>();
+		for (String key : other.fileDataMap.keySet()) {
+			fileDataMap.put(key, other.fileDataMap.get(key));
+		}
 	}
 	
 	// This form is used when we are creating a new rubric from scratch
 	public Rubric() {
 		inModifiedState = true;
 		entries = new ArrayList<RubricEntry>();
+		fileDataMap = new HashMap<String, FileData>();
+	}
+
+
+	public Map<String, FileData> getFileDataMap() {
+		return fileDataMap;
 	}
 	
+	public void addFileData(FileData fileData) {
+		fileDataMap.put(fileData.getName(), fileData);
+		for (RubricEntry entry : entries) {
+			entry.removeFileData(fileData);
+		}
+	}
+	
+	public void removeFileData(FileData fileData) {
+		fileDataMap.remove(fileData.getName());
+	}
+
 	public String getTotalCount(String id) {
 		double value = 0.0;
 		for (RubricEntry entry : entries) {
@@ -168,6 +191,7 @@ public class Rubric implements SheetAccessorInterface {
 	
 	public void loadFromSheet(LoadSheetData loadSheetData) {
 		entries.clear();
+		fileDataMap.clear();
 		if (loadSheetData == null || loadSheetData.isEmpty() == true) {
 			return;
 		}
@@ -213,7 +237,7 @@ public class Rubric implements SheetAccessorInterface {
 				currentAutomationHeader++;
 			}
 			for (RubricEntry entry : entries) {
-				entry.loadAutomationColumns(entryColumns);
+				entry.loadAutomationColumns(entryColumns, fileDataMap);
 			}			
 		}
 		
@@ -253,129 +277,12 @@ public class Rubric implements SheetAccessorInterface {
 		return saveState;		
 	}
 	
-	
-//	@Override
-//	public String getNextRange(int rangeCount) {
-//		if (rangeCount == 0) {
-//			sheetStateMachine = new LoadSheetStateMachine();
-//		}
-//		return sheetStateMachine.getNextRange(rangeCount);
-//	}
-//
-//	@Override
-//	public void setResponseData(List<List<Object>> sheetEntries, int rangeCount) {
-//		sheetStateMachine.setResponseData(sheetEntries, rangeCount);		
-//	}
+
 
 	@Override
 	public GoogleSheetData getSheetInfo() {
 		// TODO Auto-generated method stub
 		return sheetData;
 	}
-//	public enum States{READ_ROW1, READ_COL1, READ_STANDARD_PARTS, READ_AUTOMATION_COLUMNS, DONE};
-//	private class LoadSheetStateMachine {
-//
-//		private States currentState;
-//		private int initialRowCount;
-//		private int currentAutomationHeader;
-//		private Map<String, List<List<Object>>> entryColumns;
-//		private List<String> columnHeaders;
-//		public LoadSheetStateMachine() {
-//			currentState = States.READ_ROW1;
-//			initialRowCount = 0;
-//			entryColumns = new HashMap<String, List<List<Object>>>();
-//			columnHeaders = new ArrayList<String>();
-//		}
-//		String range = null;
-//		
-//		String getNextRange(int rangeCount) {
-//			switch(currentState) {
-//			case READ_ROW1:
-//				range = "1:1";
-//				break;
-//			case READ_COL1:
-//				range = columnNames[0] + ":" + columnNames[0];
-//				break;
-//			case READ_STANDARD_PARTS:
-//				// We subtract 2 because ID is not included and for zero based indexing
-//				int lastColumn = RubricEntry.HeadingNames.values().length - 2;
-//				range = columnNames[0] + "1:" + columnNames[lastColumn] + "" + initialRowCount;
-//				break;
-//			case READ_AUTOMATION_COLUMNS:
-//				range = columnNames[currentAutomationHeader] + ":" + columnNames[currentAutomationHeader];
-//				break;
-//			case DONE:
-//				for (RubricEntry entry : entries) {
-//					entry.loadAutomationColumns(entryColumns);
-//				}
-//				range = null;
-//			default:
-//				range = null;
-//			}
-//			return range;
-//
-//		}
-//		public void setResponseData(List<List<Object>> sheetEntries, int rangeCount) {
-//			switch(currentState) {
-//			case READ_ROW1:
-//				for (List<Object> row : sheetEntries) {
-//					for (Object entry : row) {
-//
-//						String entryName = (String)entry;
-//						columnHeaders.add(entryName);
-//						if (entry != null && entry instanceof String) {							
-//							if (entryName.length() > 1 && columnHeaders.size() > 4) {
-//								if (entryColumns.containsKey(entryName) == false) {
-//									entryColumns.put(entryName.toUpperCase(), new ArrayList<List<Object>>());
-//								}
-//								if (currentAutomationHeader == 0) {
-//									currentAutomationHeader = columnHeaders.size() - 1;
-//								}
-//							}
-//						}							
-//					}						
-//				}
-//				currentState = States.READ_COL1;
-//				break;			
-//			case READ_COL1:
-//				for (List<Object> row : sheetEntries) {
-//					if (row != null && row.size() > 0 && row.get(0) != null && row.get(0).toString().length() > 0) {
-//						initialRowCount++;
-//					}
-//					else {
-//						break;
-//					}
-//				}
-//				currentState = States.READ_STANDARD_PARTS;
-//				break;
-//			case READ_STANDARD_PARTS:
-//				entries.clear();
-//				loadFromSheet(sheetEntries);
-//				currentState = States.READ_AUTOMATION_COLUMNS;
-//				break;
-//			case READ_AUTOMATION_COLUMNS:
-//				String entryName = null;
-//				if (sheetEntries != null) {						
-//					List<Object> column = new ArrayList<Object>();
-//					for (List<Object> row : sheetEntries) {
-//						for (Object str : row) {
-//							if (str instanceof String) {
-//								column.add((String)str);
-//								if (entryName == null) {
-//									entryName = (String)str;
-//								}
-//							}
-//						}
-//					}					
-//					if (entryName != null) {
-//						entryColumns.get(entryName.toUpperCase()).add(column);
-//					}
-//				}
-//				if (entryName == null) {
-//					currentState = States.DONE;
-//				}
-//				currentAutomationHeader++;
-//			}
-//		}		
-//	}
+
 }

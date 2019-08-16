@@ -26,6 +26,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.SystemOutListener;
 
 
 public class ConsoleData {
+	private static final boolean CAPTURE_STDERR = false;
 	private PipedInputStream inPipe;
 	private final PipedInputStream outPipe = new PipedInputStream();
 	private final PipedInputStream errPipe = new PipedInputStream();
@@ -195,9 +196,15 @@ public class ConsoleData {
 		System.err.flush();
 		//System.setOut(oldOut);
 		System.setOut(debugOutStream);
-		System.setIn(oldIn);
-		//System.setErr(oldErr);
-		System.setErr(debugErrStream);
+		System.setIn(oldIn); 
+		if (CAPTURE_STDERR) {
+			System.setErr(debugErrStream);	
+		}
+		else {
+			System.setErr(oldErr);	
+		}
+		
+		
 		
 	}
 

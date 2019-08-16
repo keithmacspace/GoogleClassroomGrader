@@ -304,11 +304,11 @@ public class ConsoleAndSourcePanel extends JPanel {
 
 		ListenerCoordinator.addListener(AddRubricTabsListener.class, new AddRubricTabsListener() {
 			@Override
-			public void fired(Rubric rubric) {
+			public void fired(Rubric rubric) {				
 				rubricTabbedPane.removeAll();
 				rubricPanels.clear();
 				if (rubric != null) {
-					List<String> tabNames = rubric.getRubricTabs();
+					List<String> tabNames = rubric.getRubricTabs();					
 					for (String rubricName : tabNames) {
 						SplitOutErrPanel rubricPanel = new SplitOutErrPanel();
 						rubricPanels.put(rubricName, rubricPanel);

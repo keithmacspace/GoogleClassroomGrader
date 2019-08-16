@@ -16,28 +16,21 @@ import net.cdonald.googleClassroom.model.StudentData;
 
 public class SaveGrades extends LoadGrades{
 
-	private Set<String> graded;
+
 	public SaveGrades(GoogleClassroomCommunicator communicator, GoogleSheetData targetFile, Rubric rubric, List<StudentData> students, String graderName, Map<String, Map<String, String>> graderCommentsMap) {
 		super(targetFile, rubric, students, graderName, graderCommentsMap);		
-		graded = new HashSet<String>();
+
 		try {
 			loadData(communicator, true);
 		} catch (IOException e) {
 		}
-	}
-	
-
-	public void addStudentScore(StudentData student, String rubricName, Double score) {
-		graded.add(rubricName);
-		super.addStudentColumn(student, rubricName, score);
-		
+		setLoading(false);
 	}
 	
 	public void addStudentNotes(StudentData student, String notes) {
 		if (getColumnLocation(getNotesHeader()) == -1) {
 			addColumnName(getNotesHeader());
-		}
-		graded.add(getNotesHeader());
+		}		
 		super.addStudentColumn(student, getNotesHeader(), notes);
 	}
 	
@@ -49,9 +42,7 @@ public class SaveGrades extends LoadGrades{
 	public SaveSheetData getSheetSaveState() {
 		// At this point we take all the data that has been added and create the actual save sheet data
 		SaveSheetData saveData = new SaveSheetData(SaveSheetData.ValueType.USER_ENTERED, getRubric().getName());
-		List<Object> assignmentRow = new ArrayList<Object>();
 		int currentRow = 1;
-		saveData.addOneRow(assignmentRow, currentRow++);
 		int numColumns = getNumColumns();
 		List<Object> gradedByRow = new ArrayList<Object>(numColumns);
 		List<Object> columnNameRow = new ArrayList<Object>(numColumns);
@@ -63,6 +54,8 @@ public class SaveGrades extends LoadGrades{
 		}
 		gradedByRow.set(0, "Graded By");
 		rubricValueRow.set(0, "Rubric Value");
+		Set<String> graded = getModifiedSet();
+		DebugLogDialog.appendln(graded.toString());
 
 		int totalColumn = 0;
 
@@ -71,6 +64,12 @@ public class SaveGrades extends LoadGrades{
 				
 			if (columnName.equalsIgnoreCase("Total")) {
 				totalColumn = col;
+			}
+			if (graded.contains(columnName.toUpperCase())) {
+				String priorValue = getGradedBy(columnName);
+				if (priorValue == null || priorValue.length() <= 1) {
+					gradedByRow.set(col, getGraderName());
+				}				
 			}
 
 			columnNameRow.set(col, columnName);

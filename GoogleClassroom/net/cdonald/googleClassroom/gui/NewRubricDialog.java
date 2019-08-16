@@ -8,6 +8,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.List;
 
+import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
@@ -41,7 +42,7 @@ public class NewRubricDialog extends JDialog {
 		JButton okButton = new JButton("OK");
 		JButton cancelButton = new JButton("Cancel");
 		buttonLayout.setVgap(GAP_SIZE);
-		//buttonsPanel.setBorder(BorderFactory.createEmptyBorder(BUTTON_TOP_SPACE, SPACE, SPACE, SPACE));
+		buttonsPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 0, 5));
 		buttonsPanel.setLayout(buttonLayout);
 		buttonsPanel.add(okButton);
 		buttonsPanel.add(cancelButton);

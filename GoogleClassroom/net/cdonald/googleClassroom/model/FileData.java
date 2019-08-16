@@ -19,6 +19,10 @@ public class FileData extends ClassroomData {
 	public static enum fieldNames {
 		STUDENT_ID, NAME, CREATION_TIME, FILE_CONTENTS
 	}
+	
+	public FileData() {
+		super();
+	}
 
 	public FileData(String name, String fileContents, String id, String creationTime) {
 		super(name, id, creationTime);

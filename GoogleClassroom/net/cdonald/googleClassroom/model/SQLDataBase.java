@@ -81,7 +81,7 @@ public class SQLDataBase {
 		PreparedStatement insertStmt = createInsertStatement(tableName, tableLabels);
 		PreparedStatement updateStmt = createUpdateStatement(tableName, tableLabels);
 		String [] data = new String[tableLabels.length];
-		DebugLogDialog.appendln(values.toString());
+
 		int count = 0;
 		for (String tableLabel : tableLabels) {
 			data[count] = values.get(tableLabel);
