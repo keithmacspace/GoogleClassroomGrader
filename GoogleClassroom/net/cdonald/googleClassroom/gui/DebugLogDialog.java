@@ -12,7 +12,8 @@ public class DebugLogDialog extends JDialog {
 	private static DebugLogDialog dbg = null;
 	private JTextArea textArea;
 	public DebugLogDialog(Frame parent) {
-		super(parent, "Debug Logs", false);		
+		super();
+		setTitle("Debug Logs");
 		setLayout(new BorderLayout());
 		setSize(new Dimension(400, 400));
 		textArea = new JTextArea();
@@ -35,5 +36,6 @@ public class DebugLogDialog extends JDialog {
 		if (dbg != null) {
 			dbg.textArea.append(text + "\n");
 		}
+		System.err.println(text);
 	}	
 }

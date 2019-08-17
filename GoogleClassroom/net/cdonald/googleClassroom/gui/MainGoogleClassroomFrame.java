@@ -4,11 +4,13 @@ import java.awt.BorderLayout;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JSplitPane;
+import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 import javax.swing.UIManager;
 import javax.swing.UIManager.LookAndFeelInfo;
@@ -17,7 +19,6 @@ import javax.swing.WindowConstants;
 
 import net.cdonald.googleClassroom.control.DataController;
 import net.cdonald.googleClassroom.googleClassroomInterface.SaveGrades;
-import net.cdonald.googleClassroom.gui.RubricElementDialog.ModifyResult;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.AddProgressBarListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ChooseGradeFileListener;
@@ -42,8 +43,7 @@ import net.cdonald.googleClassroom.model.MyPreferences;
 import net.cdonald.googleClassroom.model.Rubric;
 
 public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
-		DataStructureChangedListener,
-		RubricModifiedListener {
+		DataStructureChangedListener {
 	private static final long serialVersionUID = 7452928818734325088L;
 	public static final String APP_NAME = "Google Classroom Grader";
 	private StudentPanel studentPanel;
@@ -66,7 +66,7 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 		super(APP_NAME);
 		dbg = new DebugLogDialog(this);
 		dataController = new DataController(this);		
-		rubricElementDialog = new RubricElementDialog(this, this, dataController.getPrefs());
+		rubricElementDialog = new RubricElementDialog(this, dataController.getPrefs(), dataController.getStudentWorkCompiler());
 		newRubricDialog = new NewRubricDialog(this);
 		guidedSetup = new GuidedSetupDialog(this, dataController);
 
@@ -157,16 +157,47 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 		addWindowListener(new WindowAdapter() {
 			@Override
 			public void windowClosing(WindowEvent ev) {
-				MyPreferences prefs = dataController.getPrefs();
-				prefs.setDimension(MyPreferences.Dimensions.MAIN, getSize());
-				prefs.setSplitLocation(MyPreferences.Dividers.STUDENT_SOURCE, splitPanePrimary.getDividerLocation());
-				prefs.setSplitLocation(MyPreferences.Dividers.STUDENT_NOTES, studentPanel.getDividerLocation());
-				dataController.closing();
-				dispose();
-				System.gc();
+				if (dataController.isGradesModified()) {
+					int option = JOptionPane.showConfirmDialog(MainGoogleClassroomFrame.this,  "Save Grades Before Exiting?", "Unsaved Changes", JOptionPane.YES_NO_CANCEL_OPTION);
+					if (option == JOptionPane.CANCEL_OPTION) {
+						return;
+					}
+					if (option == JOptionPane.YES_OPTION) {
+						SwingWorker<Void, Void> saveWorker = new SwingWorker<Void, Void>() {
+
+							@Override
+							protected Void doInBackground() throws Exception {
+								saveGrades();
+								return null;
+							}
+
+							@Override
+							protected void done() {
+								finalizeExit();
+							}														
+						};
+						saveWorker.execute();
+						return;
+					}
+				}
+				finalizeExit();
 			}
 		});
 	}
+	
+	// WARNING this should only be called from the window close event!
+	private void finalizeExit() {
+		MyPreferences prefs = dataController.getPrefs();
+		prefs.setDimension(MyPreferences.Dimensions.MAIN, getSize());
+		prefs.setSplitLocation(MyPreferences.Dividers.STUDENT_SOURCE, splitPanePrimary.getDividerLocation());
+		prefs.setSplitLocation(MyPreferences.Dividers.STUDENT_NOTES, studentPanel.getDividerLocation());
+		dataController.closing();
+		dispose();
+		System.gc();
+		
+	}
+	
+	
 	
 	private void callExit() {
 		WindowListener[] listeners = getWindowListeners();
@@ -229,14 +260,7 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 		ListenerCoordinator.addListener(SaveGradesListener.class, new SaveGradesListener() {
 			@Override
 			public void fired() {
-				ListenerCoordinator.fire(AddProgressBarListener.class, "Saving Grades");				
-				ClassroomData assignment = mainToolBar.getAssignmentSelected();
-				SaveGrades grades = dataController.newSaveGrades(assignment.getName());
-				studentPanel.addStudentGrades(grades, dataController.getRubric());
-				dataController.saveGrades(grades);
-				dataUpdated();
-				ListenerCoordinator.fire(RemoveProgressBarListener.class, "Saving Grades");
-				
+				saveGrades();				
 			}			
 		});
 		
@@ -299,24 +323,19 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 	
 	}
 	
+	private void saveGrades() {
+		ListenerCoordinator.fire(AddProgressBarListener.class, "Saving Grades");				
+		ClassroomData assignment = mainToolBar.getAssignmentSelected();
+		SaveGrades grades = dataController.newSaveGrades(assignment.getName());
+		studentPanel.addStudentGrades(grades, dataController.getRubric());
+		dataController.saveGrades(grades);
+		dataUpdated();
+		ListenerCoordinator.fire(RemoveProgressBarListener.class, "Saving Grades");
+
+	}
+	
 	private void editRubric(Rubric rubricToModify) {
-		Rubric copy = new Rubric(rubricToModify);
-		List<String> ids = studentPanel.getSelectedIds();
-		if (ids == null || ids.size() == 0) {
-			ids = dataController.getAllIDs();
-		}
-		String id = null;
-		if (ids != null && ids.size() > 0) {
-			id = ids.get(0);
-		}
-		RubricElementDialog.ModifyResult result = rubricElementDialog.modifyRubric(copy, dataController.getStudentWorkCompiler(), id); 
-		if (result != ModifyResult.CANCEL) {
-			mainToolBar.addRubricInfo(copy.getSheetInfo(), true);
-			dataController.setRubric(copy);
-			if (result == ModifyResult.SAVE) {
-				dataController.saveRubric();
-			}
-		}
+		 rubricElementDialog.modifyRubric(rubricToModify); 
 	}
 	
 	private void runRubricOrCode(boolean runSource, boolean runAll) {
@@ -388,17 +407,5 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 	public void compileDone() {
 		mainToolBar.enableRunButton();
 		mainToolBar.enableRunRubricButton();
-	}
-	
-	
-	@Override 
-	public void rubricModified(Rubric rubric) {
-		dataController.setRubric(rubric);
-		mainToolBar.enableRunRubricButton();
-	}
-
-	
-	public void saveRubric() {
-		
-	}
+	}	
 }

@@ -23,6 +23,14 @@ public class ClassroomData implements Comparable<ClassroomData> {
 		date = null;
 		retrievedFromGoogle = false;
 	}
+	
+	public ClassroomData(ClassroomData other) {
+		name = other.name;
+		id = other.id;
+		date = other.date;
+		isEmpty = other.isEmpty;
+		retrievedFromGoogle = other.retrievedFromGoogle;
+	}
 
 	public ClassroomData(String name, String id, String creationTime) {
 		super();
@@ -68,6 +76,10 @@ public class ClassroomData implements Comparable<ClassroomData> {
 
 	public String getId() {
 		return id;
+	}
+	
+	public void setId(String id) {
+		this.id = id;
 	}
 
 	public Date getDate() {

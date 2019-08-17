@@ -29,7 +29,6 @@ import net.cdonald.googleClassroom.listenerCoordinator.LaunchNewRubricDialogList
 import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricEditorDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricFileDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
-import net.cdonald.googleClassroom.listenerCoordinator.LoadTestFileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LongQueryListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricFileValidListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricSelected;
@@ -151,7 +150,7 @@ public class MainMenu extends JMenuBar {
 	}
 	
 	private void fillRubricMenu() {
-		JMenuItem loadTemporaryFile = new JMenuItem("Load Files To Test Rubric...");
+
 		runAllRubrics = new JMenuItem("Run All Rubrics");
 		runSelectedRubrics = new JMenuItem("Run Selected Rubrics");
 		newRubric = new JMenuItem("New Rubric...");
@@ -171,8 +170,7 @@ public class MainMenu extends JMenuBar {
 		rubric.add(newRubric);
 		rubric.add(editRubric);
 		rubric.add(saveRubric);
-		rubric.addSeparator();
-		rubric.add(loadTemporaryFile);
+
 		add(rubric);
 		runAllRubrics.addActionListener(new ActionListener() {
 			@Override
@@ -210,40 +208,7 @@ public class MainMenu extends JMenuBar {
 			}
 		});
 
-		loadTemporaryFile.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				JFileChooser tempFileChooser = null;
-				String currentWorkingDir = (String)ListenerCoordinator.runQuery(GetFileDirQuery.class);
-				if (currentWorkingDir != null) {
-					tempFileChooser = new JFileChooser(currentWorkingDir);
-				} else {
-					tempFileChooser = new JFileChooser();
-				}
-				tempFileChooser.setMultiSelectionEnabled(true);
-
-
-				if (tempFileChooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-					List<FileData> allFiles = new ArrayList<FileData>();
-					for (File file : tempFileChooser.getSelectedFiles()) { 
-						Path path = Paths.get(file.getAbsolutePath());						
-						String fileName = path.getFileName().toString();
-
-						try {
-							String text = new String(Files.readAllBytes(path));
-
-							FileData fileData = new FileData(fileName, text, "0", null);
-							allFiles.add(fileData);
-
-						} catch (IOException e1) {
-							// TODO Auto-generated catch block
-							e1.printStackTrace();
-						}						
-					}
-					ListenerCoordinator.fire(LoadTestFileListener.class, allFiles);
-				}	
-			}
-		});			
+			
 		ListenerCoordinator.addListener(RubricFileValidListener.class, new RubricFileValidListener() {
 			@Override
 			public void fired() {

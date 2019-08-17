@@ -18,8 +18,7 @@ public interface StudentListInfo {
 	public Object getValueAt(int rowIndex, int columnIndex);
 	public void setValueAt(Object value, int rowIndex, int columnIndex);
 	public String getColumnTip(int column);
-	public String getColumnName(int column);
-	public void setOwner(StudentListModel owner);
+	public String getColumnName(int column);	
 	public Map<String, Map<String, String> > getNotesCommentsMap();
 	public String getUserName();
 }

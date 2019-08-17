@@ -1,11 +1,11 @@
 package net.cdonald.googleClassroom.model;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
-import net.cdonald.googleClassroom.gui.DebugLogDialog;
-
 public class FileData extends ClassroomData {
-
+	public static final String GOLDEN_SOURCE_ID = "GoldenSource";
 	private String fileContents;
 	private String packageName;
 	private String className;
@@ -46,6 +46,38 @@ public class FileData extends ClassroomData {
 				}
 			}
 		}
+	}
+	
+	public FileData(FileData other) {
+		super(other);
+		fileContents = other.fileContents;
+		packageName = other.packageName;
+		className = other.className;
+		isRubricCode = other.isRubricCode;
+	}
+	
+	public static FileData newFromSheet(String fileName, List<List<Object>> sourceInfo) {
+		FileData fileData = null;
+		if (sourceInfo != null) {
+			String text = "";
+			boolean firstLine = true;
+			List<Object> lines = sourceInfo.get(0);
+			for (Object lineO : lines) {
+				if (lineO != null) {
+					if (lineO instanceof String) {
+						String line = (String)lineO;
+						if (line.length() > 0) {
+							if (firstLine == false) {
+								text += line + "\n";
+							}							
+							firstLine = false;
+						}
+					}
+				}					
+			}
+			fileData = new FileData(fileName, text, GOLDEN_SOURCE_ID, null); 
+		}
+		return fileData;
 	}
 
 	public String getFileContents() {
@@ -248,6 +280,35 @@ public class FileData extends ClassroomData {
 		}
 		return -1; // No matching closing parenthesis
 	}
+	
+	public List<Object> fillSaveData() {
+		List<Object> fileLineList = new ArrayList<Object>();
+		fileLineList.add(getName()); // Column header
+		String[] fileLineArray = getFileContents().split("\n");
+		int rowCount = 0;
+		int lineIndex = 0;
+		while(lineIndex < fileLineArray.length) {
+			// Start putting multiple lines on a single row.
+			if (rowCount > 200) {
+				String nextLine = "";
+				while(nextLine.length() < 200 && lineIndex < fileLineArray.length) {
+					nextLine += fileLineArray[lineIndex];
+					if (nextLine.length() < 199) {
+						nextLine += "\n";
+					}
+					lineIndex++;
+				}
+				fileLineList.add(nextLine);
+			}
+			else {
+				fileLineList.add(fileLineArray[lineIndex]);
+				lineIndex++;	
+			}
+			rowCount++;					
+		}
+		return fileLineList;
+	}
+	
 
 	public static void main(String[] args) {
 		FileData fileData = new FileData("file.java", "", "0", null);
@@ -255,7 +316,6 @@ public class FileData extends ClassroomData {
 		fileData.setFileContents(contents);
 		fileData.instrumentFile("words.words.call()");
 		System.out.println(fileData.getFileContents());
-
 	}
 
 }

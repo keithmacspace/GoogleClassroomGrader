@@ -171,7 +171,7 @@ public class ConsoleData {
 
 	}
 	
-	private void redirectStreams() {
+	private void redirectStreams() {		
 		inPipe = new PipedInputStream();
 		try {
 			if (outWriter == null) {
@@ -187,7 +187,12 @@ public class ConsoleData {
 		}
 		System.setIn(inPipe);
 		System.setOut(outWriter);
-		System.setErr(errWriter);
+		if (CAPTURE_STDERR) {
+			System.setErr(errWriter);
+		}
+		else {
+			System.setErr(oldErr);
+		}
 	}
 
 	// Swap in our debug streams
@@ -251,13 +256,14 @@ public class ConsoleData {
 			String outTemp = "";
 			String errTemp = "";
 			String debugTemp = "";
+
 			for (PipeInfo info : chunks) {
 				char ch = info.character;
+
 				if (info.pipe == outPipe) {
 					// Special flag sent by StudentWorkCompiler to tell us when we are done running
 					// a program. I know it is a little ugly, I just can't figure out how to wait
-					// until all the output finishes flowing down
-					
+					// until all the output finishes flowing down					
 					if (ch == 0) {
 						done = true;
 					} else {
@@ -298,9 +304,8 @@ public class ConsoleData {
 		}
 		
 		private void readPipe(PipedInputStream pipe) {
-			try {
-	
-				while (pipe != null && pipe.available() != 0) {
+			try {	
+				while (pipe != null && pipe.available() != 0) {					
 					char temp = (char)pipe.read();
 					publish(new PipeInfo(temp, pipe));
 					if (temp == '\n' && pipe != errPipe && pipe != debugErrPipe) {
@@ -314,17 +319,14 @@ public class ConsoleData {
 			}
 			
 		}
-
 		@Override
 		protected Void doInBackground() {
 			try {
-				while (stop == false) {
-					
+				while (stop == false) {					
 					readPipe(errPipe);
 					readPipe(outPipe);
 					readPipe(debugErrPipe);
-					readPipe(debugOutPipe);
-					
+					readPipe(debugOutPipe);					
 				}
 			} catch (Exception e) {
 

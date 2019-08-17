@@ -41,10 +41,9 @@ public class RubricElementTableModel extends DefaultTableModel {
 	}
 
 	@Override
-	public Object getValueAt(int row, int column) {
+	public Object getValueAt(int row, int column) {		
 		RubricEntry entry = rubricToModify.getEntry(row);
 		return entry.getTableValue(getColumnHeading(column));
-
 	}
 
 	@Override

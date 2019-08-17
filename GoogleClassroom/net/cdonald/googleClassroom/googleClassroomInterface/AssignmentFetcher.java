@@ -20,6 +20,11 @@ public class AssignmentFetcher extends ClassroomDataFetcher {
 	public AssignmentFetcher(GoogleClassroomCommunicator authorize) {
 		super(authorize);
 	}
+	@Override
+	protected void done() {
+		ListenerCoordinator.fire(RemoveProgressBarListener.class, PROGRESS_BAR_NAME);
+		super.done();
+	}
 
 	@Override
 	protected Void doInBackground()  {
@@ -34,8 +39,7 @@ public class AssignmentFetcher extends ClassroomDataFetcher {
 			} catch (IOException e) {
 				communicationException = e;
 			}
-		}
-		ListenerCoordinator.fire(RemoveProgressBarListener.class, PROGRESS_BAR_NAME);
+		}		
 		return null;
 	}
 

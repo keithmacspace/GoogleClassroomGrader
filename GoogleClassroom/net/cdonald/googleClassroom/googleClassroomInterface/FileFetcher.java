@@ -19,6 +19,12 @@ public class FileFetcher extends ClassroomDataFetcher {
 	public FileFetcher(GoogleClassroomCommunicator authorize) {
 		super(authorize);
 	}
+	
+	@Override
+	protected void done() {
+		ListenerCoordinator.fire(RemoveProgressBarListener.class, PROGRESS_BAR_NAME);
+		super.done();
+	}
 
 	@Override
 	protected Void doInBackground() throws Exception {

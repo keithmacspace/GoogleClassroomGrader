@@ -13,9 +13,7 @@ public class StudentListModel extends AbstractTableModel {
 
 	
 	public StudentListModel(StudentListInfo studentListInfo) {
-
 		this.studentListInfo = studentListInfo;
-		studentListInfo.setOwner(this);
 		clearAll();
 	}
 

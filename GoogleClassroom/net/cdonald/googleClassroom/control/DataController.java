@@ -2,10 +2,6 @@ package net.cdonald.googleClassroom.control;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Date;
@@ -19,6 +15,7 @@ import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.KeyStroke;
+import javax.swing.SwingWorker;
 import javax.swing.text.DefaultEditorKit;
 
 import net.cdonald.googleClassroom.googleClassroomInterface.AssignmentFetcher;
@@ -31,10 +28,10 @@ import net.cdonald.googleClassroom.googleClassroomInterface.SheetFetcher;
 import net.cdonald.googleClassroom.googleClassroomInterface.StudentFetcher;
 import net.cdonald.googleClassroom.gui.DataStructureChangedListener;
 import net.cdonald.googleClassroom.gui.DataUpdateListener;
-import net.cdonald.googleClassroom.gui.GuidedSetupDialog;
+import net.cdonald.googleClassroom.gui.DebugLogDialog;
 import net.cdonald.googleClassroom.gui.MainGoogleClassroomFrame;
-import net.cdonald.googleClassroom.gui.RubricElementDialog;
-import net.cdonald.googleClassroom.gui.StudentListModel;
+import net.cdonald.googleClassroom.gui.SetRubricListener;
+import net.cdonald.googleClassroom.gui.SetRubricListener.RubricType;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.StudentWorkCompiler;
 import net.cdonald.googleClassroom.listenerCoordinator.AddProgressBarListener;
@@ -50,10 +47,8 @@ import net.cdonald.googleClassroom.listenerCoordinator.GetFileDirQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetStudentFilesQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetWorkingDirQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GradeFileSelectedListener;
-import net.cdonald.googleClassroom.listenerCoordinator.LaunchGuidedSetupListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.LoadGradesListener;
-import net.cdonald.googleClassroom.listenerCoordinator.LoadTestFileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LongQueryListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RemoveProgressBarListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricFileSelectedListener;
@@ -83,7 +78,8 @@ public class DataController implements StudentListInfo {
 	private ClassroomData currentCourse;
 	private List<StudentData> studentData;
 	private Map<String, StudentData> studentMap;
-	private Rubric rubric;
+	private Rubric currentRubric;
+	private Rubric primaryRubric;
 	private DataStructureChangedListener structureListener;
 	private DataUpdateListener updateListener;
 	private GoogleClassroomCommunicator googleClassroom;
@@ -91,6 +87,10 @@ public class DataController implements StudentListInfo {
 	private ClassroomData rubricURL;
 	private ClassroomData gradeURL;
 	private Map<String, Map<String, String> > notesCommentsMap;
+	private Rubric rubricBeingEdited;
+	private StudentData rubricBeingEditedStudent;
+	private boolean gradesModified;
+
 	
 	
 
@@ -253,7 +253,7 @@ public class DataController implements StudentListInfo {
 		ListenerCoordinator.addQueryResponder(EnableRunRubricQuery.class, new EnableRunRubricQuery() {
 			@Override
 			public Boolean fired() {
-				return (Boolean)(rubric != null);
+				return (Boolean)(primaryRubric != null);
 			}
 			
 		});
@@ -289,15 +289,6 @@ public class DataController implements StudentListInfo {
 
 		});
 			
-		ListenerCoordinator.addListener(LoadTestFileListener.class, new LoadTestFileListener() {
-			@Override
-			public void fired(List<FileData> allFiles) {
-				loadTestFile(allFiles);				
-			}			
-		});
-		
-		
-		
 		ListenerCoordinator.addListener(RubricFileSelectedListener.class, new RubricFileSelectedListener() {
 			@Override
 			public void fired(String url, String fileName) {
@@ -316,33 +307,37 @@ public class DataController implements StudentListInfo {
 			@Override
 			public void fired(GoogleSheetData data) {
 				if (data != null && data.isEmpty() == false) {
-					if (rubric == null || rubric.getName().equals(data.getName()) == false) {
-						rubric = new Rubric(data);
+					if (primaryRubric == null || primaryRubric.getName().equals(data.getName()) == false) {
+						Rubric rubric = new Rubric(data);
 						try {
 							ListenerCoordinator.fire(AddProgressBarListener.class, "Loading Rubric");
 							googleClassroom.fillRubric(rubric);
+							setRubric(rubric, RubricType.PRIMARY);
 							ListenerCoordinator.fire(RemoveProgressBarListener.class, "Loading Rubric");
 						} catch (IOException e) {
 							JOptionPane.showMessageDialog(null, e.getMessage(), "Error accessing rubric db sheet",
 									JOptionPane.ERROR_MESSAGE);
-							e.printStackTrace();
-							rubric = null;
+							e.printStackTrace();					
 						}
-
-						if (setRubric(rubric) == JOptionPane.YES_OPTION) {
-							saveRubric();
-						}
+						
 					}				
 				}
 				else {
-					setRubric(null);
-					rubric = null;
+					setRubric(null, RubricType.PRIMARY);
 				}
 
-				ListenerCoordinator.fire(SetRunRubricEnableStateListener.class, (Boolean)(rubric != null));
+				ListenerCoordinator.fire(SetRunRubricEnableStateListener.class, (Boolean)(primaryRubric != null));
 				updateListener.dataUpdated();				
 			}
-		});	
+		});
+
+		ListenerCoordinator.addListener(SetRubricListener.class, new SetRubricListener() {
+			@Override
+			public void fired(Rubric rubric, RubricType rubricType) {
+				setRubric(rubric, rubricType);
+				
+			}
+		});
 		
 		ListenerCoordinator.addListener(SaveRubricListener.class, new SaveRubricListener() {
 			@Override
@@ -403,6 +398,15 @@ public class DataController implements StudentListInfo {
 		return prefs;
 	}
 
+	/**
+	 * @return the gradesModified
+	 */
+	public boolean isGradesModified() {
+		return gradesModified;
+	}
+
+
+
 	public StudentWorkCompiler getStudentWorkCompiler() {
 		return studentWorkCompiler;
 	}
@@ -410,27 +414,58 @@ public class DataController implements StudentListInfo {
 
 
 	public Rubric getRubric() {
-		return rubric;
+		return currentRubric;
 	}
 
-	public int setRubric(Rubric rubric) {
-		// The name check is for when we do a restore after cancel
-		if (this.rubric != null && this.rubric.isInModifiedState() && rubric != this.rubric && rubric.getName() != this.rubric.getName()) {
-			int dialogResult = JOptionPane.showConfirmDialog(null, "Do you want to save the current rubric before changing this one (cancel means do not change rubric)?", "Current Rubric Modified", JOptionPane.YES_NO_CANCEL_OPTION);
-			if (dialogResult != JOptionPane.NO_OPTION) {
-				return dialogResult;
+	private void setRubric(Rubric rubric, RubricType rubricType) {
+		boolean isAlreadyLoaded = (rubric != null && primaryRubric != null && primaryRubric.getName().contentEquals(rubric.getName()));		
+		if (rubricType == RubricType.RUBRIC_BEING_EDITED) {
+			setRubricBeingEdited(rubric);
+		}
+		else if (rubricType == RubricType.PRIMARY) {
+			setRubricBeingEdited(null);
+			primaryRubric = rubric;
+			currentRubric = rubric;
+		}		
+		structureListener.dataStructureChanged();		
+		if (rubric != null) {
+			ListenerCoordinator.fire(AddRubricTabsListener.class, rubric);
+
+
+			if ((rubricType != RubricType.RUBRIC_BEING_EDITED) && (isAlreadyLoaded == false) && studentData.size() > 1) {
+				loadGrades();
+			}
+
+			if (rubric.isInModifiedState() && rubricType == RubricType.PRIMARY) {
+				saveRubric(rubric);
 			}
 		}
-		this.rubric = rubric;
-		structureListener.dataStructureChanged();
-		if (rubric != null && studentData.size() > 1) {
-			ListenerCoordinator.fire(AddRubricTabsListener.class, rubric);
-			loadGrades();
-		}
-		
-		return JOptionPane.NO_OPTION;
 	}
-	
+
+	private void setRubricBeingEdited(Rubric rubricBeingEdited) {
+		this.rubricBeingEdited = rubricBeingEdited;
+		rubricBeingEditedStudent = null;
+		if (rubricBeingEdited != null) {
+			currentRubric = rubricBeingEdited;
+			rubricBeingEditedStudent = new StudentData("Source", "Golden", FileData.GOLDEN_SOURCE_ID, null);
+			studentWorkCompiler.clearStudentFiles(FileData.GOLDEN_SOURCE_ID);			
+			for (FileData fileData : rubricBeingEdited.getGoldenSource()) {
+				fileData.setId(FileData.GOLDEN_SOURCE_ID);
+				studentWorkCompiler.addFile(fileData);
+			}
+			studentWorkCompiler.compile(FileData.GOLDEN_SOURCE_ID);
+			ListenerCoordinator.fire(AddRubricTabsListener.class, rubricBeingEdited);					
+		}
+		else {
+			currentRubric = primaryRubric;
+		}
+	}
+
+
+	public Rubric getRubricBeingEdited() {
+		return rubricBeingEdited;
+	}
+
 
 	public ClassroomData getCurrentCourse() {
 		return currentCourse;
@@ -474,22 +509,28 @@ public class DataController implements StudentListInfo {
 	}
 	
 	public void runRubric(String studentId) {
-		if (rubric != null) {
-			CompilerMessage message = studentWorkCompiler.getCompilerMessage(studentId);
-			if (message != null) {
-				StudentData student = studentMap.get(studentId);
-				String studentName = "";
-				if (student != null) {
-					studentName = student.getFirstName() + " " + student.getName();
-				}
-				rubric.runAutomation(updateListener, studentName, message, studentWorkCompiler, consoleData);
+		StudentData student = null;
+		if (rubricBeingEditedStudent != null && rubricBeingEditedStudent.getId().equals(studentId)) {
+			student = rubricBeingEditedStudent;
+		}
+		else {
+			student = studentMap.get(studentId);
+		}
+		String studentName = "";
+		if (student != null) {
+			studentName = student.getFirstName() + " " + student.getName();
+		}
+		if (currentRubric != null) {
+			CompilerMessage message = studentWorkCompiler.getCompilerMessage(studentId);			
+			if (message != null) {				
+				currentRubric.runAutomation(updateListener, studentName, message, studentWorkCompiler, consoleData);
 				updateListener.dataUpdated();
-			}			
+			}
 		}
 		ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.RUNNING, "");
 	}
 	
-	
+
 	public void initStudents()  {
 		if (currentCourse != null) {
 			studentData.clear();
@@ -532,15 +573,19 @@ public class DataController implements StudentListInfo {
 	
 	@Override
 	public int getRowCount() {
+		if (rubricBeingEdited != null) {
+			return 1;
+		}
 		return studentData.size();
 		
 	}
 	
 	@Override
 	public int getColumnCount() {
+		
 		int num = NUM_DEFAULT_COLUMNS;
-		if (rubric != null) {
-			num += rubric.getEntries().size();
+		if (currentRubric != null) {
+			num += currentRubric.getEntries().size();
 		}
 		return num;
 	}
@@ -550,10 +595,20 @@ public class DataController implements StudentListInfo {
 		Object retVal = null;
 		switch(columnIndex) {
 		case LAST_NAME_COLUMN:
-			retVal = studentData.get(rowIndex);
+			if (rubricBeingEditedStudent != null) {
+				retVal = rubricBeingEditedStudent;
+			}
+			else {
+				retVal = studentData.get(rowIndex);
+			}
 			break;
 		case FIRST_NAME_COLUMN:
-			retVal = studentData.get(rowIndex).getFirstName();
+			if (rubricBeingEdited != null) {
+				retVal = "Source";
+			}
+			else {
+				retVal = studentData.get(rowIndex).getFirstName();
+			}
 			break;
 		case DATE_COLUMN:
 			List<FileData> fileData = studentWorkCompiler.getSourceCode(getStudentId(rowIndex));
@@ -576,13 +631,13 @@ public class DataController implements StudentListInfo {
 			}
 			break;
 		case TOTAL_COLUMN:
-			if (rubric != null) {
-				return rubric.getTotalCount(getStudentId(rowIndex));				
+			if (currentRubric != null) {
+				return currentRubric.getTotalCount(getStudentId(rowIndex));				
 			}
 			break;			
 		default:
-			if (rubric != null) {
-				RubricEntry entry = rubric.getEntry(getRubricIndex(columnIndex));
+			if (currentRubric != null) {
+				RubricEntry entry = currentRubric.getEntry(getRubricIndex(columnIndex));
 				if (entry != null) {
 					retVal = entry.getStudentValue(getStudentId(rowIndex));
 				}
@@ -594,18 +649,18 @@ public class DataController implements StudentListInfo {
 	
 	@Override
 	public void setValueAt(Object value, int rowIndex, int columnIndex) {
-		if (value != null) {
-			int index = getRubricIndex(columnIndex);
-			if (index >= 0 && rubric != null) {
-				rubric.getEntry(index).setStudentValue(getStudentId(rowIndex), (String)value);
-			}
+		gradesModified = true;
+		int index = getRubricIndex(columnIndex);
+		if (index >= 0 && currentRubric != null) {
+			currentRubric.getEntry(index).setStudentValue(getStudentId(rowIndex), (String)value);
 		}
+		
 	}
 	
 	@Override
 	public String getColumnTip(int columnIndex) {
-		if (columnIndex > NUM_DEFAULT_COLUMNS && rubric != null) {
-			return rubric.getEntry(getRubricIndex(columnIndex)).getDescription();
+		if (columnIndex > NUM_DEFAULT_COLUMNS && currentRubric != null) {
+			return currentRubric.getEntry(getRubricIndex(columnIndex)).getDescription();
 		}
 		return "";
 	}
@@ -615,12 +670,12 @@ public class DataController implements StudentListInfo {
 	}
 	
 	@Override
-	public String getColumnName(int columnIndex) {
+	public String getColumnName(int columnIndex) {		
 		if (columnIndex < NUM_DEFAULT_COLUMNS) {
 			return defaultColumnNames[columnIndex];
 		}
-		if (rubric != null) {
-			return rubric.getEntry(getRubricIndex(columnIndex)).getColumnName();
+		if (currentRubric != null) {
+			return currentRubric.getEntry(getRubricIndex(columnIndex)).getColumnName();
 		}
 		return null;
 	}
@@ -636,8 +691,10 @@ public class DataController implements StudentListInfo {
 	}
 
 	public String getStudentId(int row) {
-		return studentData.get(row).getId();
-		
+		if (rubricBeingEdited != null) {
+				return FileData.GOLDEN_SOURCE_ID;
+		}
+		return studentData.get(row).getId();		
 	}
 	
 	public List<List<Object>> getColumnValuesForSheet() {
@@ -649,7 +706,7 @@ public class DataController implements StudentListInfo {
 				innerData.add(defaultColumnNames[col]);
 			}
 			else {
-				RubricEntry entry = rubric.getEntry(getRubricIndex(col));
+				RubricEntry entry = currentRubric.getEntry(getRubricIndex(col));
 				String temp = entry.getName() + "\nValue = " + entry.getValue();
 				innerData.add(temp);
 			}
@@ -675,43 +732,25 @@ public class DataController implements StudentListInfo {
 		}
 		return "";
 	}
-
-	public void setOwner(StudentListModel owner) {
-	//	this.owner = owner;
-	}
 	
 	public List<String> getAllIDs() {
 		List<String> ids = new ArrayList<String>();
-		
-		
-		for (StudentData student : studentData) {
-			ids.add(student.getId());
+		if (rubricBeingEdited != null) {
+			ids.add(FileData.GOLDEN_SOURCE_ID);
+		}
+		else {
+			for (StudentData student : studentData) {
+				ids.add(student.getId());
+			}
 		}
 		return ids;
 	}
 	
-	public boolean loadTestFile(List<FileData> allFiles) {
-		clearAllData();
-		
-
-		studentData.add(new StudentData("TestFiles", "testFile", "" + allFiles.get(0).getId(), null));
-		for (FileData fileData : allFiles) {
-			studentWorkCompiler.addFile(fileData);
-		}
-		studentWorkCompiler.compileAll();
-		if (updateListener != null) {
-			updateListener.dataUpdated();
-		}
-
-
-		return true;		
-	}
-	
-	public void saveRubric() {
-		if (rubric != null) {
+	private void saveRubric(Rubric rubricToSave) {
+		if (rubricToSave != null) {
 			try {
 				ListenerCoordinator.fire(AddProgressBarListener.class, "Saving Rubric");
-				googleClassroom.writeSheet(rubric);				
+				googleClassroom.writeSheet(rubricToSave);				
 			}
 			catch(IOException e) {
 				JOptionPane.showMessageDialog(null, e.getMessage(), "Error saving to rubric db sheet",
@@ -720,25 +759,33 @@ public class DataController implements StudentListInfo {
 			}
 			ListenerCoordinator.fire(RemoveProgressBarListener.class, "Saving Rubric");
 		}
+		
+	}
+	
+	private void saveRubric() {
+		saveRubric(currentRubric);
 	}
 	
 	public Rubric newRubric(String name) {
 		if (rubricURL != null) {
 			GoogleSheetData sheetData = new GoogleSheetData(name, rubricURL.getId(), "NewRubric");
-			rubric = new Rubric(sheetData);
+			Rubric rubric = new Rubric(sheetData);
 			return rubric;
 		}
 		return null;
 	}
 	
 	public SaveGrades newSaveGrades(String assignmentName) {
-		SaveGrades grades = new SaveGrades(googleClassroom, new GoogleSheetData(rubric.getName(), gradeURL.getId(), rubric.getName()), rubric, studentData, prefs.getUserName(), notesCommentsMap);
-		return grades;
+		if (currentRubric != null && currentRubric != rubricBeingEdited) {
+			SaveGrades grades = new SaveGrades(googleClassroom, new GoogleSheetData(currentRubric.getName(), gradeURL.getId(), currentRubric.getName()), currentRubric, studentData, prefs.getUserName(), notesCommentsMap);
+			return grades;
+		}
+		return null;
 	}
 	
 	public void loadGrades() {
-		if (gradeURL != null) {
-			LoadGrades grades = new LoadGrades(new GoogleSheetData(rubric.getName(), gradeURL.getId(), rubric.getName()), rubric, studentData, prefs.getUserName(), notesCommentsMap);
+		if (currentRubric != null && gradeURL != null && currentRubric != rubricBeingEdited) {
+			LoadGrades grades = new LoadGrades(new GoogleSheetData(currentRubric.getName(), gradeURL.getId(), currentRubric.getName()), currentRubric, studentData, prefs.getUserName(), notesCommentsMap);
 
 			try {
 				ListenerCoordinator.fire(AddProgressBarListener.class, "Loading Grades");
@@ -754,6 +801,7 @@ public class DataController implements StudentListInfo {
 	
 	public void saveGrades(SaveGrades grades) {
 		try {
+			gradesModified = false;
 			googleClassroom.writeSheet(grades);
 		} catch (IOException e) {
 			JOptionPane.showMessageDialog(null, "Error saving grades to google sheet " + e.getMessage(),  "Save problem",

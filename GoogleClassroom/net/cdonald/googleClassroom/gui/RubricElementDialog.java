@@ -9,6 +9,8 @@ import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -47,6 +49,8 @@ import javax.swing.text.DefaultCaret;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.StudentWorkCompiler;
 import net.cdonald.googleClassroom.listenerCoordinator.GetFileDirQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
+import net.cdonald.googleClassroom.listenerCoordinator.RunRubricSelected;
+import net.cdonald.googleClassroom.listenerCoordinator.SaveRubricListener;
 import net.cdonald.googleClassroom.listenerCoordinator.SetFileDirListener;
 import net.cdonald.googleClassroom.model.FileData;
 import net.cdonald.googleClassroom.model.MyPreferences;
@@ -57,41 +61,38 @@ import net.cdonald.googleClassroom.utils.HighlightText;
 
 public class RubricElementDialog extends JDialog implements RubricElementListener {
 	private static final long serialVersionUID = -5580080426150572162L;
-	public enum ModifyResult{CANCEL, TEST, SAVE};
-	private JButton saveButton;
-	private JButton testButton;
-	private JButton addRubricEntry;
-	private JButton cancelButton;
 	private JTable entriesTable;
 	private RubricElementTableModel entriesModel;	
 	private Rubric rubricToModify;	
-	private JButton deleteButton;
 	private RunCode runCode;
 	private JPanel defaultPanel;
-	private ModifyResult modifyResult;
 	private int priorSelectedIndex;
 	private MyPreferences prefs;
+	private List<JButton> buttons;
+	private JButton goldenSourceButton;
+	private JButton cancelButton;
 	private StudentWorkCompiler compiler;
-	private String idOfTestCode;
+	
+	
 
-	public ModifyResult modifyRubric(Rubric rubricToModify, StudentWorkCompiler compiler, String idOfTestCode) {
-		this.rubricToModify = rubricToModify;
-		this.compiler = compiler;
-		this.idOfTestCode = idOfTestCode;
+	public void modifyRubric(Rubric rubric) {
+		this.rubricToModify = new Rubric(rubric);
 		entriesModel.setRubricToModify(rubricToModify);
-		modifyResult = ModifyResult.CANCEL;
+		rubricToModify.setInModifiedState(true);
 		if (runCode.isActive()) {
 			runCode.fillMethodCombo();
 		}
+		possiblyLoadGoldenSource();
 		setVisible(true);
-		return modifyResult;		
+		
 	}
 		
 	
-	public RubricElementDialog(Frame parent, RubricModifiedListener listener, MyPreferences prefs) {
-		super(parent, "Rubric Element", true);		
+	public RubricElementDialog(Frame parent, MyPreferences prefs, StudentWorkCompiler compiler) {
+		super(parent, "Edit Rubric", false);
 		this.prefs = prefs;
-		runCode = new RunCode();
+		this.compiler = compiler;
+		buttons = new ArrayList<JButton>();		
 		priorSelectedIndex = -1;		
 		entriesModel = new RubricElementTableModel();
 		entriesTable = new JTable(entriesModel);		
@@ -99,14 +100,17 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 		entriesTable.setDefaultEditor(RubricEntry.AutomationTypes.class, new RubricElementEditor());
 		entriesTable.setRowHeight(20);
 		entriesTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-
-
-
-		saveButton = newButton("Save");
-		testButton = newButton("Test");
-		addRubricEntry = newButton("Add Row");
-		deleteButton = newButton("Delete");
+		
+		buttons = new ArrayList<JButton>();
+		goldenSourceButton = newButton("Load Gold Source");
+		goldenSourceButton.setToolTipText("Load the source file(s) representing code that passes 100% of the rubrics");
+		JButton okButton = newButton("OK");
+		JButton saveButton = newButton("Save");
+		JButton testButton = newButton("Test Run");
+		JButton addRubricEntry = newButton("Add Row");
+		JButton deleteButton = newButton("Delete Row");
 		cancelButton = newButton("Cancel");
+		
 		cancelButton.setMnemonic(KeyEvent.VK_C);
 
 
@@ -114,12 +118,15 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 		JPanel constantPanel = new JPanel();
 		constantPanel.setLayout(new BorderLayout());
 		
-		JPanel buttonsPanel = createButtonPanel(5);
-		buttonsPanel.add(saveButton);
-		buttonsPanel.add(testButton);
+		JPanel buttonsPanel = createButtonPanel(8);
+		buttonsPanel.add(okButton);
+		buttonsPanel.add(goldenSourceButton);
 		buttonsPanel.add(addRubricEntry);
 		buttonsPanel.add(deleteButton);
-		buttonsPanel.add(cancelButton);			
+		buttonsPanel.add(saveButton);
+		buttonsPanel.add(testButton);
+		buttonsPanel.add(cancelButton);
+
 
 
 
@@ -129,27 +136,43 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 		// cards = new JPanel(new CardLayout());
 		defaultPanel.setLayout(new BorderLayout());
 		defaultPanel.add(new JScrollPane(entriesTable), BorderLayout.CENTER);
-		defaultPanel.add(constantPanel, BorderLayout.EAST);
+		defaultPanel.add(constantPanel, BorderLayout.EAST);		
 		if (prefs.dimensionExists(MyPreferences.Dimensions.RUBRIC_EDIT)) {
 			defaultPanel.setPreferredSize(prefs.getDimension(MyPreferences.Dimensions.RUBRIC_EDIT, 0, 0));
 		}
 
 		add(defaultPanel, BorderLayout.CENTER);
+		
+		runCode = new RunCode();
+		
 		ListSelectionModel selectionModel = entriesTable.getSelectionModel();
 
+		goldenSourceButton.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				loadGoldSource();
+			}
+		});
+		
+		okButton.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				ListenerCoordinator.fire(SetRubricListener.class, rubricToModify, SetRubricListener.RubricType.PRIMARY);
+				setVisible(false);
+			}
+		});
+		
 		saveButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				modifyResult = ModifyResult.SAVE;				
-				setVisible(false);				
+				ListenerCoordinator.fire(SaveRubricListener.class);								
 			}
 		});
 
 		testButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				modifyResult = ModifyResult.TEST;				
-				setVisible(false);				
+				ListenerCoordinator.fire(RunRubricSelected.class, true);				
 			}
 		});
 
@@ -162,7 +185,6 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 				entriesModel.fireTableDataChanged();
 				int selectionIndex = rubricToModify.getEntries().size() - 1;
 				selectionModel.setSelectionInterval(selectionIndex, selectionIndex);
-
 			}
 		});
 		
@@ -180,7 +202,7 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 		cancelButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				modifyResult = ModifyResult.CANCEL;
+				ListenerCoordinator.fire(SetRubricListener.class, null, SetRubricListener.RubricType.RUBRIC_BEING_EDITED);
 				setVisible(false);
 			}
 		});
@@ -200,17 +222,36 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 				}
 			}
 		});
+		
+		addWindowListener(new WindowAdapter() {
+			@Override
+			public void windowClosing(WindowEvent ev) {				
+				ListenerCoordinator.fire(SetRubricListener.class, null, SetRubricListener.RubricType.RUBRIC_BEING_EDITED);
+			}
+		});
 
 		createPopupMenu(selectionModel);
 		pack();
 	}
 	
 	private JButton newButton(String name) {
-		JButton button = new JButton(name);
-		button.setPreferredSize(runCode.getMaxButtonDim());
+		JButton button = new JButton(name);		
+		Dimension former = null;
+		if (buttons.size() > 0) {
+			former = buttons.get(0).getPreferredSize();
+		}		
+		Dimension current = button.getPreferredSize();
+		if (former != null && current.getWidth() > former.getWidth()) {
+			for (JButton oldButton : buttons) {				
+				oldButton.setPreferredSize(current);
+			}
+		}
+		else if (former != null){			
+			button.setPreferredSize(former);
+		}
+		buttons.add(button);
 		return button;
 	}
-	
 	
 	
 	private void createPopupMenu(ListSelectionModel selectionModel) {
@@ -279,11 +320,14 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 	}
 
 	@Override
-	public void typeSelected(RubricEntry.AutomationTypes automationType, boolean isSelected) {
+	public void typeSelected(RubricEntry.AutomationTypes automationType, boolean isSelected) {		
 		if (isSelected) {
 			boolean stateChanged = false;
 			RubricEntry entry = getCurrentEntry();
-			if (priorSelectedIndex != entriesTable.getSelectedRow()) {
+			if (entry.getAutomationType() != automationType) {
+				entry.setAutomationType(automationType);
+			}
+			if (priorSelectedIndex != entriesTable.getSelectedRow()) {				
 				if (runCode.isActive()) {
 					runCode.removeRunCodeItems();
 					stateChanged = true;
@@ -291,7 +335,7 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 				priorSelectedIndex = entriesTable.getSelectedRow();
 			}
 			if (entry.getAutomationType() == RubricEntry.AutomationTypes.RUN_CODE) {
-				if (runCode.isActive() == false) {
+				if (runCode.isActive() == false) {			
 					runCode.addRunCodeItems();
 					stateChanged = true;
 				}
@@ -357,6 +401,55 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 		parent.add(component, c);
 	}
 	
+	private void loadGoldSource() {
+		List<FileData> allFiles = loadSource();
+		if (allFiles != null & allFiles.size() != 0) {
+			rubricToModify.setGoldenSource(allFiles);
+			possiblyLoadGoldenSource();
+		}	
+	}
+	
+	private List<FileData> loadSource() {
+		JFileChooser fileChooser = null;
+		String currentWorkingDir = (String)ListenerCoordinator.runQuery(GetFileDirQuery.class);
+		if (currentWorkingDir != null) {
+			fileChooser = new JFileChooser(currentWorkingDir);
+		} else {
+			fileChooser = new JFileChooser();
+		}
+		fileChooser.setMultiSelectionEnabled(true);
+		List<FileData> allFiles = new ArrayList<FileData>();
+		if (fileChooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+			for (File file : fileChooser.getSelectedFiles()) { 
+				Path path = Paths.get(file.getAbsolutePath());
+				ListenerCoordinator.fire(SetFileDirListener.class, path.getParent().toString());
+				String fileName = path.getFileName().toString();
+				
+				try {
+					String text = new String(Files.readAllBytes(path));
+					FileData fileData = new FileData(fileName, text, FileData.GOLDEN_SOURCE_ID, null);
+					allFiles.add(fileData);
+				} catch (IOException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}						
+			}
+		}
+		return allFiles;
+	}
+	
+	private void possiblyLoadGoldenSource() {
+		boolean enable = (rubricToModify != null && rubricToModify.getGoldenSource() != null && rubricToModify.getGoldenSource().size() != 0);
+		for (JButton button : buttons) {
+			if (button != cancelButton && button != goldenSourceButton) {
+				button.setEnabled(enable);
+			}
+		}
+		if (enable) {
+			ListenerCoordinator.fire(SetRubricListener.class, rubricToModify, SetRubricListener.RubricType.RUBRIC_BEING_EDITED);
+		}
+	}
+	
 	private class RunCode implements RunCodeFileListTableModelListener {
 		private Dimension runCodeDimension;
 		private JButton addFilesButton;
@@ -378,8 +471,8 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 			sourceCodeArea = new HashMap<String, JTextArea>();
 			methodMap = new HashMap<String, Method>();
 			isActive = false;
-			addFilesButton = new JButton("Add Files");
-			removeFilesButton = new JButton("Remove Files");
+			addFilesButton = newButton("Add Files");
+			removeFilesButton = newButton("Remove Files");
 			
 			JPanel buttonsPanel = createButtonPanel(2);
 			buttonsPanel.add(addFilesButton);
@@ -424,6 +517,7 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 			runPanel.setLayout(new BorderLayout());
 			runPanel.add(nameAndButtons, BorderLayout.NORTH);
 			runPanel.add(sourceCodePanel, BorderLayout.CENTER);
+			
 			if (prefs.dimensionExists(MyPreferences.Dimensions.RUN_CODE)) {
 				runPanel.setPreferredSize(prefs.getDimension(MyPreferences.Dimensions.RUN_CODE, 0, 0));
 			}
@@ -450,10 +544,7 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 			});
 		}
 		
-		public Dimension getMaxButtonDim() {
-			return removeFilesButton.getPreferredSize();
-		}
-		
+	
 		private void addRunCodeItems() {
 			isActive = true;
 			RubricEntry associatedEntry = getCurrentEntry();
@@ -467,9 +558,6 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 			remove(defaultPanel);
 			if (runCodeDimension != null) {
 				runPanel.setPreferredSize(runCodeDimension);
-			}
-			while(sourceTabs.getTabCount() != 0) {
-				sourceTabs.removeTabAt(0);				
 			}
 			Map<String, FileData> allFiles = rubricToModify.getFileDataMap();
 			for (String key : allFiles.keySet()) {
@@ -514,35 +602,15 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 		}
 		
 		private void addFile() {
-			JFileChooser fileChooser = null;
-			String currentWorkingDir = (String)ListenerCoordinator.runQuery(GetFileDirQuery.class);
-			if (currentWorkingDir != null) {
-				fileChooser = new JFileChooser(currentWorkingDir);
-			} else {
-				fileChooser = new JFileChooser();
-			}
-			fileChooser.setMultiSelectionEnabled(true);
-
-			if (fileChooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-				for (File file : fileChooser.getSelectedFiles()) { 
-					Path path = Paths.get(file.getAbsolutePath());
-					ListenerCoordinator.fire(SetFileDirListener.class, path.getParent().toString());
-					String fileName = path.getFileName().toString();
-					
-					try {
-						String text = new String(Files.readAllBytes(path));
-						if (rubricToModify.getFileDataMap().containsKey(fileName) == false) {
-							FileData fileData = new FileData(fileName, text, "0", null);
-							rubricToModify.addFileData(fileData);
-							addRunCodeFile(fileData);
-							fileToUseModel.addFile(fileData);
-							fileToUseModel.fireTableDataChanged();
-							
-						}
-					} catch (IOException e1) {
-						// TODO Auto-generated catch block
-						e1.printStackTrace();
-					}						
+			List<FileData> allFiles = loadSource();
+			if (allFiles != null) {
+				for (FileData fileData : allFiles) {
+					if (rubricToModify.getFileDataMap().containsKey(fileData.getName()) == false) {
+						rubricToModify.addFileData(fileData);
+						addRunCodeFile(fileData);
+						fileToUseModel.addFile(fileData);
+						fileToUseModel.fireTableDataChanged();
+					}
 				}
 			}		
 		}
@@ -603,7 +671,7 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 		private void removeRunCodeItems() {
 			isActive = false;
 			Dimension current = runSplit.getTopComponent().getSize();
-			runCodeDimension = new Dimension(runPanel.getSize());
+			runCodeDimension = new Dimension(runPanel.getSize());			
 			prefs.setDimension(MyPreferences.Dimensions.RUN_CODE, runCodeDimension);
 			remove(runSplit);
 			defaultPanel.setPreferredSize(current);
@@ -616,7 +684,7 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 			}
 			List<FileData> sourceFiles = associatedAutomation.getSourceFiles();
 			for (FileData sourceFile : sourceFiles) {
-				addRunCodeFile(sourceFile);
+				addCodeTabs(sourceFile);
 			}
 			methodToCallCombo.setSelectedItem(associatedAutomation.getMethodToCall());
 		}
@@ -626,9 +694,7 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 			return (sourceTabs.getTabCount() == 1 && sourceTabs.getTitleAt(0).length() == 0);
 		}
 		
-
-		@Override
-		public void addRunCodeFile(FileData fileData) {
+		private void addCodeTabs(FileData fileData) {
 			JPanel sourcePanel = new JPanel();
 			sourcePanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 			sourcePanel.setLayout(new BorderLayout());
@@ -639,7 +705,7 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 			sourcePanel.add(scrollPane);
 			sourceArea.setText(fileData.getFileContents());
 			sourceArea.getDocument().addDocumentListener(new SourceDocumentListener(fileData, sourceArea));
-			sourceCodeArea.put(fileData.getName(), sourceArea);			
+			sourceCodeArea.put(fileData.getName(), sourceArea);						
 			if (firstTabIsEmpty()) {
 				sourceTabs.setTitleAt(0, fileData.getName());
 				sourceTabs.setComponentAt(0, sourcePanel);
@@ -647,6 +713,13 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 			else {
 				sourceTabs.addTab(fileData.getName(), sourcePanel);
 			}
+
+		}
+		
+
+		@Override
+		public void addRunCodeFile(FileData fileData) {
+			addCodeTabs(fileData);
 			associatedAutomation.addSourceContents(fileData);
 			fillMethodCombo();
 		}
@@ -669,7 +742,7 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 		}
 		
 		private void fillMethodCombo() {
-			List<Method> methods = associatedAutomation.getPossibleMethods(idOfTestCode, compiler);
+			List<Method> methods = associatedAutomation.getPossibleMethods(rubricToModify.getGoldenSource(), compiler);
 			if (methods == null) {
 				methodToCallCombo.removeAllItems();
 				methodMap.clear();

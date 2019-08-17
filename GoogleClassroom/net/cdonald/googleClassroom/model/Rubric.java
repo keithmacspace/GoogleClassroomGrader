@@ -5,10 +5,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.swing.JOptionPane;
+
 import net.cdonald.googleClassroom.googleClassroomInterface.LoadSheetData;
 import net.cdonald.googleClassroom.googleClassroomInterface.SaveSheetData;
 import net.cdonald.googleClassroom.googleClassroomInterface.SheetAccessorInterface;
 import net.cdonald.googleClassroom.gui.DataUpdateListener;
+import net.cdonald.googleClassroom.gui.DebugLogDialog;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.StudentWorkCompiler;
 
@@ -17,6 +20,8 @@ public class Rubric implements SheetAccessorInterface {
 	private List<RubricEntry> entries;
 	private boolean inModifiedState;
 	private Map<String, FileData> fileDataMap;
+	private List<FileData> goldenSource;
+	private static final String GOLDEN_SOURCE_LABEL = "Golden Source Files";
 	
 
 	public Rubric(GoogleSheetData sheetData) {
@@ -24,6 +29,7 @@ public class Rubric implements SheetAccessorInterface {
 		this.sheetData = sheetData;
 		entries = new ArrayList<RubricEntry>();
 		fileDataMap = new HashMap<String, FileData>();
+		goldenSource = new ArrayList<FileData>();
 	}
 	
 	public Rubric(Rubric other) {		
@@ -35,20 +41,39 @@ public class Rubric implements SheetAccessorInterface {
 		inModifiedState = other.inModifiedState;
 		fileDataMap = new HashMap<String, FileData>();
 		for (String key : other.fileDataMap.keySet()) {
-			fileDataMap.put(key, other.fileDataMap.get(key));
+			fileDataMap.put(key, new FileData(other.fileDataMap.get(key)));
 		}
+		goldenSource = new ArrayList<FileData>();
+		setGoldenSource(other.goldenSource);
+
 	}
+		
 	
 	// This form is used when we are creating a new rubric from scratch
 	public Rubric() {
 		inModifiedState = true;
 		entries = new ArrayList<RubricEntry>();
 		fileDataMap = new HashMap<String, FileData>();
+		goldenSource = new ArrayList<FileData>();
 	}
 
 
 	public Map<String, FileData> getFileDataMap() {
 		return fileDataMap;
+	}
+	
+	public List<FileData> getGoldenSource() {
+		return goldenSource;
+	}
+	
+	
+	public void setGoldenSource(List<FileData> fileDataList) {
+		goldenSource.clear();
+		if (fileDataList != null) {
+			for (FileData fileData : fileDataList) {
+				goldenSource.add(fileData);
+			}
+		}
 	}
 	
 	public void addFileData(FileData fileData) {
@@ -190,6 +215,7 @@ public class Rubric implements SheetAccessorInterface {
 	}
 	
 	public void loadFromSheet(LoadSheetData loadSheetData) {
+		showedErrorMessage = false;
 		entries.clear();
 		fileDataMap.clear();
 		if (loadSheetData == null || loadSheetData.isEmpty() == true) {
@@ -241,7 +267,37 @@ public class Rubric implements SheetAccessorInterface {
 			}			
 		}
 		
+		// Finally read the golden source
+		loadGoldenSource(entryColumns);
+	}
+	
+	private void loadGoldenSource(Map<String, List<List<Object>>> entryColumns) {
+		List<List<Object> > columns = entryColumns.get(GOLDEN_SOURCE_LABEL.toUpperCase());
+		if (columns == null || columns.size() == 0) {
+			showLoadError("Golden source is missing from file");
+			return;
+		}
 		
+		List<Object> column = columns.get(0);
+		List<String> fileNames = new ArrayList<String>();
+		for (int i = 1; i < column.size(); i++) {
+			String fileName = (String)column.get(i);
+			if (fileName != null && fileName.length() > 0) {
+				fileNames.add(fileName);
+			}
+		}
+		if (fileNames.size() == 0) {
+			showLoadError("No golden source files specified");
+		}
+		for (String fileName : fileNames) {
+			FileData fileData = FileData.newFromSheet(fileName, entryColumns.get(fileName.toUpperCase()));
+			if (fileData == null) {
+				showLoadError(fileName + " is missing from save data");
+			}
+			else {
+				goldenSource.add(fileData);
+			}
+		}		
 	}
 	
 	@Override
@@ -270,19 +326,39 @@ public class Rubric implements SheetAccessorInterface {
 			saveState.writeFullColumn(fileColumn, currentColumn);
 			currentColumn++;			
 		}
-		// Add 3 blank columns to the end.  This should take care of deletions
-		for (int i = 0; i < 3; i++) {
-			
-		}
+		saveGoldenSource(saveState, currentColumn);
 		return saveState;		
 	}
 	
-
+	private void saveGoldenSource(SaveSheetData saveState, int currentColumn) {
+		List<Object> goldenSourceNameRows = new ArrayList<Object>();
+		goldenSourceNameRows.add(GOLDEN_SOURCE_LABEL);
+		for (FileData file : goldenSource) {
+			goldenSourceNameRows.add(file.getName());
+		}
+		
+		saveState.writeFullColumn(goldenSourceNameRows, currentColumn);
+		currentColumn++;
+		for (FileData file : goldenSource) {
+			saveState.writeFullColumn(file.fillSaveData(), currentColumn);
+			currentColumn++;
+		}
+	}
+	
 
 	@Override
 	public GoogleSheetData getSheetInfo() {
 		// TODO Auto-generated method stub
 		return sheetData;
+	}
+	private static boolean showedErrorMessage = false;
+	// For any given load, we only want to show one message to tell them to finish editing
+	public static void showLoadError(String message) {
+		if (showedErrorMessage == false) {
+			JOptionPane.showMessageDialog(null, message + "  Edit rubric before running", "Rubric Incomplete - Finish Editing",
+					JOptionPane.ERROR_MESSAGE);
+				showedErrorMessage = true;			
+		}
 	}
 
 }

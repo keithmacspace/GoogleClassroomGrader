@@ -68,18 +68,16 @@ public class RubricEntry {
 	}
 
 	public String setStudentValue(String studentID, String stringValue) {
-		double newValue = 0.0;
+		Double newValue = null;
 
 		try {
 			if (stringValue != null && stringValue.length() > 0) {
 				newValue = Double.parseDouble(stringValue);
 			}
-			if (newValue <= value) {
-				studentScores.put(studentID, newValue);
-			}
 		} catch (NumberFormatException e) {
 
 		}
+		studentScores.put(studentID, newValue);
 		return getStudentValue(studentID); 
 	}
 	
@@ -206,8 +204,7 @@ public class RubricEntry {
 	}
 
 	void runAutomation(String studentName, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData) {
-		if (automation != null) {
-			
+		if (automation != null) {			
 			Double result = automation.runAutomation(studentName, message, compiler, consoleData);
 			// Leave the old score if the result is null.
 			if (result != null) {

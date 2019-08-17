@@ -55,7 +55,7 @@ public class SaveGrades extends LoadGrades{
 		gradedByRow.set(0, "Graded By");
 		rubricValueRow.set(0, "Rubric Value");
 		Set<String> graded = getModifiedSet();
-		DebugLogDialog.appendln(graded.toString());
+
 
 		int totalColumn = 0;
 

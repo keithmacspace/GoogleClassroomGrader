@@ -76,23 +76,18 @@ public class RubricEntryRunCode extends  RubricAutomation {
 		
 	}
 	
-	public List<Method> getPossibleMethods(String studentId, StudentWorkCompiler compiler) {
+	public List<Method> getPossibleMethods(List<FileData> goldenSource, StudentWorkCompiler compiler) {
 
-		if (studentId == null) {
-			return null;
-		}
-		List<FileData> studentFiles = compiler.getSourceCode(studentId);
-
-		if (studentFiles == null) {
+		if (goldenSource == null || goldenSource.size() == 0) {
 			return null;
 		}
 		
 		studentBaseClassNames.clear();		
-		for (FileData fileData : studentFiles) {
+		for (FileData fileData : goldenSource) {
 			studentBaseClassNames.add(fileData.getClassName());
 		}
 		
-		List<FileData> rubricFiles = new ArrayList<FileData>(studentFiles);
+		List<FileData> rubricFiles = new ArrayList<FileData>(goldenSource);
 		
 
 		for (FileData sourceFile : sourceFiles) {
@@ -122,14 +117,25 @@ public class RubricEntryRunCode extends  RubricAutomation {
 	}
 	
 	protected Double runAutomation_(String studentName, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData) {
-		if (message.isSuccessful()) {	
+		if (message.isSuccessful()) {
+
 			ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.RUNNING, "Running " + this.getOwnerName() + " for " + studentName);
 			String studentId = message.getStudentId();			
-				
+
 			List<FileData> studentFiles = compiler.getSourceCode(studentId);
+			return runAutomation_(studentFiles, compiler, consoleData);
+		}
+		return null;
+	}
+	protected Double runAutomation_(List<FileData> studentFiles, StudentWorkCompiler compiler, ConsoleData consoleData) {
+		if (studentFiles != null && studentFiles.size() != 0)
+		{
+			String studentId = studentFiles.get(0).getId();
+
 			List<FileData> rubricFiles = new ArrayList<FileData>(studentFiles);
 			consoleData.runStarted(studentId, getOwnerName());				
-			prepareForNextTest();				
+			prepareForNextTest();
+
 			for (FileData sourceFile : sourceFiles) {
 				String modifiedSource = replaceClassNames(sourceFile.getFileContents(), studentFiles.get(0).getClassName());
 				FileData temp = new FileData(sourceFile.getName(), modifiedSource, studentId, null);
@@ -138,6 +144,7 @@ public class RubricEntryRunCode extends  RubricAutomation {
 			Class<?> []params = {};
 			Object []args = {};
 			Object returnValue = null;
+
 			try {					
 				returnValue = compiler.compileAndRun(true,  rubricFiles, methodToCall, params, args);				
 			}
@@ -147,19 +154,21 @@ public class RubricEntryRunCode extends  RubricAutomation {
 				System.out.println("\0");					
 				return null;
 			}
+
 			if (returnValue == null) {
 				return null;
 			}
 			double value = 0.0;
 			if (returnValue != null) {
 				value = Double.parseDouble(returnValue.toString());
-			}				
+			}
+
 			waitForTestFinish();
+
 
 			ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.RUNNING, "");
 			return value;
 		}
-		
 		return null;
 	}
 	
@@ -258,42 +267,15 @@ public class RubricEntryRunCode extends  RubricAutomation {
 		content.add(sourceFileNames);
 		for (FileData file : sourceFiles) {
 			if (fileData.containsKey(file.getName()) == false) {
-				List<Object> fileLineList = new ArrayList<Object>();
-				fileLineList.add(file.getName()); // Column header
-				String[] fileLineArray = file.getFileContents().split("\n");
-				int rowCount = 0;
-				int lineIndex = 0;
-				while(lineIndex < fileLineArray.length) {
-					// Start putting multiple lines on a single row.
-					if (rowCount > 200) {
-						String nextLine = "";
-						while(nextLine.length() < 200 && lineIndex < fileLineArray.length) {
-							nextLine += fileLineArray[lineIndex];
-							if (nextLine.length() < 199) {
-								nextLine += "\n";
-							}
-							lineIndex++;
-						}
-						fileLineList.add(nextLine);
-					}
-					else {
-						fileLineList.add(fileLineArray[lineIndex]);
-						lineIndex++;	
-					}
-					rowCount++;					
-				}
+				List<Object> fileLineList = file.fillSaveData();
 				fileData.put(file.getName(), fileLineList);
 			}
 		}
 	}
 
-	private boolean showedErrorMessage = false;
+	
 	private void showErrorMessage(String entryName) {
-		if (showedErrorMessage == false) {
-			JOptionPane.showMessageDialog(null, "The rubric component \"" + entryName + "\" is missing run data. Edit the rubric before running.", "Rubric Incomplete - Finish Editing",
-				JOptionPane.ERROR_MESSAGE);
-			showedErrorMessage = true;			
-		}
+		Rubric.showLoadError("The rubric component \"" + entryName + "\" is missing run data.");
 	}
 	private List<String> breakUpCommaList(Object object) {
 		List<String> partsList = new ArrayList<String>();
@@ -337,6 +319,9 @@ public class RubricEntryRunCode extends  RubricAutomation {
 			if (files == null || files.size() == 0 ||  studentBaseClassNames.size() == 0 || methodToCall == null) {
 				showErrorMessage(entryName);							
 			}
+			if (files == null) {
+				return;
+			}
 			sourceFiles = new ArrayList<FileData>();
 			for (Object fileO : files) {
 				if (fileO instanceof String) {
@@ -347,23 +332,11 @@ public class RubricEntryRunCode extends  RubricAutomation {
 						sourceFiles.add(fileDataMap.get(file));
 					}
 					else {
-						List<List<Object>> sourceInfo = columnData.get(file.toUpperCase());
-						if (sourceInfo == null || sourceInfo.size() == 0) {
+						FileData fileData = FileData.newFromSheet(file, columnData.get(file.toUpperCase()));
+						if (fileData == null) {
 							showErrorMessage(entryName);
 						}
 						else {
-							String text = "";
-							boolean firstLine = true;
-							List<Object> lines = sourceInfo.get(0);
-							for (Object line : lines) {
-								if (line != null) {
-									if (firstLine == false) {
-										text += line + "\n";
-									}							
-									firstLine = false;
-								}					
-							}
-							FileData fileData = new FileData(file, text, "0", null); 
 							sourceFiles.add(fileData);
 							fileDataMap.put(file, fileData);
 						}

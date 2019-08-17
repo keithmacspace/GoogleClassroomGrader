@@ -21,7 +21,11 @@ public class StudentFetcher extends ClassroomDataFetcher {
 		super(authorize);
 
 	}
-
+	@Override
+	protected void done() {
+		ListenerCoordinator.fire(RemoveProgressBarListener.class, PROGRESS_BAR_NAME);
+		super.done();
+	}
 
 	@Override
 	protected Void doInBackground()  {		

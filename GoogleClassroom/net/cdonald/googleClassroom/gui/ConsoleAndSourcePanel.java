@@ -21,14 +21,11 @@ import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
-import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import javax.swing.text.BadLocationException;
 import javax.swing.text.DefaultEditorKit;
-import javax.swing.text.Document;
 
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 import net.cdonald.googleClassroom.listenerCoordinator.AddRubricTabsListener;
@@ -301,20 +298,23 @@ public class ConsoleAndSourcePanel extends JPanel {
 	}
 
 	private void registerListeners() {
-
 		ListenerCoordinator.addListener(AddRubricTabsListener.class, new AddRubricTabsListener() {
 			@Override
-			public void fired(Rubric rubric) {				
-				rubricTabbedPane.removeAll();
-				rubricPanels.clear();
-				if (rubric != null) {
-					List<String> tabNames = rubric.getRubricTabs();					
-					for (String rubricName : tabNames) {
-						SplitOutErrPanel rubricPanel = new SplitOutErrPanel();
-						rubricPanels.put(rubricName, rubricPanel);
-						rubricTabbedPane.addTab(rubricName, rubricPanel.getSplitPane());
+			public void fired(Rubric rubric) {
+				SwingUtilities.invokeLater(new Runnable() {
+					public void run() {
+						rubricTabbedPane.removeAll();
+						rubricPanels.clear();
+						if (rubric != null) {
+							List<String> tabNames = rubric.getRubricTabs();					
+							for (String rubricName : tabNames) {
+								SplitOutErrPanel rubricPanel = new SplitOutErrPanel();
+								rubricPanels.put(rubricName, rubricPanel);
+								rubricTabbedPane.addTab(rubricName, rubricPanel.getSplitPane());
+							}
+						}
 					}
-				}
+				});
 			}
 		});
 
