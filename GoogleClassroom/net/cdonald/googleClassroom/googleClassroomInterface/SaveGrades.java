@@ -73,7 +73,9 @@ public class SaveGrades extends LoadGrades{
 			}
 
 			columnNameRow.set(col, columnName);
-			for (RubricEntry entry : getRubric().getEntries()) {
+			Rubric rubric = getRubric();
+			for (int i = 0; i < rubric.getEntryCount(); i++) {
+				RubricEntry entry = rubric.getEntry(i);
 				if (entry.getName().equalsIgnoreCase(columnName)) {					
 					rubricValueRow.set(col, entry.getValue());
 				}

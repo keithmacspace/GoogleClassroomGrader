@@ -26,7 +26,6 @@ import net.cdonald.googleClassroom.googleClassroomInterface.LoadGrades;
 import net.cdonald.googleClassroom.googleClassroomInterface.SaveGrades;
 import net.cdonald.googleClassroom.googleClassroomInterface.SheetFetcher;
 import net.cdonald.googleClassroom.googleClassroomInterface.StudentFetcher;
-import net.cdonald.googleClassroom.gui.DataStructureChangedListener;
 import net.cdonald.googleClassroom.gui.DataUpdateListener;
 import net.cdonald.googleClassroom.gui.DebugLogDialog;
 import net.cdonald.googleClassroom.gui.MainGoogleClassroomFrame;
@@ -59,6 +58,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.SetFileDirListener;
 import net.cdonald.googleClassroom.listenerCoordinator.SetInfoLabelListener;
 import net.cdonald.googleClassroom.listenerCoordinator.SetRunRubricEnableStateListener;
 import net.cdonald.googleClassroom.listenerCoordinator.SetWorkingDirListener;
+import net.cdonald.googleClassroom.listenerCoordinator.StudentInfoChangedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentListInfo;
 import net.cdonald.googleClassroom.model.ClassroomData;
 import net.cdonald.googleClassroom.model.CompileErrorListener;
@@ -80,7 +80,7 @@ public class DataController implements StudentListInfo {
 	private Map<String, StudentData> studentMap;
 	private Rubric currentRubric;
 	private Rubric primaryRubric;
-	private DataStructureChangedListener structureListener;
+
 	private DataUpdateListener updateListener;
 	private GoogleClassroomCommunicator googleClassroom;
 	private MyPreferences prefs;
@@ -101,7 +101,6 @@ public class DataController implements StudentListInfo {
 		studentMap = new HashMap<String, StudentData>();
 		consoleData = new ConsoleData();		
 		currentCourse = null;
-		structureListener = mainFrame;
 		updateListener = mainFrame;
 		notesCommentsMap = new HashMap<String, Map<String, String>>();
 		initGoogle();		
@@ -426,8 +425,9 @@ public class DataController implements StudentListInfo {
 			setRubricBeingEdited(null);
 			primaryRubric = rubric;
 			currentRubric = rubric;
-		}		
-		structureListener.dataStructureChanged();		
+		}
+		ListenerCoordinator.fire(StudentInfoChangedListener.class);
+		
 		if (rubric != null) {
 			ListenerCoordinator.fire(AddRubricTabsListener.class, rubric);
 
@@ -585,7 +585,7 @@ public class DataController implements StudentListInfo {
 		
 		int num = NUM_DEFAULT_COLUMNS;
 		if (currentRubric != null) {
-			num += currentRubric.getEntries().size();
+			num += currentRubric.getEntryCount();
 		}
 		return num;
 	}
@@ -659,8 +659,17 @@ public class DataController implements StudentListInfo {
 	
 	@Override
 	public String getColumnTip(int columnIndex) {
-		if (columnIndex > NUM_DEFAULT_COLUMNS && currentRubric != null) {
-			return currentRubric.getEntry(getRubricIndex(columnIndex)).getDescription();
+		if (columnIndex >= NUM_DEFAULT_COLUMNS && currentRubric != null) {
+			int rubricIndex = getRubricIndex(columnIndex);
+			if (rubricIndex != -1) {
+				String tip = "";
+				RubricEntry entry = currentRubric.getEntry(rubricIndex);
+				if (entry.getValue() > 0) {
+					tip += "Max Val = " + entry.getValue() + ": ";
+				}
+				tip += entry.getDescription();
+				return tip;
+			}
 		}
 		return "";
 	}
@@ -675,7 +684,7 @@ public class DataController implements StudentListInfo {
 			return defaultColumnNames[columnIndex];
 		}
 		if (currentRubric != null) {
-			return currentRubric.getEntry(getRubricIndex(columnIndex)).getColumnName();
+			return currentRubric.getEntry(getRubricIndex(columnIndex)).getName();
 		}
 		return null;
 	}

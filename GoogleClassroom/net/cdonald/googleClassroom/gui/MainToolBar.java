@@ -36,6 +36,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.SetRunEnableStateListener
 import net.cdonald.googleClassroom.listenerCoordinator.SetRunRubricEnableStateListener;
 import net.cdonald.googleClassroom.listenerCoordinator.SheetFetcherListener;
 import net.cdonald.googleClassroom.listenerCoordinator.StopRunListener;
+import net.cdonald.googleClassroom.listenerCoordinator.StudentSelectedListener;
 import net.cdonald.googleClassroom.model.ClassroomData;
 import net.cdonald.googleClassroom.model.GoogleSheetData;
 
@@ -54,12 +55,13 @@ public class MainToolBar extends JToolBar {
 	private JButton runRubricButton;
 	private JButton stopButton;
 	private List<String> rubricNames;
+	private enum RunType {ALL, SELECTED}	
+	private final String[] RUN_TITLES = {"Run All", "Run Selected"};
+	private final String[] RUBRIC_TITLES = {"Run All Rubric", "Run Selected Rubrics"};
 
 
 	public MainToolBar() {
 		setBorder(BorderFactory.createBevelBorder(BevelBorder.RAISED));
-
-
 		rubricNames = new ArrayList<String>();
 		assignmentCombo = new JComboBox<ClassroomData>();
 		assignmentModel = new DefaultComboBoxModel<ClassroomData>();		
@@ -67,13 +69,12 @@ public class MainToolBar extends JToolBar {
 		rubricCombo = new JComboBox<GoogleSheetData>();
 		rubricModel = new DefaultComboBoxModel<GoogleSheetData>();
 		rubricCombo.setModel(rubricModel);		
-		runButton = new JButton("Run All");
-		runRubricButton = new JButton("Run All Rubrics");
+		runButton = new JButton(RUN_TITLES[RunType.SELECTED.ordinal()]);
+		runRubricButton = new JButton(RUBRIC_TITLES[RunType.SELECTED.ordinal()]);
 		stopButton = new JButton("Stop");
-
-		stopButton.setEnabled(false);
-		disableButtons();
-
+		runButton.setPreferredSize(runRubricButton.getPreferredSize());
+		stopButton.setPreferredSize(runRubricButton.getPreferredSize());
+		setRunTitles(RunType.ALL);
 		setLayout(new FlowLayout(FlowLayout.LEFT));
 		empty = new ClassroomData();
 		assignmentModel.addElement(empty);
@@ -88,21 +89,24 @@ public class MainToolBar extends JToolBar {
 		add(stopButton);
 		registerListeners();
 		addSelectionListeners();
+		stopButton.setEnabled(false);
+		disableRunButtons();
+	}
+	
+	private void setRunTitles(RunType runType) {
+		runButton.setText(RUN_TITLES[runType.ordinal()]);
+		runRubricButton.setText(RUBRIC_TITLES[runType.ordinal()]);
+		
 	}
 	
 
 	
-	public void enableRunButton() {
+	public void enableRunButton(boolean rubricLoaded) {
 		runButton.setEnabled(true);
+		runRubricButton.setEnabled(rubricLoaded);
 	}
 	
-	public void enableRunRubricButton() {		
-		if (runButton.isEnabled()) {
-			runRubricButton.setEnabled(true);
-		}
-	}
-	
-	public void disableButtons() {
+	public void disableRunButtons() {
 		runButton.setEnabled(false);
 		runRubricButton.setEnabled(false);		
 	}
@@ -209,6 +213,13 @@ public class MainToolBar extends JToolBar {
 				
 			}
 		});
+		
+		ListenerCoordinator.addListener(StudentSelectedListener.class, new StudentSelectedListener() {
+			@Override
+			public void fired(String idToDisplay) {
+				setRunTitles((idToDisplay == null) ? RunType.ALL : RunType.SELECTED);
+			}			
+		});
 	}
 
 	private void addSelectionListeners() {
@@ -238,14 +249,14 @@ public class MainToolBar extends JToolBar {
 		runButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				ListenerCoordinator.fire(RunSelected.class, true);
+				ListenerCoordinator.fire(RunSelected.class, runButton.getText().equals(RUN_TITLES[RunType.ALL.ordinal()]));
 			}			
 		});	
 		
 		runRubricButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				ListenerCoordinator.fire(RunRubricSelected.class, true);
+				ListenerCoordinator.fire(RunRubricSelected.class, runRubricButton.getText().equals(RUBRIC_TITLES[RunType.ALL.ordinal()]));
 			}			
 		});
 		

@@ -37,6 +37,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.PreRunBlockingListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RecompileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RemoveSourceListener;
+
 import net.cdonald.googleClassroom.listenerCoordinator.StudentSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.SystemInListener;
 import net.cdonald.googleClassroom.model.ClassroomData;
@@ -319,8 +320,22 @@ public class ConsoleAndSourcePanel extends JPanel {
 		});
 
 		ListenerCoordinator.addBlockingListener(PreRunBlockingListener.class, new PreRunBlockingListener() {
-			public void fired(String studentID) {
-				overallTabbedPane.setSelectedIndex(1);
+			public void fired(String studentID, String rubricName) {
+				if (rubricName == null || rubricName.length() == 0) {
+					overallTabbedPane.setSelectedIndex(1);
+				}
+				else {
+					if (overallTabbedPane.getTabCount() > 2) {
+						overallTabbedPane.setSelectedIndex(2);						
+						for (int i = 0; i < rubricTabbedPane.getTabCount(); i++) {
+							String title = rubricTabbedPane.getTitleAt(i); 
+							if (title.equals(rubricName)) {								
+								rubricTabbedPane.setSelectedIndex(i);
+								break;
+							}
+						}
+					}
+				}
 				try {
 					// Doing this prevents forward progress until the panes are ready
 					pauseSemaphore.release();
@@ -352,6 +367,8 @@ public class ConsoleAndSourcePanel extends JPanel {
 				setWindowData(idToDisplay);
 			}
 		});
+		
+
 
 	}
 	

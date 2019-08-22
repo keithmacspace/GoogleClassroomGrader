@@ -54,3 +54,9 @@
 /MyPreferences$Dividers.class
 /ConsoleData$DebugConsoleWorker.class
 /ConsoleData$PipeInfo.class
+/RubricEntryMethodContains$ColumnNames.class
+/RubricEntryMethodContains.class
+/RubricEntryRunCode$ColumnNames.class
+/RubricEntryMethodContains$CheckForUseVisitor.class
+/RubricEntryMethodContains$MethodVisitor.class
+/RubricEntryRunCode$ClassNameModifier.class

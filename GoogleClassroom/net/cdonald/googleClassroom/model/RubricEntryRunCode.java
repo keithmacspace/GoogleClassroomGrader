@@ -4,14 +4,21 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
-import javax.swing.JOptionPane;
+import com.github.javaparser.StaticJavaParser;
+import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.FieldAccessExpr;
+import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.visitor.ModifierVisitor;
+import com.github.javaparser.ast.visitor.Visitable;
 
-import net.cdonald.googleClassroom.gui.DebugLogDialog;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.StudentWorkCompiler;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.SetInfoLabelListener;
+import net.cdonald.googleClassroom.utils.SimpleUtils;
 
 
 public class RubricEntryRunCode extends  RubricAutomation {
@@ -19,7 +26,7 @@ public class RubricEntryRunCode extends  RubricAutomation {
 	private List<FileData> sourceFiles;
 	private List<String> studentBaseClassNames;
 	boolean checkSystemOut;		
-	private enum MethodNames {METHOD_TO_CALL, CLASS_NAMES_TO_REPLACE, SOURCE_FILE};
+	private enum ColumnNames {METHOD_TO_CALL, CLASS_NAMES_TO_REPLACE, SOURCE_FILE};
 
 
 	
@@ -138,6 +145,12 @@ public class RubricEntryRunCode extends  RubricAutomation {
 
 			for (FileData sourceFile : sourceFiles) {
 				String modifiedSource = replaceClassNames(sourceFile.getFileContents(), studentFiles.get(0).getClassName());
+				if (modifiedSource == null) {
+					ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.RUNNING, "");
+					addOutput(studentId, "Could not modify source to change class name to call student's code");					
+					System.out.println("\0");					
+					return null;					
+				}
 				FileData temp = new FileData(sourceFile.getName(), modifiedSource, studentId, null);
 				rubricFiles.add(temp);				
 			}
@@ -173,45 +186,52 @@ public class RubricEntryRunCode extends  RubricAutomation {
 	}
 	
 	String replaceClassNames(String sourceContents, String studentClassName) {
-		String fixedContents = sourceContents;
-		for (String baseClassName : studentBaseClassNames) {
-			// If they match perfectly, there is no change needed
-			if (!studentClassName.contentEquals(baseClassName)) {
-				int methodIndex = 0;
-				int priorIndex = 0;
-				while (methodIndex != -1) {
-					methodIndex = fixedContents.indexOf(baseClassName, priorIndex);
-					boolean replaceValid = true;
-					if (methodIndex != -1) {
-						// The start edge should be a whitespace
-						if (methodIndex != 0) {
-							char check = fixedContents.charAt(methodIndex - 1);
-							if (!Character.isWhitespace(check) && check != ';') {
-								replaceValid = false;
-							}
-						}
-						int endIndex = methodIndex + baseClassName.length(); 
-						if (endIndex < fixedContents.length()) {
-							char check = fixedContents.charAt(endIndex);
-							if (check != '(' && !Character.isWhitespace(check) && check != '.') {
-								replaceValid = false;
-							}
-						}
-						if (replaceValid == true) {
-							String endCode = fixedContents.substring(endIndex);
-							fixedContents = fixedContents.substring(0, methodIndex);
-							fixedContents += studentClassName;				
-							priorIndex = fixedContents.length();
-							fixedContents += endCode;
-						}
-						else {
-							priorIndex = methodIndex + 1;
-						}
-					}
-				}
+		try {
+			CompilationUnit cu = StaticJavaParser.parse(sourceContents);
+			for (String baseClassName : studentBaseClassNames) {
+				ModifierVisitor<Void> nameChange = new ClassNameModifier(baseClassName, studentClassName);
+				nameChange.visit(cu, null);
+				
 			}
+			return cu.toString();
 		}
-		return fixedContents;
+		// Student source might not be parsable, in which case that is fine
+		catch(Exception e) {
+
+		}
+		return null;
+	}
+	
+	private static class ClassNameModifier extends ModifierVisitor<Void>  {
+		String original;
+		String newName;
+		public ClassNameModifier(String original, String newName) {
+			super();
+			this.original = original;
+			this.newName = newName;
+		}
+		@Override
+		public Visitable visit(FieldAccessExpr n, Void arg) {
+			// TODO Auto-generated method stub
+			super.visit(n, arg);
+			
+			return n;
+		}
+		@Override
+		public Visitable visit(MethodCallExpr n, Void arg) {
+			// TODO Auto-generated method stub
+			super.visit(n, arg);
+			Optional<Expression> scope = n.getScope();
+			if (scope.isPresent()) {				
+				if (scope.get().toString().equals(original)) {
+					String newCall = newName + "." + n.getNameAsString();					
+					MethodCallExpr newMethodCall = new MethodCallExpr(newCall);
+					newMethodCall.setArguments(n.getArguments());
+					return newMethodCall;
+				}
+			}					
+			return n;
+		}
 	}
 	
 	public String getMethodToCall() {
@@ -231,10 +251,7 @@ public class RubricEntryRunCode extends  RubricAutomation {
 	}
 
 
-	@Override
-	public int getNumAutomationColumns() {		
-		return 2;
-	}
+
 	
 	@Override
 	protected void saveAutomationColumns(String entryName, List<List<Object>> columnData, Map<String, List<Object>> fileData) {
@@ -242,7 +259,7 @@ public class RubricEntryRunCode extends  RubricAutomation {
 		List<Object> content = new ArrayList<Object>();
 		labels.add(entryName);
 		content.add(entryName);
-		labels.add(MethodNames.CLASS_NAMES_TO_REPLACE.toString());
+		labels.add(ColumnNames.CLASS_NAMES_TO_REPLACE.toString());
 		String classes = "";
 		for (int i = 0; i < studentBaseClassNames.size() - 1; i++) {
 			classes += studentBaseClassNames.get(i) + ",";
@@ -251,7 +268,7 @@ public class RubricEntryRunCode extends  RubricAutomation {
 			classes += studentBaseClassNames.get(studentBaseClassNames.size() - 1);
 		}
 		content.add(classes);
-		labels.add(MethodNames.METHOD_TO_CALL.toString());
+		labels.add(ColumnNames.METHOD_TO_CALL.toString());
 		content.add(methodToCall);
 		columnData.add(labels);
 		columnData.add(content);
@@ -263,7 +280,7 @@ public class RubricEntryRunCode extends  RubricAutomation {
 		if (sourceFiles.size() != 0) {
 			sourceFileNames += sourceFiles.get(sourceFiles.size() - 1).getName();
 		}
-		labels.add(MethodNames.SOURCE_FILE.toString());
+		labels.add(ColumnNames.SOURCE_FILE.toString());
 		content.add(sourceFileNames);
 		for (FileData file : sourceFiles) {
 			if (fileData.containsKey(file.getName()) == false) {
@@ -277,22 +294,12 @@ public class RubricEntryRunCode extends  RubricAutomation {
 	private void showErrorMessage(String entryName) {
 		Rubric.showLoadError("The rubric component \"" + entryName + "\" is missing run data.");
 	}
-	private List<String> breakUpCommaList(Object object) {
-		List<String> partsList = new ArrayList<String>();
-		if (object instanceof String) {
-			String [] parts = ((String)object).split(",");
-			for (String part : parts) {
-				partsList.add(part.strip());
-			}			
-		}
-		return partsList;
-		
-	}
+
 
 	@Override
 	protected void loadAutomationColumns(String entryName, Map<String, List<List<Object>>> columnData, Map<String, FileData> fileDataMap) {
 		List<List<Object> > columns = columnData.get(entryName.toUpperCase());
-		if (columns == null || columns.size() != getNumAutomationColumns()) {
+		if (columns == null || columns.size() != 2) {
 			showErrorMessage(entryName);
 			return;
 		}
@@ -305,14 +312,14 @@ public class RubricEntryRunCode extends  RubricAutomation {
 			for (int row = 0; row < labelRow.size(); row++) {
 				String label = (String)labelRow.get(row);
 				if (label != null) { 
-					if (label.equalsIgnoreCase(MethodNames.METHOD_TO_CALL.toString())) {
+					if (label.equalsIgnoreCase(ColumnNames.METHOD_TO_CALL.toString())) {
 						methodToCall = (String)columns.get(1).get(row);
 					}
-					else if (label.equalsIgnoreCase(MethodNames.SOURCE_FILE.toString())) {
-						files = breakUpCommaList(columns.get(1).get(row));
+					else if (label.equalsIgnoreCase(ColumnNames.SOURCE_FILE.toString())) {
+						files = SimpleUtils.breakUpCommaList(columns.get(1).get(row));
 					}
-					else if (label.equalsIgnoreCase(MethodNames.CLASS_NAMES_TO_REPLACE.toString())) {
-						studentBaseClassNames = breakUpCommaList(columns.get(1).get(row));
+					else if (label.equalsIgnoreCase(ColumnNames.CLASS_NAMES_TO_REPLACE.toString())) {
+						studentBaseClassNames = SimpleUtils.breakUpCommaList(columns.get(1).get(row));
 					}
 				}
 			}

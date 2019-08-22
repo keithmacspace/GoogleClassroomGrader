@@ -253,8 +253,8 @@ public class MainMenu extends JMenuBar {
 	}
 	
 	private void fillRunMenu() {
-		runAll = new JMenuItem("Run All Rubrics");
-		runSelected = new JMenuItem("Run Selected Rubrics");
+		runAll = new JMenuItem("Run All");
+		runSelected = new JMenuItem("Run Selected");
 		runAll.setEnabled(false);
 		runSelected.setEnabled(false);
 		run.add(runAll);
@@ -352,12 +352,12 @@ public class MainMenu extends JMenuBar {
 		
 	}
 	
-	public void enableRuns(boolean enableSelected) {
+	public void enableRuns(boolean enableSelected, boolean rubricLoaded) {
 		runJPLAG.setEnabled(true);
-		runAllRubrics.setEnabled(true);
+		runAllRubrics.setEnabled(rubricLoaded);
 		runSelectedRubrics.setEnabled(enableSelected);
 		runAll.setEnabled(true);
-		runSelected.setEnabled(enableSelected);
+		runSelected.setEnabled(enableSelected && rubricLoaded);
 	}
 	
 

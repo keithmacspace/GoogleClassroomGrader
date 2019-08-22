@@ -79,3 +79,5 @@
 /RunGuidedSetupListener.class
 /LaunchGuidedSetupListener.class
 /GetMethodsQuery.class
+/StudentInfoChangedListener.class
+/RubricAutomationSelectedListener.class

@@ -22,8 +22,10 @@ public class RubricElementRenderer implements TableCellRenderer {
 	@Override
 	public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus,
 			int row, int column) {
-		automationCombo.setSelectedItem(value);
-		rubricElementListener.typeSelected((RubricEntry.AutomationTypes)value, isSelected);
+		boolean valid = rubricElementListener.typeSelected((RubricEntry.AutomationTypes)value, isSelected);
+		if (valid == true) {
+			automationCombo.setSelectedItem(value);
+		}
 		return automationCombo;
 	}
 

@@ -149,7 +149,8 @@ public class LoadGrades extends GradeAccessor{
 		Rubric rubric = getRubric();
 		if (rubricEntryMap.containsKey(columnName) == false) {
 			boolean found = false;
-			for (RubricEntry entry : rubric.getEntries()) {
+			for (int i = 0; i < rubric.getEntryCount(); i++) {
+				RubricEntry entry = rubric.getEntry(i);
 				if (entry.getName().equalsIgnoreCase(columnName)) {
 					rubricEntryMap.put(columnName, entry);
 					found = true;

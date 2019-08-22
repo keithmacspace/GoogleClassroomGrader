@@ -191,11 +191,6 @@ public class RubricEntryCallMethod extends RubricAutomation {
 
 	}
 
-	@Override
-	public int getNumAutomationColumns() {
-		// TODO Auto-generated method stub
-		return 0;
-	}
 
 	@Override
 	protected void loadAutomationColumns(String entryName, Map<String, List<List<Object>>> columnData, Map<String, FileData> fileData) {

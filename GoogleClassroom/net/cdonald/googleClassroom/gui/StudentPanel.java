@@ -3,7 +3,10 @@ package net.cdonald.googleClassroom.gui;
 import java.awt.BorderLayout;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -34,6 +37,7 @@ import net.cdonald.googleClassroom.googleClassroomInterface.SaveGrades;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.SetInfoLabelListener;
+import net.cdonald.googleClassroom.listenerCoordinator.StudentInfoChangedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentListInfo;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentSelectedListener;
 import net.cdonald.googleClassroom.model.FileData;
@@ -41,7 +45,7 @@ import net.cdonald.googleClassroom.model.Rubric;
 import net.cdonald.googleClassroom.model.RubricEntry;
 import net.cdonald.googleClassroom.model.StudentData;
 
-public class StudentPanel extends JPanel {
+public class StudentPanel extends JPanel implements ResizeAfterUpdateListener{
 	private static final long serialVersionUID = 3480731067309159048L;
 	private StudentListModel studentModel;
 	private JTable studentTable;
@@ -58,11 +62,17 @@ public class StudentPanel extends JPanel {
 	private static final String DEFAULT_NOTES_HEADER = "Notes/Comments";
 	private JPanel commentPane;
 	private JSplitPane splitPane;
+	private int defaultValueWidth;
+
+	private int lastKeyboardCol;
+	private static final int OTHER_COL_BASE_SIZE = 15;
 	public StudentPanel(StudentListInfo studentListInfo, int dividerLocation) {
 		this.otherComments = studentListInfo.getNotesCommentsMap();
 		this.currentGrader = studentListInfo.getUserName();
 		this.notesAndCommentsMap = studentListInfo.getNotesCommentsMap().get(currentGrader);
-		studentModel = new StudentListModel(studentListInfo);
+		lastKeyboardCol = -1;
+		defaultValueWidth = OTHER_COL_BASE_SIZE;
+		studentModel = new StudentListModel(studentListInfo, this);
 		studentTable = new JTable(studentModel) {
 			private static final long serialVersionUID = 1L;
 			//Implement table header tool tips. 
@@ -100,8 +110,9 @@ public class StudentPanel extends JPanel {
 		commentTabs = new JTabbedPane();		
 		commentPane.add(commentTabs, BorderLayout.CENTER);
 		JPanel studentPanel = new JPanel();
-		studentPanel.setLayout(new BorderLayout());
-		studentPanel.add(new JScrollPane(studentTable), BorderLayout.CENTER);
+		studentPanel.setLayout(new BorderLayout());		
+		studentPanel.add(new JScrollPane(studentTable, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED), BorderLayout.CENTER);
+		studentTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
 
 
 		splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, studentPanel, commentPane);
@@ -120,6 +131,8 @@ public class StudentPanel extends JPanel {
 		//studentList.setRowHeight(25);
 		notesAndCommentsTextArea.put(currentGrader, new JTextArea());
 		JTextArea userComments = notesAndCommentsTextArea.get(currentGrader);
+		
+
 		userComments.getDocument().addDocumentListener(new DocumentListener() {
 
 			@Override
@@ -201,6 +214,7 @@ public class StudentPanel extends JPanel {
 									commentArea.setText("");
 								}
 							}
+
 							currentStudent = studentId;
 						}
 						else {
@@ -237,20 +251,69 @@ public class StudentPanel extends JPanel {
 				
 				ListSelectionModel lsm = (ListSelectionModel)e.getSource();
 				if (lsm.isSelectionEmpty() == false) {
-					int selectedColumn = lsm.getMaxSelectionIndex();
-					String tip = studentListInfo.getColumnTip(selectedColumn);
-					if (tip == null) {
-						tip = "";
-					}
-					ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.RUBRIC_INFO, tip);
-					if (selectedColumn < StudentListInfo.COMPILER_COLUMN) {
-						studentTable.setColumnSelectionInterval(0, studentTable.getColumnCount() - 1);
+					int maxCol = lsm.getMaxSelectionIndex();
+					int minCol = lsm.getMinSelectionIndex();
+
+					if (minCol == maxCol) {
+						String tip = studentListInfo.getColumnTip(minCol);
+						if (tip == null) {
+							tip = "";
+						}
+
+						ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.RUBRIC_INFO, tip);
+
+						if (minCol < StudentListInfo.COMPILER_COLUMN) {
+							lastKeyboardCol = minCol;
+							studentTable.setColumnSelectionInterval(0, studentTable.getColumnCount() - 1);
+						}
+						else if (lastKeyboardCol != -1 && lastKeyboardCol != maxCol) {
+							studentTable.setColumnSelectionInterval(lastKeyboardCol, lastKeyboardCol);
+						}
 					}
 				}
 			}			
 		});
+		
+		ListenerCoordinator.addBlockingListener(StudentInfoChangedListener.class, new StudentInfoChangedListener() {
+			public void fired() {
+				structureChanged();
+			}
+		});
+		
+		studentTable.addKeyListener(new KeyListener() {
+			@Override
+			public void keyTyped(KeyEvent e) {
+			}
+
+			@Override
+			public void keyPressed(KeyEvent e) {
+				int keyCode = e.getKeyCode();
+				if (keyCode == KeyEvent.VK_LEFT) {
+					if (lastKeyboardCol != -1) {
+						lastKeyboardCol--;
+						if (lastKeyboardCol < 0) {
+							lastKeyboardCol = 0;
+						}					
+
+					}
+				}
+				if (keyCode == KeyEvent.VK_RIGHT) {
+					if (lastKeyboardCol != -1) {
+						lastKeyboardCol++;
+	
+					}
+				}
+				
+			}
+			@Override
+			public void keyReleased(KeyEvent e) {
+				// TODO Auto-generated method stub
+				
+			}
+		});
 
 	}
+
 	public int getDividerLocation() {
 		return splitPane.getDividerLocation();
 	}
@@ -291,28 +354,74 @@ public class StudentPanel extends JPanel {
 		SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
 				resizing = true;
-				// Use TableColumnModel.getTotalColumnWidth() if your table is included in a JScrollPane
-				int width = studentTable.getWidth();
-				TableColumn column;
-
 				TableColumnModel jTableColumnModel = studentTable.getColumnModel();	    
-				int numCols = jTableColumnModel.getColumnCount();
-				final int FIXED_PREFERRED_SIZE = 30;
-				width = width - (FIXED_PREFERRED_SIZE * (numCols - StudentListInfo.COMPILER_COLUMN));
-				width /= 3;
-				for (int i = 0; i < numCols; i++) {
+				final int FIXED_PREF_SIZE = 90;
+
+				for (int i = 0; i < StudentListInfo.COMPILER_COLUMN; i++) {
+					TableColumn column = jTableColumnModel.getColumn(i);
 					column = jTableColumnModel.getColumn(i);
-					int preferredWidth = FIXED_PREFERRED_SIZE;
-					if (i < StudentListInfo.COMPILER_COLUMN) {
-						preferredWidth = width;
-					}
-					column.setPreferredWidth(preferredWidth);
+					column.setMinWidth(0);
+					column.setPreferredWidth(FIXED_PREF_SIZE);
 				}
+				resizeValueColumns();				
 				setHeaderRenderer();
 				resizing = false;
 			}
 		});
+	}
+	
+	private void resizeValueColumns() {
+		TableColumnModel jTableColumnModel = studentTable.getColumnModel();
+		int numCols = jTableColumnModel.getColumnCount();
+		for (int i = StudentListInfo.COMPILER_COLUMN; i < numCols; i++) {
+			resizeColumn(i);
+		}
+	}
+	
+	public void resizeColumn(int columnNum) {
+		int numRows = studentModel.getRowCount();
+		if (columnNum >= StudentListInfo.COMPILER_COLUMN) {
+			
+			TableColumnModel jTableColumnModel = studentTable.getColumnModel();
+			TableColumn column = jTableColumnModel.getColumn(columnNum);
 
+			column.setMinWidth(0);
+			for (int row = 0; row < numRows; row++) {
+				Object value = studentModel.getValueAt(row, columnNum);
+				resizeColumn(columnNum, value, row == 0);
+			}
+		}
+	}
+	
+	@Override
+	public void resizeColumn(int columnNum, Object value, boolean reduceSize) {
+		if (columnNum >= StudentListInfo.COMPILER_COLUMN) {
+			
+			final int TOTAL_COL_BASE_SIZE = 35;
+			final int PER_LETTER_MULTIPLIER = 6;
+			TableColumnModel jTableColumnModel = studentTable.getColumnModel();
+			TableColumn column = jTableColumnModel.getColumn(columnNum);			
+			int baseSize = (reduceSize) ? 0 : column.getPreferredWidth();			
+			if (columnNum == StudentListInfo.TOTAL_COLUMN) {
+				baseSize = Math.max(TOTAL_COL_BASE_SIZE, baseSize);
+			}
+			else {
+				baseSize = Math.max(defaultValueWidth, baseSize);
+			}
+			if (value != null) {
+				String valueString = value.toString();
+				baseSize = Math.max(PER_LETTER_MULTIPLIER * valueString.length(), baseSize);
+			}
+			if (columnNum > StudentListInfo.TOTAL_COLUMN) {
+				if (baseSize > defaultValueWidth) {
+					defaultValueWidth = baseSize;
+					resizeValueColumns();
+					return;
+				}
+			}
+			column.setPreferredWidth(baseSize);
+			
+		}
 	}
 	
 	private void setHeaderRenderer() {
@@ -343,6 +452,23 @@ public class StudentPanel extends JPanel {
 		return ids;
 	}
 	
+	
+	public void setSelectedStudent(String studentID) {
+		SwingUtilities.invokeLater(new Runnable() {
+			public void run() {
+				for (int i = 0; i < studentModel.getRowCount(); i++) {
+					Object studentObj = studentModel.getValueAt(i, StudentListInfo.LAST_NAME_COLUMN);
+					if (studentObj != null) {
+						StudentData studentData = (StudentData)studentObj;
+						if (studentID.equals(studentData.getId())){
+							studentTable.setRowSelectionInterval(i, i);
+						}
+					}
+				}
+			}
+		});
+	}
+	
 	public void selectStudent(int row) {
 		studentTable.setRowSelectionInterval(row, row);
 	}
@@ -368,7 +494,8 @@ public class StudentPanel extends JPanel {
 				studentModel.fireTableDataChanged();
 				addCommentAreas(currentStudent);
 			}			
-		});		
+		});
+		resizeColumns();
 		
 	}
 	
@@ -398,7 +525,8 @@ public class StudentPanel extends JPanel {
 					saveGrades.addStudentColumn(studentInfo, StudentListInfo.defaultColumnNames[StudentListInfo.FIRST_NAME_COLUMN], studentInfo.getFirstName());
 					String date = (String)studentModel.getValueAt(i, StudentListInfo.DATE_COLUMN);
 					saveGrades.addStudentColumn(studentInfo, StudentListInfo.defaultColumnNames[StudentListInfo.DATE_COLUMN], date);
-					for (RubricEntry entry : rubric.getEntries()) {
+					for (int entryNum = 0; entryNum < rubric.getEntryCount(); entryNum++) {
+						RubricEntry entry = rubric.getEntry(entryNum);
 						Double grade = entry.getStudentDoubleValue(studentInfo.getId());
 						if (grade != null) {
 							saveGrades.addStudentColumn(studentInfo, entry.getName(), grade);
@@ -416,22 +544,7 @@ public class StudentPanel extends JPanel {
 		return currentStudent != null;
 	}
 	
-	public static void printIndices() {
-		int [] a = {4, 3, 2, 1};
-		for (int i = 0; i < a.length; i++) {
-			if (a[i] == 2) {
-				System.out.println(i);
-			}
-		}
-		for (int j = 0; j < a.length; j++) {
-			if (a[j] == 4) {
-				System.out.println(j);
-			}
-		}
-	}
-	
-	public static void main(String [] args) {
-		printIndices();
-	}
+
+
 
 }

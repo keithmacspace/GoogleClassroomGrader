@@ -15,6 +15,16 @@ import javax.swing.SwingWorker;
 import org.mdkt.compiler.CompilationException;
 import org.mdkt.compiler.InMemoryJavaCompiler;
 
+import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.stmt.BlockStmt;
+import com.github.javaparser.ast.stmt.DoStmt;
+import com.github.javaparser.ast.stmt.ForEachStmt;
+import com.github.javaparser.ast.stmt.ForStmt;
+import com.github.javaparser.ast.stmt.Statement;
+import com.github.javaparser.ast.stmt.WhileStmt;
+import com.github.javaparser.ast.visitor.ModifierVisitor;
+import com.github.javaparser.ast.visitor.Visitable;
+
 import net.cdonald.googleClassroom.gui.DebugLogDialog;
 import net.cdonald.googleClassroom.listenerCoordinator.AddProgressBarListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
@@ -63,9 +73,6 @@ public class StudentWorkCompiler {
 		studentBuildInfoMap.clear();
 	}
 	
-	public String getInstrumentationLine() {
-		return this.getClass().getCanonicalName() + ".stopInstrumentation();"  + "// instrumentation added to detect infinite loops\n";
-	}
 
 
 	public void addFile(FileData fileData) {
@@ -73,7 +80,7 @@ public class StudentWorkCompiler {
 		if (studentBuildInfoMap.containsKey(key) == false) {
 			studentBuildInfoMap.put(key, new StudentBuildInfo());
 		}
-		fileData.instrumentFile(getInstrumentationLine());
+		fileData.modifySourceFile(new LoopInstrumenter());
 		studentBuildInfoMap.get(key).addFileData(fileData);
 		if (listener != null) {
 			listener.dataUpdated();
@@ -397,7 +404,58 @@ public class StudentWorkCompiler {
 	public void clearStudentFiles(String studentId) {
 		if (studentBuildInfoMap.containsKey(studentId)) {
 			studentBuildInfoMap.clear();
+		}	
+	}
+	
+	public String getInstrumentationCall() {
+		return this.getClass().getCanonicalName() + ".stopInstrumentation";
+	}
+
+	
+	private class LoopInstrumenter extends ModifierVisitor<Void> {
+
+		private MethodCallExpr createLoopCheckExpression() {
+			MethodCallExpr infiniteCheck = new MethodCallExpr(getInstrumentationCall());
+			infiniteCheck.setLineComment("Auto added to detect infinite loops, remove if it creates compile errors");
+			return infiniteCheck;
+		}
+
+		
+		private void modifyLoop(Statement body) {			
+			if (body.isBlockStmt()) 
+			{
+				BlockStmt bl = body.asBlockStmt();
+				bl.addStatement(0, createLoopCheckExpression());
+			}			
 		}
 		
+		@Override
+		public Visitable visit(DoStmt n, Void arg) {			
+			super.visit(n, arg);
+			modifyLoop(n.getBody());
+			return n;
+		}
+
+		@Override
+		public Visitable visit(ForEachStmt n, Void arg) {
+			super.visit(n, arg);
+			modifyLoop(n.getBody());
+			return n;
+		}
+
+		@Override
+		public Visitable visit(ForStmt n, Void arg) {
+			super.visit(n, arg);
+			modifyLoop(n.getBody());
+			return n;
+		}
+		
+
+		@Override
+		public Visitable visit(WhileStmt n, Void arg) {
+			super.visit(n, arg);
+			modifyLoop(n.getBody());
+			return n;
+		}		
 	}
 }

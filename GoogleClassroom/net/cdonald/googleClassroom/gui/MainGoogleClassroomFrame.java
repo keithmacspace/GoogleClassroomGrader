@@ -42,8 +42,7 @@ import net.cdonald.googleClassroom.model.ClassroomData;
 import net.cdonald.googleClassroom.model.MyPreferences;
 import net.cdonald.googleClassroom.model.Rubric;
 
-public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
-		DataStructureChangedListener {
+public class MainGoogleClassroomFrame extends JFrame implements CompileListener {
 	private static final long serialVersionUID = 7452928818734325088L;
 	public static final String APP_NAME = "Google Classroom Grader";
 	private StudentPanel studentPanel;
@@ -340,7 +339,15 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 	
 	private void runRubricOrCode(boolean runSource, boolean runAll) {
 		runWorker = new SwingWorker<Void, String>() {
+			private String lastId = null;
+			 
 
+			@Override
+			protected void process(List<String> chunks) {
+				if (chunks.size() != 0) {
+					lastId = chunks.get(chunks.size() - 1);
+				}
+			}
 			@Override
 			protected Void doInBackground() throws Exception {
 				disableRuns();				
@@ -372,8 +379,10 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 			}
 			@Override
 			protected void done() {
+				studentPanel.setSelectedStudent(lastId);
 				enableRuns();
 				mainToolBar.setStopEnabled(false);
+				
 
 			}
 		};
@@ -382,30 +391,24 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener,
 	}
 	
 	private void disableRuns() {
-		mainToolBar.disableButtons();
+		mainToolBar.disableRunButtons();
+		mainMenu.disableRuns();
 	}
 	
 	private void enableRuns() {
-		mainToolBar.enableRunButton();
-		if (dataController.getRubric() != null) {
-			mainToolBar.enableRunRubricButton();
-		}
-		mainMenu.enableRuns(studentPanel.isAnyStudentSelected());
+		boolean rubricSelected = (dataController.getRubric() != null);
+		mainToolBar.enableRunButton(rubricSelected);
+		mainMenu.enableRuns(studentPanel.isAnyStudentSelected(), rubricSelected);
 	}
 
 	@Override
 	public void dataUpdated() {
 		studentPanel.dataChanged();
 	}
-		
-	@Override
-	public void dataStructureChanged() {
-		studentPanel.structureChanged();
-	}
+
 
 	@Override
 	public void compileDone() {
-		mainToolBar.enableRunButton();
-		mainToolBar.enableRunRubricButton();
+		enableRuns();
 	}	
 }

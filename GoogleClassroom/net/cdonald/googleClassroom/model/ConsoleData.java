@@ -26,7 +26,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.SystemOutListener;
 
 
 public class ConsoleData {
-	private static final boolean CAPTURE_STDERR = false;
+	public static final boolean CAPTURE_STDERR = true;
 	private PipedInputStream inPipe;
 	private final PipedInputStream outPipe = new PipedInputStream();
 	private final PipedInputStream errPipe = new PipedInputStream();
@@ -151,7 +151,7 @@ public class ConsoleData {
 			currentInputTextArea.setText("");
 		}
 		redirectStreams();
-		ListenerCoordinator.fire(PreRunBlockingListener.class, id);
+		ListenerCoordinator.fire(PreRunBlockingListener.class, id, rubricName);
 	}
 	private void runStopped() {		
 		swapStreams();

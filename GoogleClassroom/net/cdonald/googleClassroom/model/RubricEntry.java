@@ -7,6 +7,8 @@ import java.util.Map;
 
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.StudentWorkCompiler;
+import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
+
 
 public class RubricEntry {
 	public static enum HeadingNames {
@@ -14,13 +16,13 @@ public class RubricEntry {
 	}
 
 	public static enum AutomationTypes {
-		NONE, COMPILES, /*CALL_MAIN, CALL_METHOD,*/ RUN_CODE
+		NONE, COMPILES, /*CALL_MAIN, CALL_METHOD,*/ RUN_CODE, CODE_CONTAINS_METHOD
 	}
 
 	String id;
 	String name;
 	String description;
-	int value;
+	int rubricValue;
 	AutomationTypes automationType;
 	Map<String, Double> studentScores;
 	RubricAutomation automation;
@@ -28,7 +30,7 @@ public class RubricEntry {
 
 
 	public RubricEntry(List<String> headings, List<Object> entries) {
-		value = 0;
+		rubricValue = 0;
 		automationType = AutomationTypes.NONE;
 		for (int i = 0; i < headings.size(); i++) {
 			if (i < entries.size()) {
@@ -56,7 +58,7 @@ public class RubricEntry {
 		id = other.id;
 		name = other.name;
 		description = other.description;
-		value = other.value;
+		rubricValue = other.rubricValue;
 		automationType = other.automationType;
 		studentScores = new HashMap<String, Double>();
 		for (String key : other.studentScores.keySet()) {
@@ -68,11 +70,14 @@ public class RubricEntry {
 	}
 
 	public String setStudentValue(String studentID, String stringValue) {
-		Double newValue = null;
+		Double newValue = studentScores.get(studentID);
 
 		try {
 			if (stringValue != null && stringValue.length() > 0) {
-				newValue = Double.parseDouble(stringValue);
+				Double test = Double.parseDouble(stringValue);
+				if (test <= rubricValue || rubricValue == 0.0) {
+					newValue = test;
+				}
 			}
 		} catch (NumberFormatException e) {
 
@@ -112,7 +117,7 @@ public class RubricEntry {
 			name = (String)param;
 			break;
 		case VALUE:
-			value = (Integer)param;
+			rubricValue = (Integer)param;
 			break;
 		case DESCRIPTION:
 			description = (String)param;
@@ -122,6 +127,11 @@ public class RubricEntry {
 			switch(automationType) {
 			case RUN_CODE:
 				setAutomation(new RubricEntryRunCode());
+				break;
+			case CODE_CONTAINS_METHOD:
+				setAutomation(new RubricEntryMethodContains());
+				break;
+			default:
 				break;
 			}
 			break;
@@ -135,11 +145,15 @@ public class RubricEntry {
 		case NAME:
 			return name;
 		case VALUE:
-			return (Integer)value;
+			if (rubricValue != 0.0) {
+				return (Integer)rubricValue;
+			}
+			else {
+				return null;
+			}
 		case DESCRIPTION:
 			return description;
 		case AUTOMATION_TYPE:
-
 			return automationType;
 		default:
 			break;
@@ -155,7 +169,7 @@ public class RubricEntry {
 			name = param;
 			break;
 		case VALUE:
-			value = Integer.parseInt(param);
+			rubricValue = Integer.parseInt(param);
 			break;
 		case DESCRIPTION:
 			description = param;
@@ -168,7 +182,11 @@ public class RubricEntry {
 					case RUN_CODE:
 						setAutomation(new RubricEntryRunCode());
 						break;
-						
+					case CODE_CONTAINS_METHOD:
+						setAutomation(new RubricEntryMethodContains());
+						break;
+					default:
+						break;
 					}
 					break;
 				}
@@ -184,7 +202,7 @@ public class RubricEntry {
 	}
 
 	public int getValue() {
-		return value;
+		return rubricValue;
 	}
 
 	public String getDescription() {
@@ -199,7 +217,7 @@ public class RubricEntry {
 	@Override
 	public String toString() {
 		return "RubricEntry [name=" + name + ", description=" + description + 
-			  ", value=" + value + ", automationType=" + automationType
+			  ", rubricValue=" + rubricValue + ", automationType=" + automationType
 				+ "]";
 	}
 
@@ -209,7 +227,7 @@ public class RubricEntry {
 			// Leave the old score if the result is null.
 			if (result != null) {
 				double score = result;
-				score *= value;
+				score *= rubricValue;
 				// Just truncate below two digits of precision
 				score *= 100.0;
 				score = (int)score;
@@ -222,7 +240,7 @@ public class RubricEntry {
 			switch (automationType) {
 			case COMPILES:
 				if (message.isSuccessful()) {
-					studentScores.put(message.getStudentId(), (double)value);
+					studentScores.put(message.getStudentId(), (double)rubricValue);
 				}
 				else {
 					studentScores.put(message.getStudentId(), 0.0);
@@ -238,12 +256,7 @@ public class RubricEntry {
 		studentScores.clear();		
 	}
 	
-	public String getColumnName() {
-		String header = getName();
-		header = "<html>" + header + "<br>Value = " + getValue() + "</html>";
-		return header;
-	}
-	
+
 	public void setName(String name) {
 		this.name = name;
 	}
@@ -253,8 +266,8 @@ public class RubricEntry {
 	}
 
 
-	public void setValue(int value) {
-		this.value = value;
+	public void setValue(int rubricValue) {
+		this.rubricValue = rubricValue;
 	}
 
 
@@ -273,22 +286,14 @@ public class RubricEntry {
 			automation.setOwnerName(getName());
 		}
 	}
-	
-	public int getNumAutomationColumns() {
-		if (automation != null) {
-			return automation.getNumAutomationColumns();
-		}
-		return 0;
-	}
+
 	
 	public List<Object> getRubricEntryInfo() {
 		List<Object> row = new ArrayList<Object>();
 		row.add(name);
-		row.add("" + value);
-		row.add(description);
-		if (automationType != AutomationTypes.NONE) {
-			row.add(automationType.toString());
-		}
+		row.add("" + rubricValue);
+		row.add(description);		
+		row.add(automationType.toString());		
 		return row;
 	}
 	

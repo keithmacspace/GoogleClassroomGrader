@@ -7,8 +7,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.sun.jdi.DoubleValue;
-
 import net.cdonald.googleClassroom.gui.DebugLogDialog;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentListInfo;
 import net.cdonald.googleClassroom.model.GoogleSheetData;
@@ -42,9 +40,8 @@ public abstract class GradeAccessor implements SheetAccessorInterface {
 			}			
 		}
 		
-		for (RubricEntry entry : rubric.getEntries()) {
-			// Don't use getColumnName, that is for our display where we add the value
-			addColumnName(entry.getName());
+		for (int i = 0; i < rubric.getEntryCount(); i++) {
+			addColumnName(rubric.getEntry(i).getName());
 		}
 
 		

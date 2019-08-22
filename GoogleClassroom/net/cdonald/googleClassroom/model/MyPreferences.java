@@ -11,8 +11,8 @@ import java.util.prefs.Preferences;
  *
  */
 public class MyPreferences {
-	public enum Dimensions {MAIN, RUN_CODE, RUBRIC_EDIT}
-	public enum Dividers {STUDENT_SOURCE, STUDENT_NOTES}
+	public enum Dimensions {MAIN, RUBRIC_EDIT}
+	public enum Dividers {STUDENT_SOURCE, STUDENT_NOTES, RUBRIC_SPLIT}
 	// We store a few global preferences in java's prefs, but the rest we store
 	// for individual classes in a per-class db
 	private Preferences preferences;

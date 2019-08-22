@@ -1,6 +1,7 @@
 package net.cdonald.googleClassroom.gui;
 
 
+import javax.swing.SwingUtilities;
 import javax.swing.table.AbstractTableModel;
 
 import net.cdonald.googleClassroom.listenerCoordinator.StudentListInfo;
@@ -10,10 +11,12 @@ import net.cdonald.googleClassroom.model.ClassroomData;
 public class StudentListModel extends AbstractTableModel {
 	private static final long serialVersionUID = -3240265069491780098L;
 	private StudentListInfo studentListInfo;
+	private ResizeAfterUpdateListener resizeAfterUpdateListener;
 
 	
-	public StudentListModel(StudentListInfo studentListInfo) {
+	public StudentListModel(StudentListInfo studentListInfo, ResizeAfterUpdateListener resizeAfterUpdateListener) {
 		this.studentListInfo = studentListInfo;
+		this.resizeAfterUpdateListener = resizeAfterUpdateListener;
 		clearAll();
 	}
 
@@ -66,6 +69,12 @@ public class StudentListModel extends AbstractTableModel {
 		if (studentListInfo != null) {
 			studentListInfo.setValueAt(aValue, rowIndex, columnIndex);
 		}
+		SwingUtilities.invokeLater(new Runnable() {
+			public void run() {
+				resizeAfterUpdateListener.resizeColumn(columnIndex, getValueAt(rowIndex, columnIndex), false);
+			}
+		});
+		
 
 	}
 

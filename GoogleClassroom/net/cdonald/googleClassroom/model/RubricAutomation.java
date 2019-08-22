@@ -49,7 +49,6 @@ public abstract class RubricAutomation {
 		ListenerCoordinator.fire(AppendOutputTextListener.class, id, ownerName, text + "\n");
 	}
 
-	public abstract int getNumAutomationColumns();
 	public abstract RubricAutomation newCopy();
 	public abstract void removeFileData(FileData fileData);
 	protected abstract Double runAutomation_(String studentName, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData);

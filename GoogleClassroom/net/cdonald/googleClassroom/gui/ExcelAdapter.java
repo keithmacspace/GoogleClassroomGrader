@@ -107,7 +107,6 @@ public class ExcelAdapter implements ActionListener {
 		if (e.getActionCommand().compareTo("Delete") == 0) {
 			int[] rows = jTable1.getSelectedRows();
 			int[] cols = jTable1.getSelectedColumns();
-			DebugLogDialog.appendln(rows.length + " " + cols.length);
 			if (rows != null && cols != null && rows.length > 0 && cols.length > 0) {
 				for (int row : rows) {
 					for (int col : cols) {

@@ -95,6 +95,9 @@ public class Rubric implements SheetAccessorInterface {
 				value += studentValue;
 			}
 		}
+		value *= 100;
+		value = (int)value;
+		value /= 100;
 		return "" + value;
 	}
 	
@@ -172,12 +175,33 @@ public class Rubric implements SheetAccessorInterface {
 		return sheetData.getName();
 	}
 
-	public List<RubricEntry> getEntries() {
-		return entries;
+	
+	public int getEntryCount() {
+		if (entries != null) {
+			if (inModifiedState) {
+				for (int i = entries.size() - 1; i >= 0; i--) {
+					RubricEntry entry = entries.get(i);
+					if (entry.getName() != null && entry.getName().length() != 0) {
+						return i + 1;
+					}
+				}
+			}
+			else {
+				return entries.size();
+			}
+		}
+		return 0;
 	}
 	
 	public RubricEntry getEntry(int index) {
 		if (index >= 0 && index < entries.size()) {
+			return entries.get(index);
+		}
+		// When we are modifying the rubric, then we can just add elements
+		else if (isInModifiedState()) {
+			while (entries.size() <= index) {
+				entries.add(new RubricEntry());
+			}
 			return entries.get(index);
 		}
 		return null;
@@ -274,7 +298,7 @@ public class Rubric implements SheetAccessorInterface {
 	private void loadGoldenSource(Map<String, List<List<Object>>> entryColumns) {
 		List<List<Object> > columns = entryColumns.get(GOLDEN_SOURCE_LABEL.toUpperCase());
 		if (columns == null || columns.size() == 0) {
-			showLoadError("Golden source is missing from file");
+			
 			return;
 		}
 		
@@ -287,12 +311,12 @@ public class Rubric implements SheetAccessorInterface {
 			}
 		}
 		if (fileNames.size() == 0) {
-			showLoadError("No golden source files specified");
+
 		}
 		for (String fileName : fileNames) {
 			FileData fileData = FileData.newFromSheet(fileName, entryColumns.get(fileName.toUpperCase()));
 			if (fileData == null) {
-				showLoadError(fileName + " is missing from save data");
+				showLoadError("Golden source file " + fileName + " is missing from save data");
 			}
 			else {
 				goldenSource.add(fileData);
@@ -359,6 +383,18 @@ public class Rubric implements SheetAccessorInterface {
 					JOptionPane.ERROR_MESSAGE);
 				showedErrorMessage = true;			
 		}
+	}
+	
+	/**
+	 * Called after we edit if we hit OK, Save, or Test.  This goes through and remove all entries that do not have a name
+	 */
+	public void cleanup() {
+		for (int i = entries.size() - 1; i >= 0; i--) {
+			if (entries.get(i).getName() == null || entries.get(i).getName().length() == 0) {
+				entries.remove(i);
+			}
+		}
+		
 	}
 
 }
