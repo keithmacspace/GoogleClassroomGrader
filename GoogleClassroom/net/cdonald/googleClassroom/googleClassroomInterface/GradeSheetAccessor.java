@@ -14,7 +14,7 @@ import net.cdonald.googleClassroom.model.Rubric;
 import net.cdonald.googleClassroom.model.RubricEntry;
 import net.cdonald.googleClassroom.model.StudentData;
 
-public abstract class GradeAccessor implements SheetAccessorInterface {
+public abstract class GradeSheetAccessor implements SheetAccessorInterface {
 	private Rubric rubric;
 	private List<StudentRow> studentRowList;
 	private Map<String, StudentRow > studentRowMap;
@@ -24,7 +24,7 @@ public abstract class GradeAccessor implements SheetAccessorInterface {
 	private GoogleSheetData targetFile;
 	private String graderName;
 	private boolean loading;
-	public GradeAccessor(GoogleSheetData targetFile, Rubric rubric, List<StudentData> students, String graderName) {		
+	public GradeSheetAccessor(GoogleSheetData targetFile, Rubric rubric, List<StudentData> students, String graderName) {		
 		this.targetFile = targetFile;
 		this.setRubric(rubric);
 		loading = true;

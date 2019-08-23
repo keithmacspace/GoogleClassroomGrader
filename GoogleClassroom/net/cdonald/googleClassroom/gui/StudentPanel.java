@@ -10,8 +10,10 @@ import java.awt.event.MouseListener;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.swing.BorderFactory;
 import javax.swing.JPanel;
@@ -34,7 +36,7 @@ import javax.swing.table.JTableHeader;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
 
-import net.cdonald.googleClassroom.googleClassroomInterface.SaveGrades;
+import net.cdonald.googleClassroom.googleClassroomInterface.SaveSheetGrades;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 import net.cdonald.googleClassroom.listenerCoordinator.AssignmentSelected;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
@@ -583,7 +585,7 @@ public class StudentPanel extends JPanel implements ResizeAfterUpdateListener{
 		});		
 	}
 	
-	public void addStudentGrades(SaveGrades saveGrades, Rubric rubric) {
+	public void addStudentGrades(SaveSheetGrades saveGrades, Rubric rubric) {
 
 		SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
@@ -595,8 +597,9 @@ public class StudentPanel extends JPanel implements ResizeAfterUpdateListener{
 					StudentData studentInfo = (StudentData)studentModel.getValueAt(i, StudentListInfo.LAST_NAME_COLUMN);
 					saveGrades.addStudentColumn(studentInfo, StudentListInfo.defaultColumnNames[StudentListInfo.LAST_NAME_COLUMN], studentInfo.getName());
 					saveGrades.addStudentColumn(studentInfo, StudentListInfo.defaultColumnNames[StudentListInfo.FIRST_NAME_COLUMN], studentInfo.getFirstName());
-					String date = (String)studentModel.getValueAt(i, StudentListInfo.DATE_COLUMN);
-					saveGrades.addStudentColumn(studentInfo, StudentListInfo.defaultColumnNames[StudentListInfo.DATE_COLUMN], date);
+					Date date = (Date)studentModel.getValueAt(i, StudentListInfo.DATE_COLUMN);
+					String dateString = SimpleUtils.formatDate(date);
+					saveGrades.addStudentColumn(studentInfo, StudentListInfo.defaultColumnNames[StudentListInfo.DATE_COLUMN], dateString);
 					for (int entryNum = 0; entryNum < rubric.getEntryCount(); entryNum++) {
 						RubricEntry entry = rubric.getEntry(entryNum);
 						Double grade = entry.getStudentDoubleValue(studentInfo.getId());
@@ -614,6 +617,14 @@ public class StudentPanel extends JPanel implements ResizeAfterUpdateListener{
 	}
 	public boolean isAnyStudentSelected() {
 		return currentStudent != null;
+	}
+
+	public Set<String> getSelectedColumns() {
+		Set<String> selectedCols = new HashSet<String>();
+		for (int col : studentTable.getSelectedColumns()) {
+			selectedCols.add(studentModel.getColumnName(col));
+		}
+		return selectedCols;
 	}
 	
 

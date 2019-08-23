@@ -28,3 +28,7 @@
 /LoadGrades.class
 /GradeAccessor.class
 /GradeAccessor$StudentRow.class
+/GradeSheetAccessor$StudentRow.class
+/GradeSheetAccessor.class
+/LoadSheetGrades.class
+/SaveSheetGrades.class

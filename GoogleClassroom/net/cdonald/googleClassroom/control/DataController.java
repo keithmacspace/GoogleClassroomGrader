@@ -3,14 +3,11 @@ package net.cdonald.googleClassroom.control;
 import java.io.File;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.swing.Action;
 import javax.swing.JOptionPane;
@@ -24,8 +21,8 @@ import net.cdonald.googleClassroom.googleClassroomInterface.AssignmentFetcher;
 import net.cdonald.googleClassroom.googleClassroomInterface.CourseFetcher;
 import net.cdonald.googleClassroom.googleClassroomInterface.FileFetcher;
 import net.cdonald.googleClassroom.googleClassroomInterface.GoogleClassroomCommunicator;
-import net.cdonald.googleClassroom.googleClassroomInterface.LoadGrades;
-import net.cdonald.googleClassroom.googleClassroomInterface.SaveGrades;
+import net.cdonald.googleClassroom.googleClassroomInterface.LoadSheetGrades;
+import net.cdonald.googleClassroom.googleClassroomInterface.SaveSheetGrades;
 import net.cdonald.googleClassroom.googleClassroomInterface.SheetFetcher;
 import net.cdonald.googleClassroom.googleClassroomInterface.StudentFetcher;
 import net.cdonald.googleClassroom.gui.DataUpdateListener;
@@ -40,6 +37,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.AssignmentSelected;
 import net.cdonald.googleClassroom.listenerCoordinator.ClassSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.EnableRunRubricQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetCompilerMessageQuery;
+import net.cdonald.googleClassroom.listenerCoordinator.GetCurrentAssignmentQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetCurrentClassQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.GetCurrentRubricURL;
 import net.cdonald.googleClassroom.listenerCoordinator.GetDBNameQuery;
@@ -511,7 +509,7 @@ public class DataController implements StudentListInfo {
 		}
 	}
 	
-	public void runRubric(String studentId) {
+	public void runRubric(String studentId, Set<String> rubricElementNames) {
 		StudentData student = null;
 		if (rubricBeingEditedStudent != null && rubricBeingEditedStudent.getId().equals(studentId)) {
 			student = rubricBeingEditedStudent;
@@ -525,7 +523,7 @@ public class DataController implements StudentListInfo {
 		}
 		if (currentRubric != null) {
 			CompilerMessage message = studentWorkCompiler.getCompilerMessage(studentId);			
-			currentRubric.runAutomation(updateListener, studentName, studentId, message, studentWorkCompiler, consoleData);
+			currentRubric.runAutomation(updateListener, rubricElementNames, studentName, studentId, message, studentWorkCompiler, consoleData);
 			updateListener.dataUpdated();
 			
 		}
@@ -777,9 +775,10 @@ public class DataController implements StudentListInfo {
 		return null;
 	}
 	
-	public SaveGrades newSaveGrades(String assignmentName) {
+	public SaveSheetGrades newSaveGrades(String assignmentName) {
 		if (currentRubric != null && currentRubric != rubricBeingEdited) {
-			SaveGrades grades = new SaveGrades(googleClassroom, new GoogleSheetData(currentRubric.getName(), gradeURL.getId(), currentRubric.getName()), currentRubric, studentData, prefs.getUserName(), notesCommentsMap);
+			ClassroomData assignment = (ClassroomData) ListenerCoordinator.runQuery(GetCurrentAssignmentQuery.class);
+			SaveSheetGrades grades = new SaveSheetGrades(googleClassroom, new GoogleSheetData(currentRubric.getName(), gradeURL.getId(),  currentRubric.getName()), assignment, currentRubric, studentData, prefs.getUserName(), notesCommentsMap);
 			return grades;
 		}
 		return null;
@@ -787,7 +786,7 @@ public class DataController implements StudentListInfo {
 	
 	public void loadGrades() {
 		if (currentRubric != null && gradeURL != null && currentRubric != rubricBeingEdited) {
-			LoadGrades grades = new LoadGrades(new GoogleSheetData(currentRubric.getName(), gradeURL.getId(), currentRubric.getName()), currentRubric, studentData, prefs.getUserName(), notesCommentsMap);
+			LoadSheetGrades grades = new LoadSheetGrades(new GoogleSheetData(currentRubric.getName(), gradeURL.getId(), currentRubric.getName()), currentRubric, studentData, prefs.getUserName(), notesCommentsMap);
 
 			try {
 				ListenerCoordinator.fire(AddProgressBarListener.class, "Loading Grades");
@@ -801,7 +800,7 @@ public class DataController implements StudentListInfo {
 		
 	}
 	
-	public void saveGrades(SaveGrades grades) {
+	public void saveGrades(SaveSheetGrades grades) {
 		try {
 			gradesModified = false;
 			googleClassroom.writeSheet(grades);

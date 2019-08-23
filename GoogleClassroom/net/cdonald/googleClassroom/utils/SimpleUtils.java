@@ -27,7 +27,10 @@ public class SimpleUtils {
 	}
 	
 	public static String formatDate(Date date) {
-		return simpleDateFormat.format(date);
+		if (date != null) {
+			return simpleDateFormat.format(date);
+		}
+		return "";
 	}
 	
 	public static Date createDate(String date) {

@@ -12,10 +12,10 @@ import net.cdonald.googleClassroom.model.Rubric;
 import net.cdonald.googleClassroom.model.RubricEntry;
 import net.cdonald.googleClassroom.model.StudentData;
 
-public class LoadGrades extends GradeAccessor{
+public class LoadSheetGrades extends GradeSheetAccessor{
 	private Map<String, Map<String, String>> graderCommentsMap;
 	private Map<String, String> gradedByMap;
-	public LoadGrades(GoogleSheetData targetFile, Rubric rubricParam, List<StudentData> students, String graderName, Map<String, Map<String, String>> graderCommentsMap)  {
+	public LoadSheetGrades(GoogleSheetData targetFile, Rubric rubricParam, List<StudentData> students, String graderName, Map<String, Map<String, String>> graderCommentsMap)  {
 		super(targetFile, rubricParam, students, graderName);
 		this.graderCommentsMap = graderCommentsMap;
 		gradedByMap = new HashMap<String, String>();

@@ -2,24 +2,24 @@ package net.cdonald.googleClassroom.googleClassroomInterface;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import net.cdonald.googleClassroom.gui.DebugLogDialog;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentListInfo;
+import net.cdonald.googleClassroom.model.ClassroomData;
 import net.cdonald.googleClassroom.model.GoogleSheetData;
 import net.cdonald.googleClassroom.model.Rubric;
 import net.cdonald.googleClassroom.model.RubricEntry;
 import net.cdonald.googleClassroom.model.StudentData;
+import net.cdonald.googleClassroom.utils.SimpleUtils;
 
-public class SaveGrades extends LoadGrades{
+public class SaveSheetGrades extends LoadSheetGrades{
 
-
-	public SaveGrades(GoogleClassroomCommunicator communicator, GoogleSheetData targetFile, Rubric rubric, List<StudentData> students, String graderName, Map<String, Map<String, String>> graderCommentsMap) {
+	ClassroomData assignment;
+	public SaveSheetGrades(GoogleClassroomCommunicator communicator, GoogleSheetData targetFile, ClassroomData assignment, Rubric rubric, List<StudentData> students, String graderName, Map<String, Map<String, String>> graderCommentsMap) {
 		super(targetFile, rubric, students, graderName, graderCommentsMap);		
-
+		this.assignment = assignment;
 		try {
 			loadData(communicator, true);
 		} catch (IOException e) {
@@ -44,6 +44,7 @@ public class SaveGrades extends LoadGrades{
 		SaveSheetData saveData = new SaveSheetData(SaveSheetData.ValueType.USER_ENTERED, getRubric().getName());
 		int currentRow = 1;
 		int numColumns = getNumColumns();
+		List<Object> assignmentRow = new ArrayList<Object>();
 		List<Object> gradedByRow = new ArrayList<Object>(numColumns);
 		List<Object> columnNameRow = new ArrayList<Object>(numColumns);
 		List<Object> rubricValueRow = new ArrayList<Object>(numColumns);
@@ -52,6 +53,12 @@ public class SaveGrades extends LoadGrades{
 			columnNameRow.add(null);
 			rubricValueRow.add(null);
 		}
+		if (assignment != null && assignment.isEmpty() == false) {
+			assignmentRow.add(assignment.getName());
+			assignmentRow.add("Due:");
+			assignmentRow.add(SimpleUtils.formatDate(assignment.getDate()));
+		}
+
 		gradedByRow.set(0, "Graded By");
 		rubricValueRow.set(0, "Rubric Value");
 		Set<String> graded = getModifiedSet();
@@ -81,6 +88,7 @@ public class SaveGrades extends LoadGrades{
 				}
 			}
 		}
+		saveData.addOneRow(assignmentRow, currentRow++);
 		saveData.addOneRow(gradedByRow, currentRow++);		
 		saveData.addOneRow(rubricValueRow, currentRow++);
 		saveData.addOneRow(columnNameRow, currentRow++);

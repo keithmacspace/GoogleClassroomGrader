@@ -4,13 +4,12 @@ import java.awt.BorderLayout;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
-import java.lang.reflect.InvocationTargetException;
 import java.util.List;
+import java.util.Set;
 
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JSplitPane;
-import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 import javax.swing.UIManager;
 import javax.swing.UIManager.LookAndFeelInfo;
@@ -18,7 +17,7 @@ import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.WindowConstants;
 
 import net.cdonald.googleClassroom.control.DataController;
-import net.cdonald.googleClassroom.googleClassroomInterface.SaveGrades;
+import net.cdonald.googleClassroom.googleClassroomInterface.SaveSheetGrades;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.AddProgressBarListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ChooseGradeFileListener;
@@ -326,7 +325,7 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener 
 	private void saveGrades() {
 		ListenerCoordinator.fire(AddProgressBarListener.class, "Saving Grades");				
 		ClassroomData assignment = mainToolBar.getAssignmentSelected();
-		SaveGrades grades = dataController.newSaveGrades(assignment.getName());
+		SaveSheetGrades grades = dataController.newSaveGrades(assignment.getName());
 		studentPanel.addStudentGrades(grades, dataController.getRubric());
 		dataController.saveGrades(grades);
 		dataUpdated();
@@ -359,6 +358,10 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener 
 				else {
 					ids = dataController.getAllIDs();
 				}
+				Set<String> selectedRubricNames = null;
+				if (runAll == false) {
+					selectedRubricNames = studentPanel.getSelectedColumns();
+				}
 				try {
 					mainToolBar.setStopEnabled(true);
 					for (String id : ids) {
@@ -366,7 +369,8 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener 
 							dataController.run(id);												
 						}
 						else {
-							dataController.runRubric(id);
+
+							dataController.runRubric(id, selectedRubricNames);
 						}
 						publish(id);
 					}

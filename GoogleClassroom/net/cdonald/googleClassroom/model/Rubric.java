@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.swing.JOptionPane;
 
@@ -11,7 +12,6 @@ import net.cdonald.googleClassroom.googleClassroomInterface.LoadSheetData;
 import net.cdonald.googleClassroom.googleClassroomInterface.SaveSheetData;
 import net.cdonald.googleClassroom.googleClassroomInterface.SheetAccessorInterface;
 import net.cdonald.googleClassroom.gui.DataUpdateListener;
-import net.cdonald.googleClassroom.gui.DebugLogDialog;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.StudentWorkCompiler;
 
@@ -207,10 +207,13 @@ public class Rubric implements SheetAccessorInterface {
 		return null;
 	}
 	
-	public void runAutomation(DataUpdateListener updateListener, String studentName, String studentId, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData ) {				
+	public void runAutomation(DataUpdateListener updateListener, Set<String> rubricElementNames, String studentName, String studentId, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData ) {				
+		
 		for (RubricEntry entry : entries) {
-			entry.runAutomation(studentName, studentId, message, compiler, consoleData);
-			updateListener.dataUpdated();
+			if (rubricElementNames == null || rubricElementNames.contains(entry.getName())) {
+				entry.runAutomation(studentName, studentId, message, compiler, consoleData);				
+				updateListener.dataUpdated();
+			}
 		}
 
 	}
