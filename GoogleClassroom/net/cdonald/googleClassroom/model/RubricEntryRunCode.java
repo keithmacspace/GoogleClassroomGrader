@@ -123,22 +123,23 @@ public class RubricEntryRunCode extends  RubricAutomation {
 		return methods;
 	}
 	
-	protected Double runAutomation_(String studentName, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData) {
+	protected Double runAutomation_(RubricEntry entry, String studentName, String studentId, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData) {
+		if (message == null) {
+			return null;
+		}
 		if (message.isSuccessful()) {
 
 			ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.RUNNING, "Running " + this.getOwnerName() + " for " + studentName);
-			String studentId = message.getStudentId();			
+		
 
 			List<FileData> studentFiles = compiler.getSourceCode(studentId);
-			return runAutomation_(studentFiles, compiler, consoleData);
+			return runAutomation_(studentFiles, studentId, compiler, consoleData);
 		}
 		return null;
 	}
-	protected Double runAutomation_(List<FileData> studentFiles, StudentWorkCompiler compiler, ConsoleData consoleData) {
+	protected Double runAutomation_(List<FileData> studentFiles, String studentId, StudentWorkCompiler compiler, ConsoleData consoleData) {
 		if (studentFiles != null && studentFiles.size() != 0)
 		{
-			String studentId = studentFiles.get(0).getId();
-
 			List<FileData> rubricFiles = new ArrayList<FileData>(studentFiles);
 			consoleData.runStarted(studentId, getOwnerName());				
 			prepareForNextTest();

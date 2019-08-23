@@ -65,7 +65,10 @@ public class RubricEntryCallMethod extends RubricAutomation {
 		this.outputs.add(output);
 	}
 
-	protected Double runAutomation_(String studentName, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData) {
+	protected Double runAutomation_(RubricEntry owner, String studentName, String studentId, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData) {
+		if (message == null) {
+			return null;
+		}
 		int runCount = 0;
 		int passCount = 0;
 		if (message.isSuccessful()) {

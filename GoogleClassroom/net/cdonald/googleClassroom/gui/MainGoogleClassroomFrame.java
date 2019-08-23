@@ -283,7 +283,8 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener 
 				newRubricDialog.setVisible(true);
 				String rubricName = newRubricDialog.getRubricName();
 				if (rubricName != null) {
-					Rubric temp = dataController.newRubric(rubricName);					
+					Rubric temp = dataController.newRubric(rubricName);
+					mainToolBar.addRubricInfo(temp.getSheetInfo(), true);
 					editRubric(temp);
 					
 				}
@@ -382,8 +383,6 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener 
 				studentPanel.setSelectedStudent(lastId);
 				enableRuns();
 				mainToolBar.setStopEnabled(false);
-				
-
 			}
 		};
 		runWorker.execute();

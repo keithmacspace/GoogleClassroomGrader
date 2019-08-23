@@ -1,5 +1,6 @@
 package net.cdonald.googleClassroom.gui;
 
+import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -11,9 +12,11 @@ import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
+import javax.swing.JScrollPane;
 import javax.swing.JToolBar;
 import javax.swing.SwingUtilities;
 import javax.swing.border.BevelBorder;
+import javax.swing.border.Border;
 
 import net.cdonald.googleClassroom.googleClassroomInterface.AssignmentFetcher;
 import net.cdonald.googleClassroom.googleClassroomInterface.SheetFetcher;
@@ -39,6 +42,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.StopRunListener;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentSelectedListener;
 import net.cdonald.googleClassroom.model.ClassroomData;
 import net.cdonald.googleClassroom.model.GoogleSheetData;
+import net.cdonald.googleClassroom.utils.SimpleUtils;
 
 
 
@@ -54,6 +58,7 @@ public class MainToolBar extends JToolBar {
 	private JButton runButton;
 	private JButton runRubricButton;
 	private JButton stopButton;
+	private JLabel dueDate;
 	private List<String> rubricNames;
 	private enum RunType {ALL, SELECTED}	
 	private final String[] RUN_TITLES = {"Run All", "Run Selected"};
@@ -63,25 +68,33 @@ public class MainToolBar extends JToolBar {
 	public MainToolBar() {
 		setBorder(BorderFactory.createBevelBorder(BevelBorder.RAISED));
 		rubricNames = new ArrayList<String>();
+		dueDate = new JLabel("Due: ");
+		Border border = BorderFactory.createLineBorder(Color.BLACK, 1);
+		dueDate.setBorder(border);
 		assignmentCombo = new JComboBox<ClassroomData>();
 		assignmentModel = new DefaultComboBoxModel<ClassroomData>();		
 		assignmentCombo.setModel(assignmentModel);
+		ClassroomData sizeRestriction = new ClassroomData("This is a reasonable length but sometimes longer", "");
+		assignmentCombo.setPrototypeDisplayValue(sizeRestriction);
 		rubricCombo = new JComboBox<GoogleSheetData>();
 		rubricModel = new DefaultComboBoxModel<GoogleSheetData>();
-		rubricCombo.setModel(rubricModel);		
+		rubricCombo.setModel(rubricModel);
+		
+		
 		runButton = new JButton(RUN_TITLES[RunType.SELECTED.ordinal()]);
 		runRubricButton = new JButton(RUBRIC_TITLES[RunType.SELECTED.ordinal()]);
 		stopButton = new JButton("Stop");
-		runButton.setPreferredSize(runRubricButton.getPreferredSize());
-		stopButton.setPreferredSize(runRubricButton.getPreferredSize());
 		setRunTitles(RunType.ALL);
 		setLayout(new FlowLayout(FlowLayout.LEFT));
-		empty = new ClassroomData();
+		empty = new ClassroomData();	
+		
+		
 		assignmentModel.addElement(empty);
 		emptySheet = new GoogleSheetData();
 		rubricModel.addElement(emptySheet);
 		add(new JLabel("Assignment: "));
-		add(assignmentCombo);
+		add(new JScrollPane(assignmentCombo));
+		add(dueDate);
 		add(new JLabel("Rubric: "));
 		add(rubricCombo);
 		add(runButton);
@@ -231,6 +244,10 @@ public class MainToolBar extends JToolBar {
 				ClassroomData data = (ClassroomData) assignmentCombo.getSelectedItem();
 				if (data != null && data.isEmpty() == false) {
 					ListenerCoordinator.fire(AssignmentSelected.class, data);
+					dueDate.setText("Due: " + SimpleUtils.formatDate(data.getDate()));
+				}
+				else {
+					dueDate.setText("Due: ");
 				}
 			}
 		});

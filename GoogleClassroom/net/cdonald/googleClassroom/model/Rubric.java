@@ -207,9 +207,9 @@ public class Rubric implements SheetAccessorInterface {
 		return null;
 	}
 	
-	public void runAutomation(DataUpdateListener updateListener, String studentName, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData ) {				
+	public void runAutomation(DataUpdateListener updateListener, String studentName, String studentId, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData ) {				
 		for (RubricEntry entry : entries) {
-			entry.runAutomation(studentName, message, compiler, consoleData);
+			entry.runAutomation(studentName, studentId, message, compiler, consoleData);
 			updateListener.dataUpdated();
 		}
 
@@ -316,7 +316,15 @@ public class Rubric implements SheetAccessorInterface {
 		for (String fileName : fileNames) {
 			FileData fileData = FileData.newFromSheet(fileName, entryColumns.get(fileName.toUpperCase()));
 			if (fileData == null) {
-				showLoadError("Golden source file " + fileName + " is missing from save data");
+				boolean showError = false;
+				for (RubricEntry entry : entries) {
+					if (entry.requiresGoldenFile() == true) {
+						showError = true;
+					}
+				}
+				if (showError) {
+					showLoadError("Golden source file " + fileName + " is missing from save data");
+				}
 			}
 			else {
 				goldenSource.add(fileData);

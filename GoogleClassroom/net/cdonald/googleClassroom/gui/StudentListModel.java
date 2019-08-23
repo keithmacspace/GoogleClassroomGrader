@@ -4,6 +4,7 @@ package net.cdonald.googleClassroom.gui;
 import javax.swing.SwingUtilities;
 import javax.swing.table.AbstractTableModel;
 
+import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentListInfo;
 import net.cdonald.googleClassroom.model.ClassroomData;
 
@@ -34,6 +35,12 @@ public class StudentListModel extends AbstractTableModel {
 	public Class<?> getColumnClass(int columnIndex) {
 		if (columnIndex == StudentListInfo.LAST_NAME_COLUMN) {
 			return ClassroomData.class;
+		}
+		else if (columnIndex == StudentListInfo.DATE_COLUMN) {
+			return java.util.Date.class;
+		}
+		else if (columnIndex == StudentListInfo.COMPILER_COLUMN) {
+			return CompilerMessage.class;
 		}
 		return String.class;
 	}

@@ -8,6 +8,7 @@ import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,15 +36,18 @@ import javax.swing.table.TableColumnModel;
 
 import net.cdonald.googleClassroom.googleClassroomInterface.SaveGrades;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
+import net.cdonald.googleClassroom.listenerCoordinator.AssignmentSelected;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.SetInfoLabelListener;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentInfoChangedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentListInfo;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentSelectedListener;
+import net.cdonald.googleClassroom.model.ClassroomData;
 import net.cdonald.googleClassroom.model.FileData;
 import net.cdonald.googleClassroom.model.Rubric;
 import net.cdonald.googleClassroom.model.RubricEntry;
 import net.cdonald.googleClassroom.model.StudentData;
+import net.cdonald.googleClassroom.utils.SimpleUtils;
 
 public class StudentPanel extends JPanel implements ResizeAfterUpdateListener{
 	private static final long serialVersionUID = 3480731067309159048L;
@@ -65,12 +69,14 @@ public class StudentPanel extends JPanel implements ResizeAfterUpdateListener{
 	private int defaultValueWidth;
 
 	private int lastKeyboardCol;
+	private boolean keyPressed;
 	private static final int OTHER_COL_BASE_SIZE = 15;
 	public StudentPanel(StudentListInfo studentListInfo, int dividerLocation) {
 		this.otherComments = studentListInfo.getNotesCommentsMap();
 		this.currentGrader = studentListInfo.getUserName();
 		this.notesAndCommentsMap = studentListInfo.getNotesCommentsMap().get(currentGrader);
 		lastKeyboardCol = -1;
+		keyPressed = false;
 		defaultValueWidth = OTHER_COL_BASE_SIZE;
 		studentModel = new StudentListModel(studentListInfo, this);
 		studentTable = new JTable(studentModel) {
@@ -97,8 +103,7 @@ public class StudentPanel extends JPanel implements ResizeAfterUpdateListener{
 		verticalHeaderRenderer = new VerticalTableHeaderCellRenderer();
 		studentTable.setDefaultRenderer(FileData.class, studentListRenderer);
 		studentTable.setDefaultRenderer(CompilerMessage.class, studentListRenderer);
-		studentTable.setDefaultRenderer(StudentData.class, studentListRenderer);
-
+		studentTable.setDefaultRenderer(java.util.Date.class, studentListRenderer);		
 
 		notesAndCommentsTextArea = new HashMap<String, JTextArea>();
 
@@ -228,6 +233,42 @@ public class StudentPanel extends JPanel implements ResizeAfterUpdateListener{
 				});
 			}
 		});
+		studentTable.addMouseListener(new MouseListener() {
+
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				if (e.getButton() == MouseEvent.BUTTON1) {
+					lastKeyboardCol = studentTable.columnAtPoint(e.getPoint());
+					
+				}
+				
+			}
+
+			@Override
+			public void mousePressed(MouseEvent e) {
+				// TODO Auto-generated method stub
+				
+			}
+
+			@Override
+			public void mouseReleased(MouseEvent e) {
+				// TODO Auto-generated method stub
+				
+			}
+
+			@Override
+			public void mouseEntered(MouseEvent e) {
+				// TODO Auto-generated method stub
+				
+			}
+
+			@Override
+			public void mouseExited(MouseEvent e) {
+				// TODO Auto-generated method stub
+				
+			}
+			
+		});
 		
 		studentTable.getColumnModel().addColumnModelListener(new TableColumnModelListener() {
 			@Override
@@ -252,23 +293,28 @@ public class StudentPanel extends JPanel implements ResizeAfterUpdateListener{
 				ListSelectionModel lsm = (ListSelectionModel)e.getSource();
 				if (lsm.isSelectionEmpty() == false) {
 					int maxCol = lsm.getMaxSelectionIndex();
-					int minCol = lsm.getMinSelectionIndex();
+					int minCol = lsm.getMinSelectionIndex();				
 
 					if (minCol == maxCol) {
+						if (keyPressed) {
+							minCol = lastKeyboardCol;
+							maxCol = lastKeyboardCol;
+						}
 						String tip = studentListInfo.getColumnTip(minCol);
 						if (tip == null) {
 							tip = "";
 						}
-
-						ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.RUBRIC_INFO, tip);
-
+					
+						ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.RUBRIC_INFO, tip);						
 						if (minCol < StudentListInfo.COMPILER_COLUMN) {
-							lastKeyboardCol = minCol;
 							studentTable.setColumnSelectionInterval(0, studentTable.getColumnCount() - 1);
 						}
-						else if (lastKeyboardCol != -1 && lastKeyboardCol != maxCol) {
-							studentTable.setColumnSelectionInterval(lastKeyboardCol, lastKeyboardCol);
+						else {
+							studentTable.setColumnSelectionInterval(minCol, maxCol);
 						}
+					}
+					else if (minCol < StudentListInfo.COMPILER_COLUMN && maxCol < studentTable.getColumnCount() - 1) {
+						studentTable.setColumnSelectionInterval(lastKeyboardCol, lastKeyboardCol);
 					}
 				}
 			}			
@@ -280,6 +326,19 @@ public class StudentPanel extends JPanel implements ResizeAfterUpdateListener{
 			}
 		});
 		
+		ListenerCoordinator.addListener(AssignmentSelected.class, new AssignmentSelected() {
+			@Override
+			public void fired(ClassroomData data) {
+				if (data != null) {
+					studentListRenderer.setDueDate(data.getDate());
+				}
+				else {
+					studentListRenderer.setDueDate(null);
+				}
+				
+			}			
+		});
+		
 		studentTable.addKeyListener(new KeyListener() {
 			@Override
 			public void keyTyped(KeyEvent e) {
@@ -288,26 +347,38 @@ public class StudentPanel extends JPanel implements ResizeAfterUpdateListener{
 			@Override
 			public void keyPressed(KeyEvent e) {
 				int keyCode = e.getKeyCode();
+				keyPressed = true;
+				boolean doSelect = false;
 				if (keyCode == KeyEvent.VK_LEFT) {
 					if (lastKeyboardCol != -1) {
 						lastKeyboardCol--;
 						if (lastKeyboardCol < 0) {
 							lastKeyboardCol = 0;
 						}					
-
 					}
+					doSelect = true;
 				}
-				if (keyCode == KeyEvent.VK_RIGHT) {
+				else if (keyCode == KeyEvent.VK_RIGHT) {
 					if (lastKeyboardCol != -1) {
 						lastKeyboardCol++;
-	
 					}
+					doSelect = true;
 				}
+				else if (keyCode == KeyEvent.VK_UP || keyCode == KeyEvent.VK_DOWN) {
+					doSelect = true;
+				}
+				if (doSelect) {
+
+					studentTable.setColumnSelectionInterval(lastKeyboardCol, lastKeyboardCol);
+				}
+				
+				
 				
 			}
 			@Override
 			public void keyReleased(KeyEvent e) {
-				// TODO Auto-generated method stub
+				keyPressed = false;
+
 				
 			}
 		});
@@ -354,14 +425,8 @@ public class StudentPanel extends JPanel implements ResizeAfterUpdateListener{
 		SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
 				resizing = true;
-				TableColumnModel jTableColumnModel = studentTable.getColumnModel();	    
-				final int FIXED_PREF_SIZE = 90;
-
 				for (int i = 0; i < StudentListInfo.COMPILER_COLUMN; i++) {
-					TableColumn column = jTableColumnModel.getColumn(i);
-					column = jTableColumnModel.getColumn(i);
-					column.setMinWidth(0);
-					column.setPreferredWidth(FIXED_PREF_SIZE);
+					resizeColumn(i);
 				}
 				resizeValueColumns();				
 				setHeaderRenderer();
@@ -380,47 +445,54 @@ public class StudentPanel extends JPanel implements ResizeAfterUpdateListener{
 	
 	public void resizeColumn(int columnNum) {
 		int numRows = studentModel.getRowCount();
-		if (columnNum >= StudentListInfo.COMPILER_COLUMN) {
-			
-			TableColumnModel jTableColumnModel = studentTable.getColumnModel();
-			TableColumn column = jTableColumnModel.getColumn(columnNum);
-
-			column.setMinWidth(0);
-			for (int row = 0; row < numRows; row++) {
-				Object value = studentModel.getValueAt(row, columnNum);
-				resizeColumn(columnNum, value, row == 0);
-			}
+		for (int row = 0; row < numRows; row++) {
+			Object value = studentModel.getValueAt(row, columnNum);
+			resizeColumn(columnNum, value, row == 0);
 		}
 	}
 	
 	@Override
 	public void resizeColumn(int columnNum, Object value, boolean reduceSize) {
-		if (columnNum >= StudentListInfo.COMPILER_COLUMN) {
-			
-			final int TOTAL_COL_BASE_SIZE = 35;
-			final int PER_LETTER_MULTIPLIER = 6;
-			TableColumnModel jTableColumnModel = studentTable.getColumnModel();
-			TableColumn column = jTableColumnModel.getColumn(columnNum);			
-			int baseSize = (reduceSize) ? 0 : column.getPreferredWidth();			
-			if (columnNum == StudentListInfo.TOTAL_COLUMN) {
-				baseSize = Math.max(TOTAL_COL_BASE_SIZE, baseSize);
+		TableColumnModel jTableColumnModel = studentTable.getColumnModel();
+		TableColumn column = jTableColumnModel.getColumn(columnNum);
+		if (column != null) {
+			column.setMinWidth(0);
+			if (columnNum >= StudentListInfo.COMPILER_COLUMN || columnNum == StudentListInfo.DATE_COLUMN) {			
+				final int TOTAL_COL_BASE_SIZE = 35;
+				final int PER_LETTER_MULTIPLIER = 6;
+
+				int baseSize = (reduceSize) ? 0 : column.getPreferredWidth();			
+				if (columnNum == StudentListInfo.TOTAL_COLUMN) {
+					baseSize = Math.max(TOTAL_COL_BASE_SIZE, baseSize);
+				}
+				else {
+					baseSize = Math.max(defaultValueWidth, baseSize);
+				}
+				if (value != null) {
+					String valueString = value.toString();
+					if (columnNum ==StudentListInfo.DATE_COLUMN && value instanceof java.util.Date) {
+						valueString = SimpleUtils.formatDate((Date) value);
+					}
+					if (columnNum == StudentListInfo.COMPILER_COLUMN) {
+						valueString = "Y";
+					}
+
+					baseSize = Math.max(PER_LETTER_MULTIPLIER * valueString.length(), baseSize);
+				}
+				if (columnNum > StudentListInfo.TOTAL_COLUMN) {
+					if (baseSize > defaultValueWidth) {
+						defaultValueWidth = baseSize;
+						resizeValueColumns();
+						return;
+					}
+				}
+				column.setPreferredWidth(baseSize);			
 			}
 			else {
-				baseSize = Math.max(defaultValueWidth, baseSize);
+				final int FIXED_PREF_SIZE = 90;
+				column.setMinWidth(0);
+				column.setPreferredWidth(FIXED_PREF_SIZE);
 			}
-			if (value != null) {
-				String valueString = value.toString();
-				baseSize = Math.max(PER_LETTER_MULTIPLIER * valueString.length(), baseSize);
-			}
-			if (columnNum > StudentListInfo.TOTAL_COLUMN) {
-				if (baseSize > defaultValueWidth) {
-					defaultValueWidth = baseSize;
-					resizeValueColumns();
-					return;
-				}
-			}
-			column.setPreferredWidth(baseSize);
-			
 		}
 	}
 	
@@ -435,10 +507,7 @@ public class StudentPanel extends JPanel implements ResizeAfterUpdateListener{
 	public void clearStudents() {
 		studentModel.clearAll();
 	}
-
-	public void assignmentSet() {
-		resizeColumns();
-	}
+	
 
 	public List<String> getSelectedIds() {
 		int [] selectedRows = studentTable.getSelectedRows();
@@ -460,8 +529,11 @@ public class StudentPanel extends JPanel implements ResizeAfterUpdateListener{
 					Object studentObj = studentModel.getValueAt(i, StudentListInfo.LAST_NAME_COLUMN);
 					if (studentObj != null) {
 						StudentData studentData = (StudentData)studentObj;
+						
 						if (studentID.equals(studentData.getId())){
-							studentTable.setRowSelectionInterval(i, i);
+							studentTable.setRowSelectionInterval(i, i);							
+							studentTable.setColumnSelectionInterval(0, 0);
+							lastKeyboardCol = 0;
 						}
 					}
 				}

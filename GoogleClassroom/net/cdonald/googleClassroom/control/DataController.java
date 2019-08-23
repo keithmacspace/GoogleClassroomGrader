@@ -3,8 +3,11 @@ package net.cdonald.googleClassroom.control;
 import java.io.File;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,7 +18,6 @@ import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.KeyStroke;
-import javax.swing.SwingWorker;
 import javax.swing.text.DefaultEditorKit;
 
 import net.cdonald.googleClassroom.googleClassroomInterface.AssignmentFetcher;
@@ -70,6 +72,7 @@ import net.cdonald.googleClassroom.model.MyPreferences;
 import net.cdonald.googleClassroom.model.Rubric;
 import net.cdonald.googleClassroom.model.RubricEntry;
 import net.cdonald.googleClassroom.model.StudentData;
+import net.cdonald.googleClassroom.utils.SimpleUtils;
 
 
 public class DataController implements StudentListInfo {
@@ -172,7 +175,8 @@ public class DataController implements StudentListInfo {
 		
 		ListenerCoordinator.addListener(AssignmentSelected.class, new AssignmentSelected() {
 			@Override
-			public void fired(ClassroomData data) {	
+			public void fired(ClassroomData data) {
+
 				studentWorkCompiler.clearData();
 				ListenerCoordinator.runLongQuery(FileFetcher.class, new LongQueryListener<ClassroomData>() {
 					@Override
@@ -185,7 +189,7 @@ public class DataController implements StudentListInfo {
 					}
 					@Override
 					public void done() {						
-						studentWorkCompiler.compileAll();						
+						studentWorkCompiler.compileAll();
 					}					
 				});
 			}			
@@ -522,10 +526,9 @@ public class DataController implements StudentListInfo {
 		}
 		if (currentRubric != null) {
 			CompilerMessage message = studentWorkCompiler.getCompilerMessage(studentId);			
-			if (message != null) {				
-				currentRubric.runAutomation(updateListener, studentName, message, studentWorkCompiler, consoleData);
-				updateListener.dataUpdated();
-			}
+			currentRubric.runAutomation(updateListener, studentName, studentId, message, studentWorkCompiler, consoleData);
+			updateListener.dataUpdated();
+			
 		}
 		ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.RUNNING, "");
 	}
@@ -613,22 +616,13 @@ public class DataController implements StudentListInfo {
 		case DATE_COLUMN:
 			List<FileData> fileData = studentWorkCompiler.getSourceCode(getStudentId(rowIndex));
 			if (fileData != null && fileData.size() > 0) {
-				Date date = fileData.get(0).getDate();
-				if (date != null) {
-					retVal = date.toString();
-				}
+				retVal = fileData.get(0).getDate();
 			}
 			break;
 		case COMPILER_COLUMN:
+
 			CompilerMessage data = studentWorkCompiler.getCompilerMessage(getStudentId(rowIndex));
-			if (data != null) {
-				if (data.isSuccessful()) {
-					retVal = "Y";
-				}
-				else {
-					retVal = "N";
-				}
-			}
+			retVal = data;
 			break;
 		case TOTAL_COLUMN:
 			if (currentRubric != null) {
@@ -650,7 +644,7 @@ public class DataController implements StudentListInfo {
 	@Override
 	public void setValueAt(Object value, int rowIndex, int columnIndex) {
 		gradesModified = true;
-		int index = getRubricIndex(columnIndex);
+		int index = getRubricIndex(columnIndex);		
 		if (index >= 0 && currentRubric != null) {
 			currentRubric.getEntry(index).setStudentValue(getStudentId(rowIndex), (String)value);
 		}

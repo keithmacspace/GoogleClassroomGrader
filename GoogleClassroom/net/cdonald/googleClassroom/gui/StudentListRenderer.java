@@ -2,14 +2,18 @@ package net.cdonald.googleClassroom.gui;
 
 import java.awt.Color;
 import java.awt.Component;
+import java.util.Date;
+
 import javax.swing.JTable;
 import javax.swing.table.DefaultTableCellRenderer;
 
+import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentListInfo;
+import net.cdonald.googleClassroom.utils.SimpleUtils;
 
 public class StudentListRenderer extends DefaultTableCellRenderer {
 	private static final long serialVersionUID = -7082168845923165249L;
-
+	private Date dueDate = null;
 
 	@Override
 	public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus,
@@ -17,26 +21,28 @@ public class StudentListRenderer extends DefaultTableCellRenderer {
 
 		Component c = null;
 		boolean makeRed = false;
+
 		if (value != null) {
+
+			
 			String valueString = null;
 
 			switch (column) {
-//			case StudentListInfo.DATE_COLUMN:
-//				Date date = ((FileData)value).getDate();
-//				if (date != null) {
-//					valueString = date.toString();
-//
-//					if (assignmentDate != null && date.compareTo(assignmentDate) < 0) {
-//						makeRed = true;
-//					}					
-//				}else {
-//					valueString = value.toString();
-//				}
-//				break;
+			case StudentListInfo.DATE_COLUMN:				
+				Date date = (Date)value;
+				valueString = SimpleUtils.formatDate(date);
+
+				if (dueDate != null && date.compareTo(dueDate) > 0) {
+					makeRed = true;
+				}
+				break;
 			case StudentListInfo.COMPILER_COLUMN:
 				if (value != null) {
-					valueString = (String)value;
-					if (valueString.compareTo("Y") != 0) {
+					CompilerMessage message = (CompilerMessage)value;
+					if (message.isSuccessful()) {
+						valueString = "Y";					}
+					else {
+						valueString = "N";
 						makeRed = true;
 					}
 				}
@@ -55,6 +61,14 @@ public class StudentListRenderer extends DefaultTableCellRenderer {
 			c.setForeground(Color.BLACK);
 		}
 		return c;
+	}
+
+	public Date getDueDate() {
+		return dueDate;
+	}
+
+	public void setDueDate(Date dueDate) {
+		this.dueDate = dueDate;
 	}
 
 

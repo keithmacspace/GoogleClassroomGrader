@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.cdonald.googleClassroom.gui.DebugLogDialog;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.StudentWorkCompiler;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
@@ -16,7 +17,7 @@ public class RubricEntry {
 	}
 
 	public static enum AutomationTypes {
-		NONE, COMPILES, /*CALL_MAIN, CALL_METHOD,*/ RUN_CODE, CODE_CONTAINS_METHOD
+		NONE, TURN_IN_SOMETHING, POINT_LOSS_FOR_LATE, COMPILES, RUN_CODE, CODE_CONTAINS_METHOD
 	}
 
 	String id;
@@ -73,7 +74,10 @@ public class RubricEntry {
 		Double newValue = studentScores.get(studentID);
 
 		try {
-			if (stringValue != null && stringValue.length() > 0) {
+			if (stringValue == null) {
+				newValue = null;
+			}
+			else if ( stringValue.length() > 0) {
 				Double test = Double.parseDouble(stringValue);
 				if (test <= rubricValue || rubricValue == 0.0) {
 					newValue = test;
@@ -124,16 +128,7 @@ public class RubricEntry {
 			break;
 		case AUTOMATION_TYPE:
 			automationType = (AutomationTypes)param;
-			switch(automationType) {
-			case RUN_CODE:
-				setAutomation(new RubricEntryRunCode());
-				break;
-			case CODE_CONTAINS_METHOD:
-				setAutomation(new RubricEntryMethodContains());
-				break;
-			default:
-				break;
-			}
+			newAutomationType();
 			break;
 		default:
 			break;
@@ -161,6 +156,22 @@ public class RubricEntry {
 		return null;
 		
 	}
+	private void newAutomationType() {
+		switch(automationType) {
+		case RUN_CODE:
+			setAutomation(new RubricEntryRunCode());
+			break;
+		case CODE_CONTAINS_METHOD:
+			setAutomation(new RubricEntryMethodContains());
+			break;
+		case POINT_LOSS_FOR_LATE:
+			setAutomation(new RubricEntryPointLossForLate());
+			break;
+		default:
+			break;
+		}
+		
+	}
 
 	public void setValue(HeadingNames headingName, String param) {
 
@@ -178,16 +189,7 @@ public class RubricEntry {
 			for (AutomationTypes automationValue : AutomationTypes.values()) {
 				if (automationValue.name().compareToIgnoreCase(param) == 0) {
 					automationType = automationValue;
-					switch(automationValue) {
-					case RUN_CODE:
-						setAutomation(new RubricEntryRunCode());
-						break;
-					case CODE_CONTAINS_METHOD:
-						setAutomation(new RubricEntryMethodContains());
-						break;
-					default:
-						break;
-					}
+					newAutomationType();
 					break;
 				}
 			}
@@ -221,9 +223,9 @@ public class RubricEntry {
 				+ "]";
 	}
 
-	void runAutomation(String studentName, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData) {
+	void runAutomation(String studentName, String studentId, CompilerMessage message, StudentWorkCompiler compiler, ConsoleData consoleData) {
 		if (automation != null) {			
-			Double result = automation.runAutomation(studentName, message, compiler, consoleData);
+			Double result = automation.runAutomation(this, studentName, studentId, message, compiler, consoleData);
 			// Leave the old score if the result is null.
 			if (result != null) {
 				double score = result;
@@ -246,6 +248,15 @@ public class RubricEntry {
 					studentScores.put(message.getStudentId(), 0.0);
 				}
 				break;
+			case TURN_IN_SOMETHING:
+				List<FileData> files = compiler.getSourceCode(studentId);
+				if (files != null) {
+					studentScores.put(studentId, (double)rubricValue);
+					return;
+				}
+				studentScores.put(studentId, 0.0);				
+				break;
+				
 			default:
 				break;
 			}
@@ -333,5 +344,13 @@ public class RubricEntry {
 		if (automation != null) {
 			automation.removeFileData(fileData);
 		}
+	}
+
+
+	public boolean requiresGoldenFile() {
+		if (automationType != null && automationType.ordinal() > AutomationTypes.COMPILES.ordinal() ) {
+			return true;
+		}
+		return false;
 	}
 }

@@ -94,16 +94,18 @@ public class RubricEntryMethodContains extends RubricAutomation {
 	}
 
 	@Override
-	protected Double runAutomation_(String studentName, CompilerMessage message, StudentWorkCompiler compiler,
+	protected Double runAutomation_(RubricEntry owner, String studentName, String studentId, CompilerMessage message, StudentWorkCompiler compiler,
 			ConsoleData consoleData) {
 
+		if (message == null) {
+			return null;
+		}
 		String messageStr = "Checking " + studentName + "'s source: " + methodNameToSearch + " for ";
 		for (String str : stringsToFind) {
 			messageStr += str;
 		}
 		ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.RUNNING, messageStr);
-		
-		String studentId = message.getStudentId();
+				
 		consoleData.runStarted(studentId, getOwnerName());
 
 		Double value = runAutomationWrapped(studentName, studentId, compiler, consoleData);
@@ -149,8 +151,7 @@ public class RubricEntryMethodContains extends RubricAutomation {
 	}
 	private class CheckForUseVisitor extends VoidVisitorAdapter<Set<String>> {
 		//stringsToFind = new ArrayList<String>();
-		public void searchExpression(String scope, String name, Set<String> foundSet) {
-			DebugLogDialog.appendln("Found: " + name + "  Scope " + scope);
+		public void searchExpression(String scope, String name, Set<String> foundSet) {			
 			for (String str : stringsToFind) {
 				int scopeIndex = str.lastIndexOf('.');
 				String findScope = null;
@@ -159,8 +160,7 @@ public class RubricEntryMethodContains extends RubricAutomation {
 				if (scopeIndex != -1) {
 					findScope = str.substring(0, scopeIndex);
 					searchName = str.substring(scopeIndex + 1);
-				}
-				DebugLogDialog.appendln(" SearchName " + searchName + " findScope " + findScope);
+				}				
 				if (searchName.equals(name)) {
 					if ((findScope == null) || (scope.indexOf(findScope) != -1)) {
 						foundSet.add(str);

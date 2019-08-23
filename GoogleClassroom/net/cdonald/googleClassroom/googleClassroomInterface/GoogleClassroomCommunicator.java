@@ -25,6 +25,7 @@ import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.util.Data;
 import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.classroom.Classroom;
 import com.google.api.services.classroom.ClassroomScopes;
@@ -61,6 +62,7 @@ import com.google.api.services.sheets.v4.model.Spreadsheet;
 import com.google.api.services.sheets.v4.model.ValueRange;
 import com.google.common.collect.ImmutableList;
 
+import net.cdonald.googleClassroom.gui.DebugLogDialog;
 import net.cdonald.googleClassroom.model.ClassroomData;
 import net.cdonald.googleClassroom.model.FileData;
 import net.cdonald.googleClassroom.model.GoogleSheetData;
@@ -271,12 +273,17 @@ public class GoogleClassroomCommunicator {
 
 				Date date = courseWork.getDueDate();
 				TimeOfDay timeOfDay = courseWork.getDueTime();
-				if (date != null && timeOfDay != null) {
+				
+				if (date != null && timeOfDay != null) {					
 					Integer hours = timeOfDay.getHours();
 					Integer minutes = timeOfDay.getMinutes();
-					Calendar temp = new GregorianCalendar(date.getYear(), date.getMonth(), date.getDay(),
+					Integer month = date.getMonth();
+					Integer year = date.getYear();
+					Integer day = date.getDay();
+					
+					Calendar temp = new GregorianCalendar(year, month - 1, day,
 							(hours == null) ? 0 : hours, (minutes == null) ? 0 : minutes);
-					java.util.Date dueDate = temp.getTime();
+					java.util.Date dueDate = temp.getTime();					
 					ClassroomData data = new ClassroomData(courseWork.getTitle(), courseWork.getId(), dueDate);
 					data.setRetrievedFromGoogle(true);
 					fetchListener.retrievedInfo(data);
@@ -684,12 +691,12 @@ public class GoogleClassroomCommunicator {
 		
 	}
 
-	public static void main(String[] args) throws IOException, GeneralSecurityException {
+//	public static void main(String[] args) throws IOException, GeneralSecurityException {
 //		for (int i = 0; i < 70; i++) {
 //			System.out.println(getColumnName(i));
 //		}
-		GoogleClassroomCommunicator communicator = new GoogleClassroomCommunicator("Google Classroom Grader", "C:\\Users\\kdmacdon\\Documents\\Teals\\GoogleClassroomData\\tokens", "C:\\Users\\kdmacdon\\Documents\\Teals\\GoogleClassroomData\\credentials.json");
-		communicator.writeSheet( communicator.new TestReader());
+//		GoogleClassroomCommunicator communicator = new GoogleClassroomCommunicator("Google Classroom Grader", "C:\\Users\\kdmacdon\\Documents\\Teals\\GoogleClassroomData\\tokens", "C:\\Users\\kdmacdon\\Documents\\Teals\\GoogleClassroomData\\credentials.json");
+//      communicator.writeSheet( communicator.new TestReader());
 		//communicator.testWrite();
 //		LoadSheetData sheetData = communicator.readSheet(communicator.new TestReader());
 //		for (int row = 0; row < sheetData.getNumRows(); row++) {
@@ -702,6 +709,6 @@ public class GoogleClassroomCommunicator {
 //		communicator.listFoldersInRoot();
 		//System.out.println();
 
-	}
+//	}
 
 }

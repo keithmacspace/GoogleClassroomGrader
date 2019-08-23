@@ -180,6 +180,7 @@ public class StudentWorkCompiler {
 	}
 	
 	public CompilerMessage compile(String studentID) {
+		CompilerMessage message = null;
 		StudentBuildInfo studentBuildInfo = studentBuildInfoMap.get(studentID);
 		if (studentBuildInfo != null) {
 	 		studentBuildInfo.setStudentCompilerMap(null);
@@ -191,16 +192,15 @@ public class StudentWorkCompiler {
 				}
 				Map<String, Class<?>> compiled = compiler.compileAll();
 				studentBuildInfo.setStudentCompilerMap(compiled);			
+				message = new CompilerMessage(studentID, true);
 			} catch (CompilationException e) {
-				return new CompilerMessage(studentID, false, e.getLocalizedMessage());
+				message = new CompilerMessage(studentID, false, e.getLocalizedMessage());
 			} catch (Exception e2) {
-				return new CompilerMessage(studentID, false, e2.getMessage());
-			}
-			CompilerMessage message = new CompilerMessage(studentID, true); 
-			studentBuildInfo.setCompilerMessage(message);
-			return message;
+				message = new CompilerMessage(studentID, false, e2.getMessage());
+			} 
+			studentBuildInfo.setCompilerMessage(message);			
 		}
-		return null;
+		return message;
 	}
 	
 
