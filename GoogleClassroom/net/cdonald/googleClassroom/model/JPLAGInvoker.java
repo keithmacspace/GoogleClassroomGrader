@@ -1,9 +1,12 @@
 package net.cdonald.googleClassroom.model;
 
 import java.awt.Desktop;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -11,18 +14,19 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
+import net.cdonald.googleClassroom.gui.DebugLogDialog;
 import net.cdonald.googleClassroom.utils.FileUtils;
 
 
 
 public class JPLAGInvoker {
 
- 
 
 	public static String invokeJPLAG(Map<String, List<FileData>> files, List<StudentData> students, String workingDir) {
 		String assignmentPath = saveFiles(files, students, workingDir);
-		String jplagOut = assignmentPath + File.separator + "jplagOut";
+		String jplagOut = workingDir + File.separator + "jplagOut";
 		List<String> args = new ArrayList<String>();
 		String javaPath = System.getProperty("java.home");
 		javaPath += File.separator + "bin" + File.separator + "java.exe";
@@ -42,11 +46,14 @@ public class JPLAGInvoker {
 		args.add("\"" + jplagOut + "\"");
 		args.add("-l");
 		args.add("java19");
+		DebugLogDialog.appendln(args.toString());
 		for (String arg : args) {
 			System.out.print(arg + " ");
 		}
 		ProcessBuilder pb = new ProcessBuilder(args);		
 		pb.inheritIO();
+		
+
 		try {
 			Process process = pb.start();
 			process.waitFor();
@@ -57,17 +64,17 @@ public class JPLAGInvoker {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		jplagOut += File.separator + "index.html";
 		
 		String finalOutput = jplagOut.replace("\\", "/");
-		finalOutput += "/index.html";
+
+		
 
 		if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
 			try {
-				Desktop.getDesktop().browse(new URI(finalOutput));
+				URI u = new File(jplagOut).toURI();
+				Desktop.getDesktop().browse(u);
 			} catch (IOException e) {
-
-			} catch (URISyntaxException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
@@ -101,6 +108,23 @@ public class JPLAGInvoker {
 			}
 		}
 		return assignmentPath;
+	}
+	
+	public static void main(String [] args) {
+		final String test = "c:\\Users\\kdmacdon\\AppData\\Roaming\\Google Classroom Grader\\14911700941\\JPLAG\\jplagOut\\index.html";
+		
+		File htmlFile = new File(test);
+
+		if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+			try {
+
+				Desktop.getDesktop().browse(htmlFile.toURI());
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+
+		}
+
 	}
 
 }

@@ -2,18 +2,26 @@ package net.cdonald.googleClassroom.model;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.body.FieldDeclaration;
+import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.visitor.ModifierVisitor;
 import com.github.javaparser.ast.visitor.Visitable;
+import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 
+import net.cdonald.googleClassroom.gui.DebugLogDialog;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.CompilerMessage;
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.StudentWorkCompiler;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
@@ -24,7 +32,7 @@ import net.cdonald.googleClassroom.utils.SimpleUtils;
 public class RubricEntryRunCode extends  RubricAutomation {
 	private String methodToCall;
 	private List<FileData> sourceFiles;
-	private List<String> studentBaseClassNames;
+	private List<String> goldenSourceClassNames;
 	boolean checkSystemOut;		
 	private enum ColumnNames {METHOD_TO_CALL, CLASS_NAMES_TO_REPLACE, SOURCE_FILE};
 
@@ -32,18 +40,18 @@ public class RubricEntryRunCode extends  RubricAutomation {
 	
 	public RubricEntryRunCode() {		
 		sourceFiles = new ArrayList<FileData>();
-		studentBaseClassNames = new ArrayList<String>();
+		goldenSourceClassNames = new ArrayList<String>();
 	}
 	
 	public RubricEntryRunCode(RubricEntryRunCode other) {
 		methodToCall = other.methodToCall;
 		sourceFiles = new ArrayList<FileData>();
-		studentBaseClassNames = new ArrayList<String>();
+		goldenSourceClassNames = new ArrayList<String>();
 		for (FileData fileData : other.sourceFiles) {
 			sourceFiles.add(fileData);
 		}
-		for (String className : other.studentBaseClassNames) {
-			studentBaseClassNames.add(className);
+		for (String className : other.goldenSourceClassNames) {
+			goldenSourceClassNames.add(className);
 		}
 		checkSystemOut = other.checkSystemOut;
 	}
@@ -89,22 +97,20 @@ public class RubricEntryRunCode extends  RubricAutomation {
 			return null;
 		}
 		
-		studentBaseClassNames.clear();		
+		goldenSourceClassNames.clear();		
 		for (FileData fileData : goldenSource) {
-			studentBaseClassNames.add(fileData.getClassName());
+			goldenSourceClassNames.add(fileData.getClassName());
 		}
 		
 		List<FileData> rubricFiles = new ArrayList<FileData>(goldenSource);
 		
 
 		for (FileData sourceFile : sourceFiles) {
-			rubricFiles.add(sourceFile);
-			
+			rubricFiles.add(sourceFile);			
 		}
 		
 		Map<String, Class<?>> compiled = null;
 		try {
-
 			compiled = compiler.compile(rubricFiles);
 		} catch (Exception e) {
 			return null;
@@ -144,16 +150,12 @@ public class RubricEntryRunCode extends  RubricAutomation {
 			consoleData.runStarted(studentId, getOwnerName());				
 			prepareForNextTest();
 
-			for (FileData sourceFile : sourceFiles) {
-				String modifiedSource = replaceClassNames(sourceFile.getFileContents(), studentFiles.get(0).getClassName());
-				if (modifiedSource == null) {
-					ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.RUNNING, "");
-					addOutput(studentId, "Could not modify source to change class name to call student's code");					
-					System.out.println("\0");					
-					return null;					
-				}
-				FileData temp = new FileData(sourceFile.getName(), modifiedSource, studentId, null);
-				rubricFiles.add(temp);				
+			String error = replaceClassNames(studentFiles, rubricFiles, studentId);
+			if (error != null) {
+				ListenerCoordinator.fire(SetInfoLabelListener.class, SetInfoLabelListener.LabelTypes.RUNNING, "");
+				addOutput(studentId, error);					
+				System.out.println("\0");					
+				return null;					
 			}
 			Class<?> []params = {};
 			Object []args = {};
@@ -186,36 +188,106 @@ public class RubricEntryRunCode extends  RubricAutomation {
 		return null;
 	}
 	
-	String replaceClassNames(String sourceContents, String studentClassName) {
+	String replaceClassNames(List<FileData> studentFiles, List<FileData> rubricFiles, String studentId) {
+		String error = "";
 		try {
-			CompilationUnit cu = StaticJavaParser.parse(sourceContents);
-			for (String baseClassName : studentBaseClassNames) {
-				ModifierVisitor<Void> nameChange = new ClassNameModifier(baseClassName, studentClassName);
-				nameChange.visit(cu, null);
-				
+			
+			Map<String, MethodAndFieldList> studentSourceMap = new HashMap<String, MethodAndFieldList>();
+			
+			for (FileData studentFile : studentFiles) {
+				CompilationUnit studentSourceCode = StaticJavaParser.parse(studentFile.getFileContents());
+				MethodAndFieldList studentSourceLists = new MethodAndFieldList();
+				studentSourceLists.visit(studentSourceCode, null);
+				studentSourceMap.put(studentFile.getClassName(), studentSourceLists);
 			}
-			return cu.toString();
+			for (FileData testFile : sourceFiles) {
+				CompilationUnit testCode = StaticJavaParser.parse(testFile.getFileContents());
+				ClassNameModifier nameChange = new ClassNameModifier(goldenSourceClassNames, studentSourceMap);
+				nameChange.visit(testCode, null);
+				if (nameChange.isError()) {
+					error += nameChange.getErrorString();					
+				}
+				else {
+					FileData temp = new FileData(testFile.getName(), testCode.toString(), studentId, null);
+					rubricFiles.add(temp);
+				}			
+			}			
 		}
 		// Student source might not be parsable, in which case that is fine
 		catch(Exception e) {
-
+			error = "Could not parse student file";
 		}
-		return null;
+		if (error.length() == 0) {
+			return null;
+		}
+		return error;
 	}
 	
 	private static class ClassNameModifier extends ModifierVisitor<Void>  {
-		String original;
-		String newName;
-		public ClassNameModifier(String original, String newName) {
+		List<String> goldenSourceScopes;
+		Map<String, MethodAndFieldList> studentSources;
+		boolean error;
+		String errorString;
+		public ClassNameModifier(List<String> goldenSources, Map<String, MethodAndFieldList> studentSources) {
 			super();
-			this.original = original;
-			this.newName = newName;
+			this.goldenSourceScopes = goldenSources;
+			this.studentSources = studentSources;
+			error = false;
+			errorString = "";
 		}
+		/**
+		 * @return the error
+		 */
+		public boolean isError() {
+			return error;
+		}
+		/**
+		 * @return the errorString
+		 */
+		public String getErrorString() {
+			return errorString;
+		}
+		
+		private void appendError(String message) {
+			if (errorString.indexOf(message) == -1) {
+				errorString += message;
+			}
+		}
+		
+		private boolean isGoldenScope(String scopeString) {
+			for (String scope : goldenSourceScopes) {
+				if (scopeString.equals(scope)) {					
+					return true;
+				}
+			}
+			return false;
+		}
+		
+
 		@Override
 		public Visitable visit(FieldAccessExpr n, Void arg) {
 			// TODO Auto-generated method stub
 			super.visit(n, arg);
-			
+			Expression scope = n.getScope();
+			String fieldName = n.getNameAsString();
+			String scopeString = scope.toString();
+			if (isGoldenScope(scopeString)) {
+				for (String studentKey : studentSources.keySet()) {
+					List<FieldDeclaration> fields = studentSources.get(studentKey).getFields();
+					for (FieldDeclaration field : fields) {
+						for (VariableDeclarator vars : field.getVariables()) {						
+
+							if (vars.getNameAsString().equals(fieldName)) {								
+								NameExpr newScope = new NameExpr(studentKey);
+								FieldAccessExpr newExpr = new FieldAccessExpr(newScope, fieldName);
+								return newExpr;
+							}
+						}
+					}
+				}
+				error = true;
+				appendError("Could not find required field: " + fieldName + " in student source\n");
+			}
 			return n;
 		}
 		@Override
@@ -223,16 +295,75 @@ public class RubricEntryRunCode extends  RubricAutomation {
 			// TODO Auto-generated method stub
 			super.visit(n, arg);
 			Optional<Expression> scope = n.getScope();
-			if (scope.isPresent()) {				
-				if (scope.get().toString().equals(original)) {
-					String newCall = newName + "." + n.getNameAsString();					
-					MethodCallExpr newMethodCall = new MethodCallExpr(newCall);
-					newMethodCall.setArguments(n.getArguments());
-					return newMethodCall;
+			String methodName = n.getNameAsString();
+			if (scope.isPresent()) {
+				String scopeString = scope.get().toString();
+				if (isGoldenScope(scopeString)) {
+					for (String studentKey : studentSources.keySet()) {
+						List<MethodDeclaration> methods = studentSources.get(studentKey).getMethods();
+						for (MethodDeclaration methodDec : methods) {
+							if (methodDec.getNameAsString().equals(methodName)) {
+								String newCall = studentKey + "." + n.getNameAsString();					
+								MethodCallExpr newMethodCall = new MethodCallExpr(newCall);
+								newMethodCall.setArguments(n.getArguments());
+								return newMethodCall;
+								
+							}
+						}
+					}
+					error = true;
+					appendError("Could not find required method: " + methodName + " in student source\n");
 				}
-			}					
+			}
 			return n;
 		}
+
+	}
+	
+	private static class MethodAndFieldList extends VoidVisitorAdapter<Void> {
+		List<FieldDeclaration> fields;
+		List<MethodDeclaration> methods;
+		public MethodAndFieldList() {
+			fields = new ArrayList<FieldDeclaration>();
+			methods = new ArrayList<MethodDeclaration>();
+		}
+		
+		
+		/**
+		 * @return the fields
+		 */
+		public List<FieldDeclaration> getFields() {
+			return fields;
+		}
+		/**
+		 * @return the methods
+		 */
+		public List<MethodDeclaration> getMethods() {
+			return methods;
+		}
+
+
+		@Override
+		public void visit(ClassExpr n, Void arg) {			
+			super.visit(n, arg);
+			System.out.println(n.toString());
+		}
+
+
+		@Override
+		public void visit(FieldDeclaration n, Void arg) {
+			// TODO Auto-generated method stub
+			super.visit(n, arg);
+			fields.add(n);
+		}
+
+		@Override
+		public void visit(MethodDeclaration n, Void arg) {
+			// TODO Auto-generated method stub
+			super.visit(n, arg);
+			methods.add(n);
+		}
+		
 	}
 	
 	public String getMethodToCall() {
@@ -262,11 +393,11 @@ public class RubricEntryRunCode extends  RubricAutomation {
 		content.add(entryName);
 		labels.add(ColumnNames.CLASS_NAMES_TO_REPLACE.toString());
 		String classes = "";
-		for (int i = 0; i < studentBaseClassNames.size() - 1; i++) {
-			classes += studentBaseClassNames.get(i) + ",";
+		for (int i = 0; i < goldenSourceClassNames.size() - 1; i++) {
+			classes += goldenSourceClassNames.get(i) + ",";
 		}
-		if (studentBaseClassNames.size() != 0) {
-			classes += studentBaseClassNames.get(studentBaseClassNames.size() - 1);
+		if (goldenSourceClassNames.size() != 0) {
+			classes += goldenSourceClassNames.get(goldenSourceClassNames.size() - 1);
 		}
 		content.add(classes);
 		labels.add(ColumnNames.METHOD_TO_CALL.toString());
@@ -306,7 +437,7 @@ public class RubricEntryRunCode extends  RubricAutomation {
 		}
 		else {
 			List<String> files = null;
-			studentBaseClassNames.clear();
+			goldenSourceClassNames.clear();
 
 			List<Object> labelRow = columns.get(0);
 			methodToCall = null;
@@ -320,11 +451,11 @@ public class RubricEntryRunCode extends  RubricAutomation {
 						files = SimpleUtils.breakUpCommaList(columns.get(1).get(row));
 					}
 					else if (label.equalsIgnoreCase(ColumnNames.CLASS_NAMES_TO_REPLACE.toString())) {
-						studentBaseClassNames = SimpleUtils.breakUpCommaList(columns.get(1).get(row));
+						goldenSourceClassNames = SimpleUtils.breakUpCommaList(columns.get(1).get(row));
 					}
 				}
 			}
-			if (files == null || files.size() == 0 ||  studentBaseClassNames.size() == 0 || methodToCall == null) {
+			if (files == null || files.size() == 0 ||  goldenSourceClassNames.size() == 0 || methodToCall == null) {
 				showErrorMessage(entryName);							
 			}
 			if (files == null) {
