@@ -46,7 +46,7 @@ public class JPLAGInvoker {
 		args.add("\"" + jplagOut + "\"");
 		args.add("-l");
 		args.add("java19");
-		DebugLogDialog.appendln(args.toString());
+
 		for (String arg : args) {
 			System.out.print(arg + " ");
 		}

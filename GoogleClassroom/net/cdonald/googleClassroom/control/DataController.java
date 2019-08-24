@@ -48,6 +48,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.GradeFileSelectedListener
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.LoadGradesListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LongQueryListener;
+import net.cdonald.googleClassroom.listenerCoordinator.PublishGradesListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RemoveProgressBarListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricFileSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricSelected;
@@ -365,6 +366,7 @@ public class DataController implements StudentListInfo {
 			}
 		});
 
+
 		
 		ListenerCoordinator.addListener(RunJPLAGListener.class, new RunJPLAGListener() {
 			@Override
@@ -623,7 +625,7 @@ public class DataController implements StudentListInfo {
 			break;
 		case TOTAL_COLUMN:
 			if (currentRubric != null) {
-				return currentRubric.getTotalCount(getStudentId(rowIndex));				
+				return currentRubric.getTotalString(getStudentId(rowIndex));				
 			}
 			break;			
 		default:
@@ -847,4 +849,40 @@ public class DataController implements StudentListInfo {
 		studentWorkCompiler.removeSource(studentID, fileName);
 	}
 
-}
+	public void publishGrades(List<String> ids) {
+		if (currentRubric == null) {
+			JOptionPane.showMessageDialog(null, "Cannot publish grades until you have seleted a rubric and rubric entries have been assigned a value",  "Rubric not selected",
+					JOptionPane.ERROR_MESSAGE);
+			return;
+		}
+		ClassroomData assignment = (ClassroomData)ListenerCoordinator.runQuery(GetCurrentAssignmentQuery.class);
+		if (assignment == null || assignment.isEmpty()) {
+			JOptionPane.showMessageDialog(null, "Cannot publish grades until you have seleted an assignment",  "Assignment not selected",
+					JOptionPane.ERROR_MESSAGE);
+			return;
+			
+		}
+		ListenerCoordinator.fire(AddProgressBarListener.class, "Publishing Grades");
+		boolean publishReady = true;
+		Map<String, Double> scores = new HashMap<String, Double>();
+		for (String id : ids) {
+			if (currentRubric.isGradingComplete(id) == false) {
+				publishReady = false;			
+				JOptionPane.showMessageDialog(null, "Cannot publish grades until all rubric entries have been assigned a value",  "Grades incomplete",
+					JOptionPane.ERROR_MESSAGE);
+				break;
+			}
+			else {
+				scores.put(id, currentRubric.getTotalValue(id));				
+			}			
+		}
+		if (publishReady == true) {
+			try {
+				googleClassroom.publishStudentGrades(currentCourse, assignment, scores);
+			} catch (IOException e) {
+				JOptionPane.showMessageDialog(null, "Google classroom communication error: " + e.getMessage(),  "Error publishing grades",
+						JOptionPane.ERROR_MESSAGE);
+			}
+		}
+		ListenerCoordinator.fire(RemoveProgressBarListener.class, "Publishing Grades");
+	}}

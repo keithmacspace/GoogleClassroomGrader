@@ -37,6 +37,8 @@ import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
+import javax.swing.table.TableColumn;
+import javax.swing.table.TableColumnModel;
 
 import net.cdonald.googleClassroom.inMemoryJavaCompiler.StudentWorkCompiler;
 import net.cdonald.googleClassroom.listenerCoordinator.AddRubricTabsListener;
@@ -99,6 +101,7 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 		entriesTable.setDefaultEditor(RubricEntry.AutomationTypes.class, new RubricElementEditor());
 		entriesTable.setRowHeight(20);
 		entriesTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+		entriesTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
 		
 		buttons = new ArrayList<JButton>();
 		goldSourceEnabledButtons = new ArrayList<JButton>();
@@ -159,8 +162,12 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 		cardInterfaces.put(RubricEntry.AutomationTypes.CODE_CONTAINS_METHOD, new RubricEntryCodeContainsStringCard(this));
 		cardInterfaces.put(RubricEntry.AutomationTypes.POINT_LOSS_FOR_LATE, new RubricEntryPointLossForLateCard(this));
 		
+		
+		
+		
+		
 		ListSelectionModel selectionModel = entriesTable.getSelectionModel();
-
+		
 		goldenSourceButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -350,7 +357,7 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 		if (isSelected) {
 			CardLayout c1 = (CardLayout)automationPanel.getLayout();			
 			RubricEntry entry = getCurrentEntry();
-			DebugLogDialog.appendln(automationType.toString());
+
 
 			if (entry.getAutomationType() != automationType) {
 				entry.setAutomationType(automationType);
@@ -369,7 +376,7 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 			}
 			if (validSelection) {
 				if (priorSelectedIndex != entriesTable.getSelectedRow()) {
-					DebugLogDialog.appendln("New " + automationType.toString());
+
 					priorSelectedIndex = entriesTable.getSelectedRow();
 					for (RubricEntry.AutomationTypes key : cardInterfaces.keySet()) {
 						if(cardInterfaces.get(key).isActive()) {
@@ -377,7 +384,7 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 						}
 					}
 					if (cardInterfaces.get(automationType) != null) {
-						DebugLogDialog.appendln("Found " + automationType.toString());
+
 						cardInterfaces.get(automationType).addItems();
 						c1.show(automationPanel, automationType.toString());
 					}
@@ -386,7 +393,7 @@ public class RubricElementDialog extends JDialog implements RubricElementListene
 					}
 				}
 				else {
-					DebugLogDialog.appendln("Old " + automationType.toString());
+
 					if (cardInterfaces.get(automationType) != null) {
 						if (cardInterfaces.get(automationType).isActive() == false) {
 							c1.show(automationPanel,  entry.getAutomationType().toString());

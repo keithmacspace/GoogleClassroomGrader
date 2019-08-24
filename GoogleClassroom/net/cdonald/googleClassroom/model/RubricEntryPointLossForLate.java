@@ -44,7 +44,7 @@ public class RubricEntryPointLossForLate extends RubricAutomation {
 	 * @param pointsLostPerTimeUnit the pointsLostPerTimeUnit to set
 	 */
 	public void setPointsLostPerTimeUnit(double pointsLostPerTimeUnit) {
-		DebugLogDialog.appendln("Points lost " + pointsLostPerTimeUnit);
+
 		this.pointsLostPerTimeUnit = pointsLostPerTimeUnit;
 	}
 
@@ -127,7 +127,7 @@ public class RubricEntryPointLossForLate extends RubricAutomation {
 	@Override
 	protected void saveAutomationColumns(String entryName, List<List<Object>> columnData,
 			Map<String, List<Object>> fileData) {
-		DebugLogDialog.appendln("Saving");
+
 		List<Object> labels = new ArrayList<Object>();
 		List<Object> content = new ArrayList<Object>();
 		labels.add(entryName);

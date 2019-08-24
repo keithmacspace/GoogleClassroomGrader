@@ -3,16 +3,14 @@ package net.cdonald.googleClassroom.gui;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
-import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
@@ -23,13 +21,13 @@ import net.cdonald.googleClassroom.googleClassroomInterface.CourseFetcher;
 import net.cdonald.googleClassroom.listenerCoordinator.ChooseGradeFileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ClassSelectedListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ExitFiredListener;
-import net.cdonald.googleClassroom.listenerCoordinator.GetFileDirQuery;
 import net.cdonald.googleClassroom.listenerCoordinator.LaunchGuidedSetupListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LaunchNewRubricDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricEditorDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricFileDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
 import net.cdonald.googleClassroom.listenerCoordinator.LongQueryListener;
+import net.cdonald.googleClassroom.listenerCoordinator.PublishGradesListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricFileValidListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RubricSelected;
 import net.cdonald.googleClassroom.listenerCoordinator.RunJPLAGListener;
@@ -38,7 +36,6 @@ import net.cdonald.googleClassroom.listenerCoordinator.RunSelected;
 import net.cdonald.googleClassroom.listenerCoordinator.SaveGradesListener;
 import net.cdonald.googleClassroom.listenerCoordinator.StudentSelectedListener;
 import net.cdonald.googleClassroom.model.ClassroomData;
-import net.cdonald.googleClassroom.model.FileData;
 import net.cdonald.googleClassroom.model.GoogleSheetData;
 
 public class MainMenu extends JMenuBar {
@@ -58,9 +55,15 @@ public class MainMenu extends JMenuBar {
 	private JMenuItem runSelectedRubrics;
 	private JMenuItem runAll;
 	private JMenuItem runSelected;
+	private JMenuItem publishGrades;
+	private JMenuItem publishSelectedGrades;
+	private Map<Integer, JMenu> classByYear;
+	private List<Integer> years;
 	
 	public MainMenu(JFrame owner) {
 		this.owner = owner;
+		classByYear = new HashMap<Integer, JMenu>();
+		years = new ArrayList<Integer>();
 		file = new JMenu("File");
 		rubric = new JMenu("Rubrics");
 		jplag = new JMenu("JPLAG");
@@ -79,12 +82,17 @@ public class MainMenu extends JMenuBar {
 	private void fillFileMenu() {
 
 		openClassroom = new JMenu("Open Classroom");
-		JMenuItem chooseGradeFile = new JMenuItem("Choose Grade File...");
-		JMenuItem syncGrades = new JMenuItem("Sync Grades");
-
+		JMenuItem chooseGradeFile = new JMenuItem("Choose Grade File...");		
+		JMenuItem syncGrades = new JMenuItem("Sync Grades to Sheet");
+		syncGrades.setToolTipText("Loads & Saves grades to the grade file - not seen by students");
+		publishGrades = new JMenuItem("Publish Grades");
+		publishGrades.setToolTipText("Pushes grades back up to google classroom for the students to see");
+		publishSelectedGrades = new JMenuItem("Publish Selected Grades");
+		publishSelectedGrades.setToolTipText("Pushes grades of the selected students back up to google classroom");
 		
 		syncGrades.setEnabled(false);
-		
+		publishGrades.setEnabled(false);
+		publishSelectedGrades.setEnabled(false);
 		JMenuItem exit = new JMenuItem("Exit");
 		
 		file.add(openClassroom);
@@ -92,7 +100,8 @@ public class MainMenu extends JMenuBar {
 		file.add(chooseGradeFile);
 		file.add(syncGrades);
 		file.addSeparator();
-
+		file.add(publishGrades);
+		file.add(publishSelectedGrades);
 		file.addSeparator();
 		file.add(exit);
 		file.setMnemonic(KeyEvent.VK_F);
@@ -101,15 +110,6 @@ public class MainMenu extends JMenuBar {
 		syncGrades.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, ActionEvent.CTRL_MASK));
 		exit.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_X, ActionEvent.CTRL_MASK));
 		add(file);
-		
-		exit.addActionListener(new ActionListener() {
-
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				ListenerCoordinator.fire(ExitFiredListener.class);
-			}			
-		});
-		
 
 		
 		chooseGradeFile.addActionListener(new ActionListener() {
@@ -140,11 +140,38 @@ public class MainMenu extends JMenuBar {
 			}			
 		});
 		
+		
+		publishGrades.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				ListenerCoordinator.fire(PublishGradesListener.class, true);
+				
+			}			
+		});
+		
+		publishSelectedGrades.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				ListenerCoordinator.fire(PublishGradesListener.class, false);
+				
+			}			
+		});
+		exit.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				ListenerCoordinator.fire(ExitFiredListener.class);
+			}			
+		});
+		
+
+		
 		ListenerCoordinator.addListener(RubricSelected.class, new RubricSelected() {
 			@Override
 			public void fired(GoogleSheetData googleSheet) {
 				syncGrades.setEnabled(!googleSheet.isEmpty());
 				editRubric.setEnabled(!googleSheet.isEmpty());
+				publishGrades.setEnabled(!googleSheet.isEmpty());
 			}
 		});
 	}
@@ -229,6 +256,7 @@ public class MainMenu extends JMenuBar {
 			public void fired(String idToDisplay) {
 				runSelectedRubrics.setEnabled(newRubric.isEnabled() && (idToDisplay != null));
 				runSelected.setEnabled(runAll.isEnabled() && idToDisplay != null);
+				publishSelectedGrades.setEnabled(publishGrades.isEnabled() && (idToDisplay != null));
 			}			
 		});
 
@@ -303,9 +331,33 @@ public class MainMenu extends JMenuBar {
 	
 	
 	public void addClass(ClassroomData classroom) {
-			JMenuItem classroomOption = new JMenuItem(classroom.getName());
-			classroomOption.addActionListener(new OpenClassroomListener(classroom));
-			openClassroom.add(classroomOption);					
+		Date creationDate = classroom.getDate();
+		Calendar calendar = Calendar.getInstance();
+		calendar.setTime(creationDate);
+		int year = calendar.get(Calendar.YEAR);
+		if (classByYear.get(year) == null) {
+			String yearVal = year + "/" + (year + 1);
+			boolean inserted = false;
+			JMenu menu = new JMenu(yearVal);
+			for (int i = 0; i < years.size(); i++) {
+				if (year > years.get(i)) {
+					openClassroom.insert(menu, i);
+					years.add(year);
+					inserted = true;
+					break;
+				}
+			}
+			if (inserted == false) {
+				years.add(year);
+				openClassroom.add(menu);
+			}
+			classByYear.put(year, menu);
+		}
+		JMenu yearMenu = classByYear.get(year);
+		JMenuItem classroomOption = new JMenuItem(classroom.getName());
+	
+		classroomOption.addActionListener(new OpenClassroomListener(classroom));
+		yearMenu.add(classroomOption);					
 	}
 	public void removeClasses(Set<String> ids) {
 		for (String id : ids) {
@@ -343,21 +395,25 @@ public class MainMenu extends JMenuBar {
 		
 	}
 	
-	public void disableRuns() {
+	public void disableConditionalMenus() {
 		runJPLAG.setEnabled(false);
 		runAllRubrics.setEnabled(false);
 		runSelectedRubrics.setEnabled(false);
 		runAll.setEnabled(false);
 		runSelected.setEnabled(false);
+		publishGrades.setEnabled(false);
+		publishSelectedGrades.setEnabled(false);
 		
 	}
 	
-	public void enableRuns(boolean enableSelected, boolean rubricLoaded) {
+	public void enableConditionalMenuItems(boolean enableSelected, boolean rubricLoaded) {
 		runJPLAG.setEnabled(true);
 		runAllRubrics.setEnabled(rubricLoaded);
 		runSelectedRubrics.setEnabled(enableSelected);
 		runAll.setEnabled(true);
 		runSelected.setEnabled(enableSelected && rubricLoaded);
+		publishGrades.setEnabled(rubricLoaded);
+		publishSelectedGrades.setEnabled(enableSelected && rubricLoaded);
 	}
 	
 

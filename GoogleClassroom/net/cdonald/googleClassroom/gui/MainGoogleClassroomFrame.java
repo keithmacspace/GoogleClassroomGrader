@@ -30,6 +30,7 @@ import net.cdonald.googleClassroom.listenerCoordinator.LaunchNewRubricDialogList
 import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricEditorDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.LaunchRubricFileDialogListener;
 import net.cdonald.googleClassroom.listenerCoordinator.ListenerCoordinator;
+import net.cdonald.googleClassroom.listenerCoordinator.PublishGradesListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RecompileListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RemoveProgressBarListener;
 import net.cdonald.googleClassroom.listenerCoordinator.RemoveSourceListener;
@@ -319,6 +320,20 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener 
 				consoleAndSourcePanel.setWindowData(studentID);
 			}			
 		});
+		
+		ListenerCoordinator.addListener(PublishGradesListener.class, new PublishGradesListener() {
+			@Override
+			public void fired(boolean pushAll) {
+				List<String> ids;
+				if (pushAll == false) {
+					ids = studentPanel.getSelectedIds();
+				}
+				else {
+					ids = dataController.getAllIDs();
+				}
+				dataController.publishGrades(ids);
+			}			
+		});
 	
 	}
 	
@@ -395,13 +410,13 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener 
 	
 	private void disableRuns() {
 		mainToolBar.disableRunButtons();
-		mainMenu.disableRuns();
+		mainMenu.disableConditionalMenus();
 	}
 	
 	private void enableRuns() {
 		boolean rubricSelected = (dataController.getRubric() != null);
 		mainToolBar.enableRunButton(rubricSelected);
-		mainMenu.enableRuns(studentPanel.isAnyStudentSelected(), rubricSelected);
+		mainMenu.enableConditionalMenuItems(studentPanel.isAnyStudentSelected(), rubricSelected);
 	}
 
 	@Override

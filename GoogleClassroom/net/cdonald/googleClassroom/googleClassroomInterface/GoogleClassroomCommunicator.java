@@ -272,6 +272,7 @@ public class GoogleClassroomCommunicator {
 				}
 
 				Date date = courseWork.getDueDate();
+			
 				TimeOfDay timeOfDay = courseWork.getDueTime();
 				
 				if (date != null && timeOfDay != null) {					
@@ -317,6 +318,7 @@ public class GoogleClassroomCommunicator {
 					break;
 				}
 				AssignmentSubmission assignmentSubmission = submission.getAssignmentSubmission();
+				
 				if (assignmentSubmission != null && assignmentSubmission.getAttachments() != null) {
 					String studentNameKey = submission.getUserId();
 					for (Attachment attachment : assignmentSubmission.getAttachments()) {
@@ -344,6 +346,32 @@ public class GoogleClassroomCommunicator {
 			throw e;
 		}
 		readStudentsWorkSemaphore.release();
+	}
+	
+	public void publishStudentGrades(ClassroomData course, ClassroomData assignment, Map<String, Double> grades) throws IOException {
+		if (course.isEmpty() || assignment.isEmpty()) {
+			return;
+		}
+
+		try {
+			acquireReadStudentsWorkSemaphore();
+			initServices();
+			ListStudentSubmissionsResponse studentSubmissionResponse = classroomService.courses().courseWork()
+					.studentSubmissions().list(course.getId(), assignment.getId()).execute();
+			for (StudentSubmission submission : studentSubmissionResponse.getStudentSubmissions()) {
+				String studentNameKey = submission.getUserId();
+				Double value = grades.get(studentNameKey);
+				if (value != null) {
+					submission.setAssignedGrade(value);
+				}
+			}
+			
+		} catch (IOException e) {
+			readStudentsWorkSemaphore.release();
+			throw e;
+		}
+		readStudentsWorkSemaphore.release();
+		
 	}
 
 	public String googleSheetID(String sheetURL) {

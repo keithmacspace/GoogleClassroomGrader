@@ -6,18 +6,15 @@ import javax.swing.table.DefaultTableModel;
 
 import net.cdonald.googleClassroom.model.Rubric;
 import net.cdonald.googleClassroom.model.RubricEntry;
+import net.cdonald.googleClassroom.model.RubricEntry.HeadingNames;
 
 public class RubricElementTableModel extends DefaultTableModel {
 	private static final long serialVersionUID = 338186915498223268L;
 	private Rubric rubricToModify;
 
 	public RubricElementTableModel() {
-		super(Arrays.copyOfRange(RubricEntry.HeadingNames.values(), 1, RubricEntry.HeadingNames.values().length), 0);
-		String[] headers = new String[RubricEntry.HeadingNames.values().length - 1];
-		int headerIndex = 0;
-		for (int i = 1; i < RubricEntry.HeadingNames.values().length; i++, headerIndex++) {
-			headers[headerIndex] = RubricEntry.HeadingNames.values()[i].toString();
-		}
+		super();
+		String[] headers = {HeadingNames.NAME.toString(), HeadingNames.VALUE.toString(), HeadingNames.AUTOMATION_TYPE.toString(), HeadingNames.DESCRIPTION.toString()};
 		setColumnIdentifiers(headers);
 		
 	}
@@ -77,15 +74,11 @@ public class RubricElementTableModel extends DefaultTableModel {
 
 	@Override
 	public Class<?> getColumnClass(int columnIndex) {
-		RubricEntry.HeadingNames heading = RubricEntry.HeadingNames.values()[columnIndex + 1];
-		switch(heading) {
-		case VALUE:
-			return Integer.class;
-		case AUTOMATION_TYPE:
+		if (columnIndex == 2) {
 			return RubricEntry.AutomationTypes.class;
-		default:
-			return String.class;
-		}
+		}	
+		return String.class;
+		
 	}
 
 

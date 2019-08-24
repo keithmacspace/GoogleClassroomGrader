@@ -34,7 +34,7 @@ public class InfoPanel extends JPanel {
 			infoLabels[i] = new JLabel(defaultStrings[i]);
 			add(infoLabels[i]);
 		}
-		ListenerCoordinator.addListener(AddProgressBarListener.class, new AddProgressBarListener() {
+		ListenerCoordinator.addBlockingListener(AddProgressBarListener.class, new AddProgressBarListener() {
 			@Override
 			public void fired(String progressBarName) {
 				JProgressBar progress = new JProgressBar();
@@ -47,7 +47,7 @@ public class InfoPanel extends JPanel {
 				repaint();
 			}
 		});
-		ListenerCoordinator.addListener(RemoveProgressBarListener.class, new RemoveProgressBarListener() {
+		ListenerCoordinator.addBlockingListener(RemoveProgressBarListener.class, new RemoveProgressBarListener() {
 			@Override
 			public void fired(String progressBarName) {
 				JProgressBar progress = progressBars.remove(progressBarName);

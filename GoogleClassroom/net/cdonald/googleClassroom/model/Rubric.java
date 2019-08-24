@@ -86,8 +86,8 @@ public class Rubric implements SheetAccessorInterface {
 	public void removeFileData(FileData fileData) {
 		fileDataMap.remove(fileData.getName());
 	}
-
-	public String getTotalCount(String id) {
+	
+	public double getTotalValue(String id) {
 		double value = 0.0;
 		for (RubricEntry entry : entries) {
 			Double studentValue = entry.getStudentDoubleValue(id);
@@ -98,8 +98,15 @@ public class Rubric implements SheetAccessorInterface {
 		value *= 100;
 		value = (int)value;
 		value /= 100;
-		return "" + value;
+		return value;
+		
 	}
+
+	public String getTotalString(String id) {
+		return "" + getTotalValue(id);
+	}
+	
+	
 	
 	public List<String> getRubricTabs() {
 		List<String> rubricTabs = new ArrayList<String>();
@@ -406,6 +413,15 @@ public class Rubric implements SheetAccessorInterface {
 			}
 		}
 		
+	}
+
+	public boolean isGradingComplete(String id) {
+		for (RubricEntry entry : entries) {
+			if (entry.getStudentDoubleValue(id) == null) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 }

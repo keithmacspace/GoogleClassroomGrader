@@ -5,6 +5,7 @@ import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import javax.swing.BorderFactory;
@@ -304,20 +305,53 @@ public class MainToolBar extends JToolBar {
 
 				@Override
 				public void run() {
-					assignmentModel.insertElementAt(data, 1);
+					boolean inserted = false;
+					Date assignmentDate = data.getDate();
+					if (assignmentDate != null) {
+						for (int i = 1; i < assignmentModel.getSize(); i++) {
+							ClassroomData assignment = assignmentModel.getElementAt(i);
+							Date compareDate = assignment.getDate();
+							if (compareDate != null) {
+								if (assignmentDate.compareTo(compareDate) > 0) {
+									assignmentModel.insertElementAt(data, i);
+									inserted = true;
+									break;
+								}
+							}
+						
+						}
+					}
+					if (inserted == false) {
+						assignmentModel.addElement(data);
+					}
+
 				}
 			});
 		}
 	}
 	
 	public void addRubricInfo(GoogleSheetData data, boolean select) {
+		
 		for (String name : rubricNames) {
 			if (name.contentEquals(data.getName())) {
 				return;
 			}
 		}
-		rubricCombo.addItem(data);
-		rubricNames.add(data.getName());
+		String newName = data.getName();
+		boolean inserted = false;
+		for (int i = 0; i < rubricNames.size(); i++) {
+			if (rubricNames.get(i).compareTo(newName) > 0) {
+				rubricCombo.insertItemAt(data, i + 1);
+				rubricNames.add(i, newName);
+				inserted = true;
+				break;
+			}
+		}
+		if (inserted == false) {
+			rubricCombo.addItem(data);
+			rubricNames.add(newName);
+		}
+
 		if (select) {
 			SwingUtilities.invokeLater(new Runnable() {
 				@Override
