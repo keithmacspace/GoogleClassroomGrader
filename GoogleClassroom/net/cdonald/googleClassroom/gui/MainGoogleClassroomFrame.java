@@ -306,18 +306,18 @@ public class MainGoogleClassroomFrame extends JFrame implements CompileListener 
 		
 		ListenerCoordinator.addListener(RecompileListener.class, new RecompileListener() {
 			@Override
-			public void fired(String studentID, String fileName, String fileText) {
+			public void fired(String studentID, String fileName, String fileText) { 
 				dataController.recompile(studentID, fileName, fileText);
-				dataUpdated();
-				consoleAndSourcePanel.setWindowData(studentID);
+				dataUpdated();					
+				studentPanel.setSelectedStudent(studentID);
 			}			
 		});
 		ListenerCoordinator.addListener(RemoveSourceListener.class, new RemoveSourceListener() {
 			@Override
 			public void fired(String studentID, String fileName) {
 				dataController.removeSource(studentID, fileName);
-				dataUpdated();
-				consoleAndSourcePanel.setWindowData(studentID);
+				dataUpdated();				
+				studentPanel.setSelectedStudent(studentID);
 			}			
 		});
 		

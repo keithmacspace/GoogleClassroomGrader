@@ -169,9 +169,9 @@ public class SQLDataBase {
 				if (!first) {
 					statement += " OR ";
 				}
-				statement += fieldName + "=" + fieldValue.toString();
+				statement += fieldName + "='" + fieldValue.toString() + "'";
 				first = false; 
-			}
+			}			
 			//System.err.println(statement);
 			try {
 				PreparedStatement removeStmt = conn.prepareStatement(statement);

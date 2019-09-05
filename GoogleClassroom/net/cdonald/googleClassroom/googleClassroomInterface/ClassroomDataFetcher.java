@@ -7,10 +7,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import javax.swing.JProgressBar;
 import javax.swing.SwingUtilities;
-
 import net.cdonald.googleClassroom.listenerCoordinator.LongQueryResponder;
 import net.cdonald.googleClassroom.model.ClassroomData;
 import net.cdonald.googleClassroom.model.SQLDataBase;
@@ -27,7 +24,7 @@ public abstract class ClassroomDataFetcher extends LongQueryResponder<ClassroomD
 	protected IOException communicationException;
 	private SQLException databaseException;
 	private Exception miscException;
-	private JProgressBar progressBar;
+
 
 	public ClassroomDataFetcher(GoogleClassroomCommunicator authorize) {
 		super();
@@ -117,6 +114,7 @@ public abstract class ClassroomDataFetcher extends LongQueryResponder<ClassroomD
 								readFromDB.remove(dataCheck.getId());
 							}
 							if (readFromDB.size() != 0 && dbAdd.size() != 0) {
+								sendRemove(readFromDB);
 								dataBase.delete(dataBaseTable, tableLabelEnum, readFromDB);
 							}
 

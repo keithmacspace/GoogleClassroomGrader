@@ -5,6 +5,8 @@ import java.io.File;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 
+import net.cdonald.googleClassroom.gui.DebugLogDialog;
+
 /**
  * 
  * Just a small class to keep the preferences - keeps the names stable.
@@ -141,6 +143,7 @@ public class MyPreferences {
 	
 	public void setClassroom(ClassroomData classroom) {
 		if (classroom != null) {
+			DebugLogDialog.appendln(classroom.getName() + " " + classroom.getId());
 			preferences.put(GlobalPrefs.CLASS_NAME.toString(), classroom.getName());
 			preferences.put(GlobalPrefs.CLASS_ID.toString(), classroom.getId());
 			makeDirs(getClassroomDir(classroom.getId()));			

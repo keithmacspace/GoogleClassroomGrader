@@ -1,7 +1,7 @@
 package net.cdonald.googleClassroom.listenerCoordinator;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import javax.swing.SwingWorker;
 
@@ -31,6 +31,11 @@ public abstract class LongQueryResponder<V> extends SwingWorker<Void, V> {
 	protected void done() {
 		listener.done();
 	}
+	
+	protected void sendRemove(Set<String> removeList) {
+		listener.remove(removeList);
+	}
+	
 	
 	public abstract LongQueryResponder<V> newInstance();
 	

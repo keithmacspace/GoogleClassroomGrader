@@ -7,6 +7,7 @@ import java.awt.event.ActionListener;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 
 import javax.swing.BorderFactory;
 import javax.swing.DefaultComboBoxModel;
@@ -167,12 +168,20 @@ public class MainToolBar extends JToolBar {
 
 			@Override
 			public void fired(ClassroomData course) {
+				assignmentModel.removeAllElements();
+				assignmentModel.addElement(empty);
 				ListenerCoordinator.runLongQuery(AssignmentFetcher.class, new LongQueryListener<ClassroomData>() {
 					@Override
 					public void process(List<ClassroomData> list) {
 						for (ClassroomData assignment : list) {
 							addAssignment(assignment);
 						}						
+					}
+
+					@Override
+					public void remove(Set<String> removeList) {
+						removeAssignments(removeList);
+						
 					}
 				});
 			}			
@@ -202,6 +211,9 @@ public class MainToolBar extends JToolBar {
 						if (rubricNames.size() != 0) {
 							ListenerCoordinator.fire(RubricFileValidListener.class);
 						}
+					}
+					@Override
+					public void remove(Set<String> removeList) {
 					}
 				});
 
@@ -324,9 +336,28 @@ public class MainToolBar extends JToolBar {
 					if (inserted == false) {
 						assignmentModel.addElement(data);
 					}
-
 				}
 			});
+		}
+	}
+	
+	public void removeAssignments(Set<String> removeIDs) {
+		if (removeIDs.size() != 0) {
+			SwingUtilities.invokeLater(new Runnable() {
+				@Override
+				public void run() {
+					for (String id : removeIDs) {
+						for (int i = 1; i < assignmentModel.getSize(); i++) {
+							ClassroomData assignment = assignmentModel.getElementAt(i);
+							if (assignment.getId().equals(id)) {
+								assignmentModel.removeElementAt(i);
+								break;								
+							}						
+						}
+					}
+				}
+			});
+			
 		}
 	}
 	

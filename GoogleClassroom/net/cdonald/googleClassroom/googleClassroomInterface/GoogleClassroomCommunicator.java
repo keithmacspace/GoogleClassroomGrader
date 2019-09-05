@@ -211,7 +211,7 @@ public class GoogleClassroomCommunicator {
 		try {
 			ListCoursesResponse response = classroomService.courses().list().execute();
 			List<Course> courses = response.getCourses();
-			for (Course course : courses) {
+			for (Course course : courses) {				
 				ClassroomData data = new ClassroomData(course.getName(), course.getId(), course.getCreationTime());
 				data.setRetrievedFromGoogle(true);
 				fetchListener.retrievedInfo(data);

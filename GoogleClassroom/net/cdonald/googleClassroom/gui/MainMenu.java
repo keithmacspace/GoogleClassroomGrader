@@ -137,6 +137,9 @@ public class MainMenu extends JMenuBar {
 				for (ClassroomData classroom : list) {
 					addClass(classroom);
 				}
+			}
+			@Override
+			public void remove(Set<String> removeList) {
 			}			
 		});
 		
@@ -386,10 +389,11 @@ public class MainMenu extends JMenuBar {
 		public OpenClassroomListener(ClassroomData classroom) {
 			super();
 			this.classroom = classroom;
+			
 		}
 		
 		@Override
-		public void actionPerformed(ActionEvent e) {
+		public void actionPerformed(ActionEvent e) {			
 			ListenerCoordinator.fire(ClassSelectedListener.class, classroom);			
 		}
 		

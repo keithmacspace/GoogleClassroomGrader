@@ -9,6 +9,7 @@ import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.List;
+import java.util.Set;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -106,6 +107,11 @@ public class GoogleSheetDialog extends JDialog {
 					JOptionPane.showMessageDialog(null, "Make sure you have the name correct\nand permissions to access the file", "Cannot Accesss URL",
 							JOptionPane.ERROR_MESSAGE);
 				}
+			}
+			@Override
+			public void remove(Set<String> removeList) {
+				
+				
 			}
 		});	
 	}

@@ -1,6 +1,7 @@
 package net.cdonald;
 
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Semaphore;
 
 import net.cdonald.googleClassroom.listenerCoordinator.LongQueryListener;
@@ -29,5 +30,11 @@ public class QueryResponseTest extends LongQueryListener<Integer> {
 			e.printStackTrace();
 		}
 		return true;
+	}
+
+	@Override
+	public void remove(Set<String> removeList) {
+		// TODO Auto-generated method stub
+		
 	}
 }

@@ -26,6 +26,7 @@ import net.cdonald.googleClassroom.googleClassroomInterface.SaveSheetGrades;
 import net.cdonald.googleClassroom.googleClassroomInterface.SheetFetcher;
 import net.cdonald.googleClassroom.googleClassroomInterface.StudentFetcher;
 import net.cdonald.googleClassroom.gui.DataUpdateListener;
+import net.cdonald.googleClassroom.gui.DebugLogDialog;
 import net.cdonald.googleClassroom.gui.MainGoogleClassroomFrame;
 import net.cdonald.googleClassroom.gui.SetRubricListener;
 import net.cdonald.googleClassroom.gui.SetRubricListener.RubricType;
@@ -188,6 +189,9 @@ public class DataController implements StudentListInfo {
 					@Override
 					public void done() {						
 						studentWorkCompiler.compileAll();
+					}
+					@Override
+					public void remove(Set<String> removeList) {
 					}					
 				});
 			}			
@@ -218,7 +222,7 @@ public class DataController implements StudentListInfo {
 
 		ListenerCoordinator.addQueryResponder(GetDBNameQuery.class, new GetDBNameQuery() {
 			@Override
-			public String fired(DBType type) {
+			public String fired(DBType type) {				
 				switch (type) {
 				case ASSIGNMENT_FILES_DB:
 					return prefs.getClassroomDir() + File.separator +  "files.db";
@@ -482,6 +486,7 @@ public class DataController implements StudentListInfo {
 
 
 	private void setCurrentCourse(ClassroomData currentCourse) {
+		prefs.setClassroom(currentCourse);
 		this.currentCourse = currentCourse;
 		clearAllData();
 		initStudents();
@@ -546,7 +551,21 @@ public class DataController implements StudentListInfo {
 						
 					}					
 				}
-				
+				@Override
+				public void remove(Set<String> removeList) {
+					DebugLogDialog.appendln("Remove" + removeList);
+					for (String id : removeList) {
+						if (studentMap.containsKey(id)) {
+							studentMap.remove(id);
+							for (StudentData student : studentData) {
+								if (student.getId().equals(id)) {
+									studentData.remove(student);								
+									break;
+								}
+							}
+						}
+					}
+				}					
 			});
 		}
 	}
